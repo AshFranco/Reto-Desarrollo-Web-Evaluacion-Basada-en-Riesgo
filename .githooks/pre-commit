@@ -1,0 +1,38 @@
+#!/bin/sh
+# Verifica que el autor configurado sea una persona del equipo,
+# no una herramienta ni el marcador de plantilla.
+
+NOMBRE="$(git config user.name)"
+CORREO="$(git config user.email)"
+
+if [ -z "$NOMBRE" ] || [ -z "$CORREO" ]; then
+    echo "  Configura tu identidad antes de hacer commit:"
+    echo "    git config user.name  \"Tu Nombre\""
+    echo "    git config user.email \"tu.correo@ejemplo.com\""
+    exit 1
+fi
+
+case "$(printf '%s %s' "$NOMBRE" "$CORREO" | tr '[:upper:]' '[:lower:]')" in
+    *claude*|*anthropic*|*copilot*|*chatgpt*|*openai*|*"bot"*)
+        echo "  COMMIT RECHAZADO: el autor configurado parece una herramienta de IA."
+        echo "  Autor actual: $NOMBRE <$CORREO>"
+        echo "  Configura tu identidad personal con 'git config user.name' y 'user.email'."
+        exit 1
+        ;;
+    *"equipo ebr"*|*"ebr.local"*)
+        echo "  COMMIT RECHAZADO: estas usando la identidad de plantilla del repo."
+        echo "  Configura tu identidad personal:"
+        echo "    git config user.name  \"Tu Nombre\""
+        echo "    git config user.email \"tu.correo@ejemplo.com\""
+        exit 1
+        ;;
+esac
+
+# Evita subir archivos .env con credenciales
+if git diff --cached --name-only | grep -qE '(^|/)\.env$|(^|/)\.env\.[^e]'; then
+    echo "  COMMIT RECHAZADO: intentas subir un archivo .env con credenciales."
+    echo "  Usa .env.example para las plantillas."
+    exit 1
+fi
+
+exit 0

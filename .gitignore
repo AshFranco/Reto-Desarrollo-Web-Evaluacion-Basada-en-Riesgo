@@ -1,0 +1,39 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# .NET (por si el backend cambia de stack)
+bin/
+obj/
+*.user
+
+# Entorno — NUNCA subir credenciales
+.env
+.env.*
+!.env.example
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.recommended.json
+.idea/
+*.swp
+.DS_Store
+
+# Logs y temporales
+*.log
+npm-debug.log*
+coverage/
+.vitest/
+tmp/
+
+# Almacenamiento local de MinIO
+.minio-data/
+uploads-local/

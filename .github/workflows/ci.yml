@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  motor-riesgo:
+    name: Motor de riesgo
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/risk-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci || npm install
+      - name: Verificacion de tipos
+        run: npx tsc --noEmit
+      - name: Pruebas del motor
+        run: npx vitest run
+
+  base-de-datos:
+    name: Esquema y seeds
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ebr
+          POSTGRES_DB: ebr
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cargar esquema, seeds y funciones
+        env:
+          PGPASSWORD: ebr
+        run: |
+          for f in db/0[1-5]_*.sql; do
+            echo "--> $f"
+            psql -h localhost -U postgres -d ebr -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Ejecutar pruebas del motor en SQL
+        env:
+          PGPASSWORD: ebr
+        run: psql -h localhost -U postgres -d ebr -v ON_ERROR_STOP=1 -f db/opcional/06_pruebas.sql
+
+  politica-de-commits:
+    name: Autoria de commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Verificar que ningun commit atribuya autoria a IA
+        run: |
+          RANGO="${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
+          [ -z "${{ github.event.pull_request.base.sha }}" ] && RANGO="HEAD~1..HEAD"
+          if git log --format='%an%n%ae%n%b' "$RANGO" 2>/dev/null \
+             | grep -iE 'claude|anthropic|copilot|chatgpt|openai'; then
+            echo "::error::Hay commits que atribuyen autoria a una herramienta de IA."
+            exit 1
+          fi
+          echo "Autoria de commits correcta."

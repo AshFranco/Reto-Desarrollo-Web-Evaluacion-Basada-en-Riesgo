@@ -1,0 +1,30 @@
+name: Historia de usuario
+description: Nueva funcionalidad del backlog
+labels: [historia]
+body:
+  - type: input
+    id: rf
+    attributes:
+      label: Requisito del SRS
+      placeholder: RF-14 Motor de Riesgo
+    validations: { required: true }
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripcion
+      placeholder: Como [rol] quiero [accion] para [beneficio]
+    validations: { required: true }
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptacion
+      value: |
+        - [ ]
+        - [ ]
+    validations: { required: true }
+  - type: dropdown
+    id: prioridad
+    attributes:
+      label: Prioridad
+      options: ['P0 - sin esto no hay demo', 'P1 - requisito del SRS', 'P2 - diferenciador A+']
+    validations: { required: true }

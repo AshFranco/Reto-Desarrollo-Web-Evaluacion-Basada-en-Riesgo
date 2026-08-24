@@ -1,0 +1,171 @@
+erDiagram
+    version_ficha {
+        int id PK
+        varchar numero_version
+        varchar estado
+        numeric porcentaje_minimo_aprobacion
+        smallint max_nc_criticas
+        smallint max_nc_mayores
+    }
+    item_ficha {
+        int id PK
+        int version_ficha_id FK
+        int id_padre FK
+        varchar numeracion
+        text titulo
+        bool es_evaluable
+        numeric peso
+        smallint criticidad_id FK
+    }
+    literal_item {
+        int id PK
+        int item_ficha_id FK
+        varchar letra
+        text texto
+    }
+    opcion_respuesta {
+        smallint id PK
+        int version_ficha_id FK
+        varchar codigo
+        numeric valor
+        bool excluye_del_calculo
+        bool genera_nc
+    }
+    nivel_criticidad {
+        smallint id PK
+        char codigo
+        varchar nombre
+    }
+
+    evaluacion {
+        int id PK
+        uuid uuid_local
+        int establecimiento_id FK
+        int version_ficha_id FK
+        int version_matriz_id FK
+        bool bloqueada
+    }
+    respuesta_item {
+        bigint id PK
+        int evaluacion_id FK
+        int item_ficha_id FK
+        smallint opcion_respuesta_id FK
+        numeric valor_aplicado
+        bool excluido_del_calculo
+    }
+    calculo_riesgo {
+        int id PK
+        int evaluacion_id FK
+        numeric porcentaje_cumplimiento
+        numeric rp_valor
+        numeric re_valor
+        numeric rt_valor
+        varchar frecuencia
+        date fecha_proxima_inspeccion
+        jsonb re_detalle
+    }
+    evaluacion_factor_riesgo {
+        int id PK
+        int evaluacion_id FK
+        int factor_id FK
+        int opcion_factor_id FK
+        numeric puntaje_aplicado
+        numeric peso_aplicado
+        numeric aporte
+    }
+
+    version_matriz_riesgo {
+        int id PK
+        varchar numero_version
+        varchar estado
+    }
+    factor_riesgo_establecimiento {
+        int id PK
+        int version_matriz_id FK
+        smallint numero
+        varchar nombre
+        numeric peso
+        bool es_automatico
+    }
+    opcion_factor {
+        int id PK
+        int factor_id FK
+        varchar descripcion
+        numeric puntaje
+    }
+    rango_frecuencia {
+        int id PK
+        int version_matriz_id FK
+        numeric limite_inferior
+        numeric limite_superior
+        varchar frecuencia
+        smallint meses_hasta_proxima
+    }
+    rango_nivel_riesgo {
+        int id PK
+        int version_matriz_id FK
+        numeric limite_inferior
+        numeric limite_superior
+        bool es_supuesto
+    }
+
+    nivel_riesgo {
+        smallint id PK
+        varchar codigo
+        numeric puntaje_matriz
+        numeric puntaje_rp
+    }
+    categoria_alimento {
+        int id PK
+        varchar nombre
+    }
+    subcategoria_alimento {
+        int id PK
+        int categoria_id FK
+        varchar nombre
+        smallint nivel_riesgo_microbiologico_id FK
+        smallint nivel_riesgo_quimico_id FK
+        numeric riesgo_total_calculado
+        smallint nivel_riesgo_resultante_id FK
+    }
+    establecimiento {
+        int id PK
+        int empresa_id FK
+        varchar nombre
+        varchar rnc
+    }
+    establecimiento_categoria {
+        int id PK
+        int establecimiento_id FK
+        int subcategoria_alimento_id FK
+    }
+
+    version_ficha ||--o{ item_ficha : contiene
+    version_ficha ||--o{ opcion_respuesta : define
+    item_ficha ||--o{ item_ficha : id_padre
+    item_ficha ||--o{ literal_item : detalla
+    nivel_criticidad ||--o{ item_ficha : clasifica
+
+    evaluacion ||--o{ respuesta_item : registra
+    item_ficha ||--o{ respuesta_item : evaluado_en
+    opcion_respuesta ||--o{ respuesta_item : responde
+    evaluacion ||--|| calculo_riesgo : produce
+    evaluacion ||--o{ evaluacion_factor_riesgo : pondera
+    version_ficha ||--o{ evaluacion : usa
+    version_matriz_riesgo ||--o{ evaluacion : usa
+
+    version_matriz_riesgo ||--o{ factor_riesgo_establecimiento : define
+    version_matriz_riesgo ||--o{ rango_frecuencia : define
+    version_matriz_riesgo ||--o{ rango_nivel_riesgo : define
+    factor_riesgo_establecimiento ||--o{ opcion_factor : ofrece
+    factor_riesgo_establecimiento ||--o{ evaluacion_factor_riesgo : medido_en
+    opcion_factor ||--o{ evaluacion_factor_riesgo : elegida_en
+
+    categoria_alimento ||--o{ subcategoria_alimento : agrupa
+    nivel_riesgo ||--o{ subcategoria_alimento : califica
+    nivel_riesgo ||--o{ calculo_riesgo : resulta
+    rango_frecuencia ||--o{ calculo_riesgo : determina
+
+    establecimiento ||--o{ establecimiento_categoria : elabora
+    subcategoria_alimento ||--o{ establecimiento_categoria : referida
+    establecimiento ||--o{ evaluacion : recibe

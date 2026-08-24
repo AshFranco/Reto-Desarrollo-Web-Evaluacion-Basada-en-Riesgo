@@ -1,0 +1,34 @@
+#!/bin/sh
+# Rechaza commits que atribuyan autoría a herramientas de IA.
+#
+# Política del equipo: los commits los firman las personas que trabajan
+# en el proyecto. Ninguna herramienta aparece como autor ni coautor.
+#
+# Activar (una sola vez por clon):
+#   git config core.hooksPath .githooks
+
+MSG_FILE="$1"
+
+if grep -qiE '^\s*Co-authored-by:.*(claude|anthropic|copilot|chatgpt|openai|gemini|cursor|codeium)' "$MSG_FILE"; then
+    echo ""
+    echo "  COMMIT RECHAZADO"
+    echo ""
+    echo "  El mensaje incluye un trailer 'Co-authored-by' de una herramienta de IA."
+    echo "  La politica del equipo es que los commits los firman las personas."
+    echo ""
+    echo "  Elimina esa linea del mensaje y vuelve a intentar."
+    echo ""
+    exit 1
+fi
+
+if grep -qiE '(Generated with|Created by).*(Claude|Copilot|ChatGPT|Gemini)' "$MSG_FILE"; then
+    echo ""
+    echo "  COMMIT RECHAZADO"
+    echo ""
+    echo "  El mensaje incluye una firma automatica de herramienta de IA."
+    echo "  Elimina esa linea y vuelve a intentar."
+    echo ""
+    exit 1
+fi
+
+exit 0
