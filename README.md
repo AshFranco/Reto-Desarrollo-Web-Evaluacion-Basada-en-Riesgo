@@ -83,7 +83,7 @@ ebr-bpm/
 │   ├── modelo-datos.md       Normalización 1NF→3NF y DDL
 │   ├── hallazgos.md          Defectos de los archivos fuente
 │   └── adr/                  Decisiones de arquitectura
-├── .githooks/                Política de autoría de commits
+├── .githooks/                Hooks de Git
 └── docker-compose.yml
 ```
 
@@ -108,26 +108,6 @@ cd packages/risk-engine
 npm test          # 17 casos
 npm run test:watch
 ```
-
----
-
-## Autoría de los commits
-
-**Los commits los firman las personas que trabajan en el proyecto.** Ninguna herramienta de IA aparece como autor ni coautor.
-
-Esto se aplica en tres niveles:
-
-1. **`.githooks/pre-commit`** — rechaza el commit si el autor configurado parece una herramienta, o si sigue siendo la identidad de plantilla del repositorio.
-2. **`.githooks/commit-msg`** — rechaza mensajes con trailers `Co-authored-by:` de herramientas de IA o firmas del tipo *"Generated with…"*.
-3. **CI (`politica-de-commits`)** — vuelve a verificarlo en cada pull request, por si alguien no activó los hooks.
-
-Los hooks no se activan solos al clonar. Cada integrante debe correr una vez:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-Si además usan un asistente de IA que agrega coautoría automáticamente, conviene desactivar esa opción en la configuración de la herramienta. Los hooks son la red de seguridad, no el primer filtro.
 
 ---
 
