@@ -1,14 +1,27 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # Publica este repositorio en GitHub.
 # Requiere GitHub CLI autenticado:  gh auth login
+#
+# Si el repositorio YA existe en GitHub (por ejemplo porque se creo o se
+# renombro manualmente desde la interfaz web), no uses este script para
+# crearlo de nuevo -- usa en su lugar:
+#
+#   git remote add origin https://github.com/<usuario>/<repo>.git
+#   git push -u origin main
+#   git checkout -b develop && git push -u origin develop
+#
+# O si ya existe un remoto apuntando a la URL vieja:
+#
+#   git remote set-url origin https://github.com/<usuario>/<repo>.git
+#   git push -u origin main
 set -euo pipefail
 
 ORG="${1:-}"
-NOMBRE="${2:-ebr-bpm}"
+NOMBRE="${2:-Reto-Desarrollo-Web-Evaluacion-Basada-en-Riesgo}"
 
 if [ -z "$ORG" ]; then
     echo "Uso: ./scripts/publicar-repo.sh <usuario-u-organizacion> [nombre-del-repo]"
-    echo "Ejemplo: ./scripts/publicar-repo.sh mi-equipo ebr-bpm"
+    echo "Ejemplo: ./scripts/publicar-repo.sh AshFranco Reto-Desarrollo-Web-Evaluacion-Basada-en-Riesgo"
     exit 1
 fi
 

@@ -10,7 +10,7 @@ Aplicación web progresiva para gestionar el ciclo completo de Evaluaciones Basa
 ## Arranque rápido
 
 ```bash
-git clone <url-del-repo> && cd ebr-bpm
+git clone https://github.com/AshFranco/Reto-Desarrollo-Web-Evaluacion-Basada-en-Riesgo.git ebr-bpm && cd ebr-bpm
 
 # 1. Activar los hooks del equipo (una sola vez por clon)
 git config core.hooksPath .githooks
