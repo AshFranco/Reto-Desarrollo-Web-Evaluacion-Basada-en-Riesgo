@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ebr_bpm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev_password_cambiar
+      POSTGRES_DB: ebr_bpm
+    ports:
+      - '5432:5432'
+    volumes:
+      - ebr_bpm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ebr_bpm']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ebr_bpm_pgdata:

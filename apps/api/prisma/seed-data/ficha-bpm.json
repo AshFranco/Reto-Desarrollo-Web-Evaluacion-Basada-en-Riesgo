@@ -1,0 +1,428 @@
+{
+  "codigo": "FICHA-BPM",
+  "version": "2024-10-Rev-FSP-FD",
+  "totalPuntosPosibles": 45,
+  "umbralAprobacionPorcentaje": 60,
+  "maxNcCriticasFallidas": 1,
+  "maxNcMayoresFallidas": 5,
+  "secciones": [
+    {
+      "codigo": "1",
+      "titulo": "1.1.1. Ubicación del establecimiento",
+      "orden": 3,
+      "items": [
+        {
+          "descripcion": "a) Ubicación adecuada",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) Alrededores limpios",
+          "orden": 2
+        },
+        {
+          "descripcion": "c) Ausencia de focos de contaminación",
+          "orden": 3
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.1.2. Diseño y disposición del establecimiento",
+      "orden": 4,
+      "items": [
+        {
+          "descripcion": "a) El diseño y la disposición del establecimiento permite la limpieza y el mantenimiento de manera adecuada.",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) La disposición de las áreas y el flujo de las operaciones evitan o reducen al mínimo la contaminación cruzada.",
+          "orden": 2
+        }
+      ]
+    },
+    {
+      "codigo": "6",
+      "titulo": "1.1.3.1. Paredes",
+      "orden": 6,
+      "items": [
+        {
+          "descripcion": "Las paredes deben tener una superficie lisa adecuada a las actividades que se realicen, construídas con materiales impermeables de fácil limpieza y, cuando sea necesario, de fácil desinfección.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "7",
+      "titulo": "1.1.3.2. Pisos",
+      "orden": 7,
+      "items": [
+        {
+          "descripcion": "Construidos con materiales impermeables de fácil limpieza sin grietas, uniones redondeadas con las paredes y que faciliten el drenaje.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "8",
+      "titulo": "1.1.3.3. Techos",
+      "orden": 8,
+      "items": [
+        {
+          "descripcion": "Construidos de manera que reduzcan al mínimo la acumulación de suciedad y de condensación, así como el desprendimiento de partículas.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "9",
+      "titulo": "1.1.3.4. Ventanas",
+      "orden": 9,
+      "items": [
+        {
+          "descripcion": "a) Fáciles de limpiar y construídas de modo que se reduzca al mínimo la acumulación de suciedad.",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) Provistas de malla contra insectos fácil de desmontar y limpiar.",
+          "orden": 2
+        }
+      ]
+    },
+    {
+      "codigo": "10",
+      "titulo": "1.1.3.5. Puertas",
+      "orden": 10,
+      "items": [
+        {
+          "descripcion": "Tienen una superficie lisa y no absorbente, son fáciles de limpiar y, cuando sea necesario, de desinfectar.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "11",
+      "titulo": "1.1.3.6.  Superficies en contacto con los alimentos",
+      "orden": 11,
+      "items": [
+        {
+          "descripcion": "Deben estar construídos con materiales inertes, en buenas condiciones, ser duraderas y fáciles de limpiar, mantener y desinfectar.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.2.1. Drenaje y eliminación de residuos",
+      "orden": 13,
+      "items": [
+        {
+          "descripcion": "a) El sistema de drenaje está diseñado y construído de manera que se evite la contaminación de los alimentos o del suministro de agua potable.",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) Los residuos sólidos son recogidos y eliminados por personal calificado y deben ser depositados en contenedores debidamente identificados, construidos con material impermeable, ubicados en áreas que eviten la infestación por plagas y cuando corresponda, se podrán cerrar con llave para evitar la contaminación accidental o intencionada de los alimentos.",
+          "orden": 2
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.2.2. Instalaciones de limpieza",
+      "orden": 14,
+      "items": [
+        {
+          "descripcion": "La planta cuenta con estaciones separadas para el lavado y desinfección de alimentos, equipos, utensilios y manos, al igual que para el lavado de los equipos utilizados en la limpieza de los servicios sanitarios, los drenajes y contenedores, todas dotadas con suficiente agua potable.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.2.3. Instalaciones para la higiene personal y servicios sanitarios",
+      "orden": 15,
+      "items": [
+        {
+          "descripcion": "a) Los establecimientos cuentan con un filtro sanitario a la entrada del área de producción.",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) Servicios sanitarios separados por sexo, con suficientes lavamanos, inodoros, urinales y duchas.",
+          "orden": 2
+        },
+        {
+          "descripcion": "c) Cuando sea necesario, vestidores con casilleros y espejos debidamente ubicados.",
+          "orden": 3
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.2.4. Temperatura",
+      "orden": 16,
+      "items": [
+        {
+          "descripcion": "a) El establecimiento cuenta con instalaciones adecuadas para el calentamiento, enfriamiento, cocción, refrigeración o congelamiento y para el almacenamiento de alimentos refrigerados o congelados dependiendo de las operaciones que realiza,",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) El establecimiento cuenta con la capacidad para controlar la temperatura ambiente de acuerdo a la naturaleza del prouducto, con el objeto de garantizar la inocuidad y la idoneidad de los alimentos.",
+          "orden": 2
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.2.5. Calidad del aire y ventilación",
+      "orden": 17,
+      "items": [
+        {
+          "descripcion": "El establecimiento cuenta con medios adecuados de ventilación natural o mecánica, diseñados y construídos de manera que el aire no circule de zonas contaminadas a zonas limpias y que se facilite su mantenimiento y limpieza.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.2.6. Iluminación",
+      "orden": 18,
+      "items": [
+        {
+          "descripcion": "a) Se dispone de iluminación natural o artificial adecuada que permita a la empresa realizar las actividades alimentarias de manera higiénica.",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) La intensidad debe ser suficiente para la naturaleza de la actividad que se realice.",
+          "orden": 2
+        },
+        {
+          "descripcion": "c) Las luminarias  están protegidas, cuando corresponda, para garantizar que los alimentos no se contaminen en caso de rotura de los elementos de iluminación.",
+          "orden": 3
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.2.7. Almacenamiento",
+      "orden": 19,
+      "items": [
+        {
+          "descripcion": "El establecimieno cuenta con instalaciones separadas y adecuadas para el almacenamiento de los productos terminados, materias primas, material de empaque, productos de limpieza, lubricantes y combustibles.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "1",
+      "titulo": "1.3. Equipo",
+      "orden": 20,
+      "items": [
+        {
+          "descripcion": "El equipo y los recipientes que estan en contacto con los alimentos deben ser aptos para el contacto con los alimentos, estar diseñados, fabricados y ubicados de manera que se puedan limpiar, desinfectar y mantener adecuadamente para evitar la contaminación de los alimentos.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "2",
+      "titulo": "2.1. Conocimiento y responsabilidades",
+      "orden": 22,
+      "items": [
+        {
+          "descripcion": "El personal debe tener conocimiento de su función y responsabilidad en cuanto a la protección de los alimentos contra la contaminación o el deterioro.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "2",
+      "titulo": "2.2. Programas de capacitación",
+      "orden": 23,
+      "items": [
+        {
+          "descripcion": "El establecimiento cuenta con un programa escrito de capacitación, principalmente en higiene y manipulación de alimentos, BPM e higiene personal.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "2",
+      "titulo": "2.3. Instrucción y supervisión",
+      "orden": 24,
+      "items": [
+        {
+          "descripcion": "Los encargados, supervisores y los operarios cuentan con los conocimientos suficientes sobre los principios y prácticas de higiene de los alimentos para poder identificar las desviaciones y adoptar las medidas necesarias que correspondan a su puesto.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "3",
+      "titulo": "3.1.1. Consideraciones generales",
+      "orden": 27,
+      "items": [
+        {
+          "descripcion": "Se  utilizan equipos y utensilios de limpieza adecuadamente diseñados para las diferentes áreas, se conservan limpios, reciben mantenimiento y se sustituyen periódicamente a fin de que no se conviertan en una fuente de contaminación para las superficies o los alimentos.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "3",
+      "titulo": "3.1.2. Métodos y procedimientos de limpieza y desinfección",
+      "orden": 28,
+      "items": [
+        {
+          "descripcion": "Los procedimientos de limpieza y desinfección garantizan que todas las partes del establecimiento están adecuadamente limpias y cuando corresponda desinfectadas.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "3",
+      "titulo": "3.1.3 Monitoreo/seguimiento de la eficacia",
+      "orden": 29,
+      "items": [
+        {
+          "descripcion": "Se realiza el seguimiento de la eficacia de la aplicación de los procedimientos de limpieza y desinfección y se verifica que se han aplicado adecuadamente.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "3",
+      "titulo": "3.2. Sistemas de control de plagas",
+      "orden": 30,
+      "items": [
+        {
+          "descripcion": "El establecimiento cuenta con un Programa escrito para el control de plagas y con las barreras físicas necesarias para impedir que penetren a la planta.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "4",
+      "titulo": "4. HIGIENE PERSONAL",
+      "orden": 31,
+      "items": [
+        {
+          "descripcion": "La empresa tiene establecidas políticas y procedimientos adecuados  en materia de higiene personal.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.1.1. Descripción del producto",
+      "orden": 34,
+      "items": [
+        {
+          "descripcion": "El establecimiento describe sus productos de manera individual o por grupo de alimentos de manera adecuada.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.1.2. Descripción fases del proceso",
+      "orden": 36,
+      "items": [
+        {
+          "descripcion": "El establecimiento tiene elaborado los diagramas  de flujo de los productos y líneas de productos actualizados.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.1.3. Monitoreo/seguimiento, medidas correctivas y verificación",
+      "orden": 37,
+      "items": [
+        {
+          "descripcion": "El establecimiento cuenta con procedimintos escritos sobre el monitoreo de las prácticas de higiene y realiza actividades de verificación de su efectividad.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.2.1. Especificaciones microbiológicas, físicas, químicas y de alérgenos",
+      "orden": 39,
+      "items": [
+        {
+          "descripcion": "Las especificaciones microbiológicas, físicas, químicas y de alérgenos del producto están definidas en base a las normas oficiales y contribuyen a la inocuidad del producto.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.2.2. Materiales y materias primas",
+      "orden": 40,
+      "items": [
+        {
+          "descripcion": "El establecimiento mantiene un sistema de control para asegurar que las materias primas y otros ingredientes a ser utilizados en la elaboración de alimentos son conformes con las especificaciones de calidad e inocuidad establecidas en las espcificaciones.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.2.3. Envasado",
+      "orden": 41,
+      "items": [
+        {
+          "descripcion": "El diseño y los materiales utilizados para envasar los alimentos son inocuos y adecuados para proteger el producto contra la contaminación.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.3. Agua",
+      "orden": 42,
+      "items": [
+        {
+          "descripcion": "El establecimiento cuenta con suficiente abastecimiento de agua potable y con instalaciones apropiadas para su almacenamiento y distribución.",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "5",
+      "titulo": "5.4. Procedimientos de retiro del mercado",
+      "orden": 43,
+      "items": [
+        {
+          "descripcion": "a) El establecimiento cuenta con los procedimientos adecuados de retiro de alimentos del mercado.",
+          "orden": 1
+        },
+        {
+          "descripcion": "b) Los productos devueltos o retirados del mercado  se mantienen en condiciones seguras de almacenamiento según lo estipulado en los procedimeintos.",
+          "orden": 2
+        }
+      ]
+    },
+    {
+      "codigo": "6",
+      "titulo": "6.1. Etiquetado de los productos",
+      "orden": 45,
+      "items": [
+        {
+          "descripcion": "Los productos eleborados cumplen a cabalidad con la NORDOM 53, Etiquetado general de los productos previamente envasados (pre-envasados)",
+          "orden": 1
+        }
+      ]
+    },
+    {
+      "codigo": "7",
+      "titulo": "7. TRANSPORTE",
+      "orden": 46,
+      "items": [
+        {
+          "descripcion": "Los medios de transporte son adecuados a la  naturaleza de los productos que  transportan y permiten, cuando procede, el control de temperatura, el grado de humedad, el aire y otras condiciones necesarias para proteger los alimentos contra la proliferación de microorganismos nocicos y el deterioro.",
+          "orden": 1
+        }
+      ]
+    }
+  ]
+}

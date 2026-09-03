@@ -1,0 +1,36 @@
+# --- Secretos: NUNCA deben llegar al repositorio ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+
+# --- Dependencias / build ---
+node_modules/
+dist/
+build/
+coverage/
+
+# --- Prisma ---
+prisma/*.db
+prisma/dev.db
+
+# --- Archivos subidos por usuarios (evidencias, adjuntos) ---
+storage/uploads/*
+!storage/uploads/.gitkeep
+
+# --- Logs ---
+*.log
+logs/
+
+# --- OS / IDE ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- Test ---
+*.tsbuildinfo

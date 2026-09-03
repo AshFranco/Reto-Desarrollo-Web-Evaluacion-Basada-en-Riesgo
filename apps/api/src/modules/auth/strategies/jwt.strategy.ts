@@ -1,0 +1,21 @@
+import { Injectable } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { AppConfigService } from '../../../config/app-config.service';
+import { JwtPayload } from '../token.service';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+  constructor(config: AppConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: config.jwtAccessSecret,
+    });
+  }
+
+  // El valor de retorno se inyecta como `req.user`.
+  async validate(payload: JwtPayload): Promise<JwtPayload> {
+    return payload;
+  }
+}
