@@ -1,0 +1,885 @@
+// ============================================================================
+// EBR/BPM - Esquema de base de datos (PostgreSQL)
+// Convertido fielmente desde el DBML oficial del equipo (51 tablas).
+// Fuente de verdad: DBML compartido por el equipo. Este archivo NO debe
+// editarse "a mano" divergiendo del DBML - si el DBML cambia, este schema
+// debe regenerarse/ajustarse para que coincidan.
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto]
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 1 — SEGURIDAD
+// ---------------------------------------------------------------------------
+
+model Rol {
+  id         Int     @id @default(autoincrement()) @db.SmallInt
+  codigo     String  @unique @db.VarChar(30)
+  nombre     String  @db.VarChar(80)
+  esInterno  Boolean @default(true) @map("es_interno")
+
+  permisos    RolPermiso[]
+  usuarios    UsuarioRol[]
+
+  @@map("rol")
+}
+
+model Permiso {
+  id      BigInt @id @default(autoincrement())
+  codigo  String @unique @db.VarChar(80)
+  modulo  String @db.VarChar(40)
+  nombre  String @db.VarChar(150)
+
+  roles RolPermiso[]
+
+  @@map("permiso")
+}
+
+model RolPermiso {
+  idRol     Int    @map("id_rol") @db.SmallInt
+  idPermiso BigInt @map("id_permiso")
+
+  rol     Rol     @relation(fields: [idRol], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  permiso Permiso @relation(fields: [idPermiso], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([idRol, idPermiso])
+  @@map("rol_permiso")
+}
+
+/// EXTENSIÓN AL DBML ORIGINAL: el esquema oficial no incluye una tabla para
+/// refresh tokens. Es necesaria para la seguridad de sesión (rotación de
+/// tokens, revocación). Señalar al equipo para incorporarla formalmente
+/// al DBML compartido.
+model RefreshToken {
+  id         BigInt   @id @default(autoincrement())
+  idUsuario  BigInt   @map("id_usuario")
+  tokenHash  String   @unique @map("token_hash") @db.VarChar(255)
+  userAgent  String?  @map("user_agent") @db.VarChar(255)
+  ip         String?  @db.Inet
+  revocado   Boolean  @default(false)
+  expiraEn   DateTime @map("expira_en")
+  creadoEn   DateTime @default(now()) @map("creado_en")
+
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("refresh_token")
+}
+
+model Usuario {
+  id                 BigInt    @id @default(autoincrement())
+  idEmpresa          BigInt?   @map("id_empresa")
+  nombreCompleto     String    @map("nombre_completo") @db.VarChar(150)
+  cedulaPasaporte    String    @unique @map("cedula_pasaporte") @db.VarChar(30)
+  correoElectronico  String    @unique @map("correo_electronico") @db.VarChar(150)
+  telefono           String?   @db.VarChar(20)
+  contrasenaHash     String    @map("contrasena_hash") @db.VarChar(255)
+  dobleFactorActivo  Boolean   @default(false) @map("doble_factor_activo")
+  estado             String    @default("PENDIENTE_VALIDACION") @db.VarChar(25)
+  motivoRechazo      String?   @map("motivo_rechazo") @db.VarChar(400)
+  intentosFallidos   Int       @default(0) @map("intentos_fallidos") @db.SmallInt
+  bloqueadoHasta     DateTime? @map("bloqueado_hasta")
+  fechaCreacion      DateTime  @default(now()) @map("fecha_creacion")
+
+  empresa Empresa? @relation(fields: [idEmpresa], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  roles   UsuarioRol[]
+  refreshTokens RefreshToken[]
+
+  solicitudesBpm         SolicitudBpm[]
+  asignacionesEvaluador  AsignacionEvaluador[] @relation("AsignacionEvaluador")
+  asignacionesCoordinador AsignacionEvaluador[] @relation("AsignacionCoordinador")
+  evaluacionesComoEvaluador   Evaluacion[] @relation("EvaluacionEvaluador")
+  evaluacionesComoCoordinador Evaluacion[] @relation("EvaluacionCoordinador")
+  historialEstados       HistorialEstado[]
+  notificaciones         Notificacion[]
+  auditorias             Auditoria[]
+  operacionesPendientes  OperacionPendiente[]
+
+  @@map("usuario")
+}
+
+model UsuarioRol {
+  idUsuario BigInt @map("id_usuario")
+  idRol     Int    @map("id_rol") @db.SmallInt
+
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rol     Rol     @relation(fields: [idRol], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([idUsuario, idRol])
+  @@map("usuario_rol")
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 2 — GEOGRAFÍA
+// ---------------------------------------------------------------------------
+
+model Provincia {
+  id     Int    @id @default(autoincrement()) @db.SmallInt
+  codigo String @unique @db.VarChar(10)
+  nombre String @db.VarChar(100)
+
+  municipios Municipio[]
+  dpsDas     DpsDas[]
+
+  @@map("provincia")
+}
+
+model Municipio {
+  id           BigInt @id @default(autoincrement())
+  idProvincia  Int    @map("id_provincia") @db.SmallInt
+  codigo       String @unique @db.VarChar(10)
+  nombre       String @db.VarChar(120)
+
+  provincia Provincia @relation(fields: [idProvincia], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  empresas         Empresa[]
+  establecimientos Establecimiento[]
+
+  @@map("municipio")
+}
+
+model DpsDas {
+  id          Int     @id @default(autoincrement()) @db.SmallInt
+  codigo      String  @unique @db.VarChar(15)
+  nombre      String  @db.VarChar(150)
+  tipo        String  @db.VarChar(5)
+  idProvincia Int?    @map("id_provincia") @db.SmallInt
+
+  provincia Provincia? @relation(fields: [idProvincia], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  establecimientos Establecimiento[]
+
+  @@map("dps_das")
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 3 — EMPRESA Y ESTABLECIMIENTO
+// ---------------------------------------------------------------------------
+
+model Empresa {
+  id                 BigInt   @id @default(autoincrement())
+  idMunicipio        BigInt?  @map("id_municipio")
+  razonSocial        String   @map("razon_social") @db.VarChar(200)
+  rnc                String   @unique @db.VarChar(20)
+  nombreComercial    String?  @map("nombre_comercial") @db.VarChar(200)
+  direccion          String?  @db.VarChar(255)
+  telefono           String?  @db.VarChar(20)
+  correo             String?  @db.VarChar(150)
+  actividadEconomica String?  @map("actividad_economica") @db.VarChar(150)
+  fechaRegistro      DateTime @default(now()) @map("fecha_registro")
+
+  municipio Municipio? @relation(fields: [idMunicipio], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  usuarios         Usuario[]
+  contactos        Contacto[]
+  establecimientos Establecimiento[]
+  solicitudesBpm   SolicitudBpm[]
+  alertasLapch     AlertaLapch[]
+  denuncias        Denuncia[]
+
+  @@map("empresa")
+}
+
+model TipoContacto {
+  id     Int    @id @default(autoincrement()) @db.SmallInt
+  codigo String @unique @db.VarChar(25)
+  nombre String @db.VarChar(60)
+
+  contactos Contacto[]
+
+  @@map("tipo_contacto")
+}
+
+model Contacto {
+  id                 BigInt @id @default(autoincrement())
+  idTipoContacto     Int    @map("id_tipo_contacto") @db.SmallInt
+  idEmpresa          BigInt? @map("id_empresa")
+  idEstablecimiento  BigInt? @map("id_establecimiento")
+  nombreCompleto     String @map("nombre_completo") @db.VarChar(150)
+  documentoIdentidad String? @map("documento_identidad") @db.VarChar(20)
+  telefono           String? @db.VarChar(20)
+  celular            String? @db.VarChar(20)
+  correo             String? @db.VarChar(150)
+
+  tipoContacto    TipoContacto     @relation(fields: [idTipoContacto], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  empresa         Empresa?         @relation(fields: [idEmpresa], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  establecimiento Establecimiento? @relation(fields: [idEstablecimiento], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("contacto")
+}
+
+model Establecimiento {
+  id                       BigInt    @id @default(autoincrement())
+  idEmpresa                BigInt    @map("id_empresa")
+  idMunicipio              BigInt?   @map("id_municipio")
+  idDpsDas                 Int?      @map("id_dps_das") @db.SmallInt
+  nombre                   String    @db.VarChar(200)
+  rnc                      String?   @db.VarChar(20)
+  calle                    String?   @db.VarChar(300)
+  telefono                 String?   @db.VarChar(20)
+  correo                   String?   @db.VarChar(150)
+  fechaInicioOperaciones   DateTime? @map("fecha_inicio_operaciones") @db.Date
+  numeroPermisoSanitario   String?   @map("numero_permiso_sanitario") @db.VarChar(50)
+  fechaVencimientoPermiso  DateTime? @map("fecha_vencimiento_permiso") @db.Date
+  produccionAnual          Decimal?  @map("produccion_anual") @db.Decimal(14, 2)
+  empleadosMasculino       Int       @default(0) @map("empleados_masculino") @db.SmallInt
+  empleadosFemenino        Int       @default(0) @map("empleados_femenino") @db.SmallInt
+  mercadoObjetivo          String?   @map("mercado_objetivo") @db.VarChar(150)
+  latitud                  Decimal?  @db.Decimal(10, 7)
+  longitud                 Decimal?  @db.Decimal(10, 7)
+  activo                   Boolean   @default(true)
+
+  empresa Empresa  @relation(fields: [idEmpresa], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  municipio Municipio? @relation(fields: [idMunicipio], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  dpsDas    DpsDas?    @relation(fields: [idDpsDas], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  contactos               Contacto[]
+  alertasLapch            AlertaLapch[]
+  denuncias               Denuncia[]
+  programacionInstitucional ProgramacionInstitucional[]
+  casos                   Caso[]
+  establecimientoCategorias EstablecimientoCategoria[]
+  evaluaciones             Evaluacion[]
+
+  @@map("establecimiento")
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 6 — ORIGEN DE CASOS
+// ---------------------------------------------------------------------------
+
+model SolicitudBpm {
+  id                   BigInt    @id @default(autoincrement())
+  idEmpresa            BigInt    @map("id_empresa")
+  idUsuario            BigInt    @map("id_usuario")
+  tipoEstablecimiento  String?   @map("tipo_establecimiento") @db.VarChar(100)
+  motivo               String?   @db.VarChar(255)
+  observaciones        String?
+  estado               String    @default("Pendiente de Asignacion") @db.VarChar(30)
+  fechaCreacion        DateTime  @default(now()) @map("fecha_creacion")
+  fechaEnvio           DateTime? @map("fecha_envio")
+
+  empresa Empresa @relation(fields: [idEmpresa], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  casos   Caso[]
+
+  @@map("solicitud_bpm")
+}
+
+model AlertaLapch {
+  id                 BigInt  @id @default(autoincrement())
+  idEmpresa          BigInt? @map("id_empresa")
+  idEstablecimiento  BigInt? @map("id_establecimiento")
+  numeroAlerta       String  @unique @map("numero_alerta") @db.VarChar(50)
+  fecha              DateTime @db.Date
+  producto           String? @db.VarChar(150)
+  descripcion        String?
+  resultado          String? @db.VarChar(20)
+
+  empresa         Empresa?         @relation(fields: [idEmpresa], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  establecimiento Establecimiento? @relation(fields: [idEstablecimiento], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  casos           Caso[]
+
+  @@map("alerta_lapch")
+}
+
+model Denuncia {
+  id                 BigInt   @id @default(autoincrement())
+  idEmpresa          BigInt?  @map("id_empresa")
+  idEstablecimiento  BigInt?  @map("id_establecimiento")
+  tipoDenuncia       String?  @map("tipo_denuncia") @db.VarChar(100)
+  fechaRecepcion     DateTime @default(now()) @map("fecha_recepcion") @db.Date
+  denunciante        String?  @db.VarChar(150)
+  descripcion        String?
+  resultado          String?  @db.VarChar(30)
+
+  empresa         Empresa?         @relation(fields: [idEmpresa], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  establecimiento Establecimiento? @relation(fields: [idEstablecimiento], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  casos           Caso[]
+
+  @@map("denuncia")
+}
+
+model ProgramacionInstitucional {
+  id                   BigInt    @id @default(autoincrement())
+  idEstablecimiento    BigInt    @map("id_establecimiento")
+  idEvaluacionOrigen   BigInt?   @map("id_evaluacion_origen")
+  fechaProgramada      DateTime  @map("fecha_programada") @db.Date
+  frecuenciaAplicada   String    @map("frecuencia_aplicada") @db.VarChar(20)
+  generadaAutomatica   Boolean   @default(true) @map("generada_automatica")
+  prioridad            String    @default("NORMAL") @db.VarChar(20)
+  observaciones        String?
+  fechaCreacion        DateTime  @default(now()) @map("fecha_creacion")
+
+  establecimiento Establecimiento @relation(fields: [idEstablecimiento], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  evaluacionOrigen Evaluacion?    @relation("ProgramacionOrigen", fields: [idEvaluacionOrigen], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  casos            Caso[]
+
+  @@map("programacion_institucional")
+}
+
+model OrigenCaso {
+  id     Int    @id @default(autoincrement()) @db.SmallInt
+  codigo String @unique @db.VarChar(30)
+  nombre String @db.VarChar(120)
+  orden  Int    @db.SmallInt
+
+  casos Caso[]
+
+  @@map("origen_caso")
+}
+
+/// Exactamente uno de id_solicitud / id_alerta / id_denuncia / id_programacion
+/// debe estar presente (se valida en la aplicación y/o CHECK adicional).
+model Caso {
+  id                 BigInt   @id @default(autoincrement())
+  idEstablecimiento  BigInt   @map("id_establecimiento")
+  idOrigen           Int?     @map("id_origen") @db.SmallInt
+  idSolicitud        BigInt?  @map("id_solicitud")
+  idAlerta           BigInt?  @map("id_alerta")
+  idDenuncia         BigInt?  @map("id_denuncia")
+  idProgramacion     BigInt?  @map("id_programacion")
+  estado             String   @default("Pendiente") @db.VarChar(30)
+  prioridad          String?  @db.VarChar(20)
+  fechaCreacion      DateTime @default(now()) @map("fecha_creacion")
+
+  establecimiento Establecimiento @relation(fields: [idEstablecimiento], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  origen          OrigenCaso?     @relation(fields: [idOrigen], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  solicitud       SolicitudBpm?   @relation(fields: [idSolicitud], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  alerta          AlertaLapch?    @relation(fields: [idAlerta], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  denuncia        Denuncia?       @relation(fields: [idDenuncia], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  programacion    ProgramacionInstitucional? @relation(fields: [idProgramacion], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  asignaciones AsignacionEvaluador[]
+  evaluaciones Evaluacion[]
+  expediente   Expediente?
+
+  @@map("caso")
+}
+
+model AsignacionEvaluador {
+  id              BigInt   @id @default(autoincrement())
+  idCaso          BigInt   @map("id_caso")
+  idEvaluador     BigInt   @map("id_evaluador")
+  idCoordinador   BigInt   @map("id_coordinador")
+  fechaAsignacion DateTime @default(now()) @map("fecha_asignacion")
+  prioridad       String?  @db.VarChar(20)
+  estado          String   @default("Asignado") @db.VarChar(20)
+
+  caso        Caso    @relation(fields: [idCaso], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  evaluador   Usuario @relation("AsignacionEvaluador", fields: [idEvaluador], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  coordinador Usuario @relation("AsignacionCoordinador", fields: [idCoordinador], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("asignacion_evaluador")
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 4 — CATÁLOGO DE RIESGO
+// ---------------------------------------------------------------------------
+
+model NivelRiesgo {
+  id            Int     @id @default(autoincrement()) @db.SmallInt
+  codigo        String  @unique @db.VarChar(10)
+  nombre        String  @db.VarChar(50)
+  puntajeMatriz Decimal @map("puntaje_matriz") @db.Decimal(4, 2)
+  puntajeRp     Decimal @map("puntaje_rp") @db.Decimal(4, 2)
+  colorHex      String? @map("color_hex") @db.Char(7)
+  orden         Int     @db.SmallInt
+
+  subcategoriasMicro     SubcategoriaAlimento[] @relation("SubcategoriaMicro")
+  subcategoriasQuimico   SubcategoriaAlimento[] @relation("SubcategoriaQuimico")
+  subcategoriasResultante SubcategoriaAlimento[] @relation("SubcategoriaResultante")
+  rangosNivelRiesgo      RangoNivelRiesgo[]
+  rangosFrecuencia       RangoFrecuencia[]
+  calculosRiesgo         CalculoRiesgo[]
+
+  @@map("nivel_riesgo")
+}
+
+model NivelCriticidad {
+  id     Int    @id @default(autoincrement()) @db.SmallInt
+  codigo String @unique @db.VarChar(3)
+  nombre String @db.VarChar(40)
+  orden  Int    @db.SmallInt
+
+  itemsFicha       ItemFicha[]
+  respuestasItem   RespuestaItem[]
+
+  @@map("nivel_criticidad")
+}
+
+model VersionFicha {
+  id                          BigInt   @id @default(autoincrement())
+  numeroVersion               String   @map("numero_version") @db.VarChar(20)
+  nombre                      String?  @db.VarChar(250)
+  estado                      String   @default("Activa") @db.VarChar(20)
+  fechaVigenciaDesde          DateTime? @map("fecha_vigencia_desde") @db.Date
+  fechaVigenciaHasta          DateTime? @map("fecha_vigencia_hasta") @db.Date
+  totalItemsEvaluables        Int      @default(0) @map("total_items_evaluables") @db.SmallInt
+  puntajeTotalPosible         Decimal  @default(0) @map("puntaje_total_posible") @db.Decimal(8, 2)
+  porcentajePermisoSanitario  Decimal  @default(81) @map("porcentaje_permiso_sanitario") @db.Decimal(5, 2)
+  porcentajeMinimoAprobacion  Decimal? @map("porcentaje_minimo_aprobacion") @db.Decimal(5, 2)
+  maxNcCriticas               Int?     @map("max_nc_criticas") @db.SmallInt
+  maxNcMayores                Int?     @map("max_nc_mayores") @db.SmallInt
+
+  rangosCalificacion RangoCalificacion[]
+  itemsFicha         ItemFicha[]
+  opcionesRespuesta  OpcionRespuesta[]
+  evaluaciones       Evaluacion[]
+
+  @@map("version_ficha")
+}
+
+model RangoCalificacion {
+  id                BigInt  @id @default(autoincrement())
+  idVersionFicha    BigInt  @map("id_version_ficha")
+  limiteInferior    Decimal @map("limite_inferior") @db.Decimal(5, 2)
+  limiteSuperior    Decimal @map("limite_superior") @db.Decimal(5, 2)
+  incluyeInferior   Boolean @default(false) @map("incluye_inferior")
+  incluyeSuperior   Boolean @default(true) @map("incluye_superior")
+  descripcion       String  @db.VarChar(120)
+  accion            String  @db.VarChar(150)
+  orden             Int     @db.SmallInt
+
+  versionFicha   VersionFicha    @relation(fields: [idVersionFicha], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  calculosRiesgo CalculoRiesgo[]
+
+  @@map("rango_calificacion")
+}
+
+/// Jerarquía auto-referenciada: soporta profundidad arbitraria de la ficha.
+model ItemFicha {
+  id             BigInt   @id @default(autoincrement())
+  idVersionFicha BigInt   @map("id_version_ficha")
+  idPadre        BigInt?  @map("id_padre")
+  idCriticidad   Int?     @map("id_criticidad") @db.SmallInt
+  numeracion     String?  @db.VarChar(20)
+  titulo         String
+  esEvaluable    Boolean  @default(true) @map("es_evaluable")
+  peso           Decimal? @db.Decimal(6, 2)
+  orden          Int      @default(0) @db.SmallInt
+  nivel          Int?     @db.SmallInt
+  activo         Boolean  @default(true)
+
+  versionFicha VersionFicha @relation(fields: [idVersionFicha], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  padre        ItemFicha?   @relation("ItemFichaJerarquia", fields: [idPadre], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  hijos        ItemFicha[]  @relation("ItemFichaJerarquia")
+  criticidad   NivelCriticidad? @relation(fields: [idCriticidad], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  respuestas RespuestaItem[]
+
+  @@map("item_ficha")
+}
+
+model OpcionRespuesta {
+  id                 BigInt  @id @default(autoincrement())
+  idVersionFicha     BigInt  @map("id_version_ficha")
+  codigo             String  @db.VarChar(20)
+  valor              Decimal? @db.Decimal(6, 2)
+  excluyeDelCalculo  Boolean @default(false) @map("excluye_del_calculo")
+  generaNc           Boolean @default(false) @map("genera_nc")
+
+  versionFicha VersionFicha    @relation(fields: [idVersionFicha], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  respuestas   RespuestaItem[]
+
+  @@map("opcion_respuesta")
+}
+
+model VersionMatrizRiesgo {
+  id            BigInt @id @default(autoincrement())
+  numeroVersion String @map("numero_version") @db.VarChar(20)
+  estado        String @default("Activa") @db.VarChar(20)
+
+  rangosNivelRiesgo RangoNivelRiesgo[]
+  rangosFrecuencia  RangoFrecuencia[]
+  factoresRiesgo    FactorRiesgoEstablecimiento[]
+  evaluaciones      Evaluacion[]
+
+  @@map("version_matriz_riesgo")
+}
+
+model RangoNivelRiesgo {
+  id               BigInt   @id @default(autoincrement())
+  idVersionMatriz  BigInt   @map("id_version_matriz")
+  idNivelRiesgo    Int?     @map("id_nivel_riesgo") @db.SmallInt
+  limiteInferior   Decimal  @map("limite_inferior") @db.Decimal(6, 2)
+  limiteSuperior   Decimal? @map("limite_superior") @db.Decimal(6, 2)
+  esSupuesto       Boolean  @default(false) @map("es_supuesto")
+
+  versionMatriz VersionMatrizRiesgo @relation(fields: [idVersionMatriz], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  nivelRiesgo   NivelRiesgo?        @relation(fields: [idNivelRiesgo], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("rango_nivel_riesgo")
+}
+
+model RangoFrecuencia {
+  id                 BigInt   @id @default(autoincrement())
+  idVersionMatriz    BigInt   @map("id_version_matriz")
+  idNivelRiesgo      Int?     @map("id_nivel_riesgo") @db.SmallInt
+  limiteInferior     Decimal  @map("limite_inferior") @db.Decimal(6, 2)
+  limiteSuperior     Decimal? @map("limite_superior") @db.Decimal(6, 2)
+  frecuencia         String   @db.VarChar(20)
+  mesesHastaProxima  Int?     @map("meses_hasta_proxima") @db.SmallInt
+  incluyeInferior    Boolean  @default(true) @map("incluye_inferior")
+  incluyeSuperior    Boolean  @default(true) @map("incluye_superior")
+  orden              Int?     @db.SmallInt
+
+  versionMatriz VersionMatrizRiesgo @relation(fields: [idVersionMatriz], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  nivelRiesgo   NivelRiesgo?        @relation(fields: [idNivelRiesgo], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("rango_frecuencia")
+}
+
+/// El factor 3 "Cumplimiento BPM" tiene es_automatico = true: su opción se
+/// deriva del % de cumplimiento de la Ficha BPM de la MISMA evaluación,
+/// no se digita manualmente. Ver COMPARACION_ARQUITECTURA.md, sección 3.
+model FactorRiesgoEstablecimiento {
+  id              BigInt   @id @default(autoincrement())
+  idVersionMatriz BigInt   @map("id_version_matriz")
+  numero          Int?     @db.SmallInt
+  nombre          String   @db.VarChar(150)
+  peso            Decimal? @db.Decimal(6, 4)
+  esAutomatico    Boolean  @default(false) @map("es_automatico")
+
+  versionMatriz VersionMatrizRiesgo @relation(fields: [idVersionMatriz], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  opciones      OpcionFactor[]
+  evaluacionesFactor EvaluacionFactorRiesgo[]
+
+  @@map("factor_riesgo_establecimiento")
+}
+
+model OpcionFactor {
+  id          BigInt   @id @default(autoincrement())
+  idFactor    BigInt   @map("id_factor")
+  descripcion String?  @db.VarChar(200)
+  puntaje     Decimal? @db.Decimal(6, 2)
+  limiteInf   Decimal? @map("limite_inf") @db.Decimal(6, 2)
+  limiteSup   Decimal? @map("limite_sup") @db.Decimal(6, 2)
+  orden       Int?     @db.SmallInt
+
+  factor FactorRiesgoEstablecimiento @relation(fields: [idFactor], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  evaluacionesFactor EvaluacionFactorRiesgo[]
+
+  @@map("opcion_factor")
+}
+
+model CategoriaAlimento {
+  id     BigInt @id @default(autoincrement())
+  nombre String @db.VarChar(150)
+
+  subcategorias SubcategoriaAlimento[]
+
+  @@map("categoria_alimento")
+}
+
+model SubcategoriaAlimento {
+  id                          BigInt   @id @default(autoincrement())
+  idCategoria                 BigInt   @map("id_categoria")
+  idNivelRiesgoMicrobiologico Int?     @map("id_nivel_riesgo_microbiologico") @db.SmallInt
+  idNivelRiesgoQuimico        Int?     @map("id_nivel_riesgo_quimico") @db.SmallInt
+  riesgoTotalCalculado        Decimal? @map("riesgo_total_calculado") @db.Decimal(5, 2)
+  idNivelRiesgoResultante     Int?     @map("id_nivel_riesgo_resultante") @db.SmallInt
+  requiereRevision            Boolean  @default(false) @map("requiere_revision")
+  notaRevision                String?  @map("nota_revision") @db.VarChar(300)
+  nombre                      String   @db.VarChar(150)
+
+  categoria           CategoriaAlimento @relation(fields: [idCategoria], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  nivelMicrobiologico NivelRiesgo?      @relation("SubcategoriaMicro", fields: [idNivelRiesgoMicrobiologico], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  nivelQuimico        NivelRiesgo?      @relation("SubcategoriaQuimico", fields: [idNivelRiesgoQuimico], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  nivelResultante      NivelRiesgo?     @relation("SubcategoriaResultante", fields: [idNivelRiesgoResultante], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  establecimientoCategorias EstablecimientoCategoria[]
+  calculosRiesgoRp          CalculoRiesgo[]
+
+  @@map("subcategoria_alimento")
+}
+
+model EstablecimientoCategoria {
+  id                     BigInt @id @default(autoincrement())
+  idEstablecimiento      BigInt @map("id_establecimiento")
+  idSubcategoriaAlimento BigInt @map("id_subcategoria_alimento")
+
+  establecimiento Establecimiento       @relation(fields: [idEstablecimiento], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  subcategoria    SubcategoriaAlimento  @relation(fields: [idSubcategoriaAlimento], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([idEstablecimiento, idSubcategoriaAlimento], name: "establecimiento_categoria_unique")
+  @@map("establecimiento_categoria")
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 7 — EVALUACIÓN Y CÁLCULO
+// ---------------------------------------------------------------------------
+
+model EstadoEvaluacion {
+  id            Int     @id @default(autoincrement()) @db.SmallInt
+  codigo        String  @unique @db.VarChar(30)
+  nombre        String  @db.VarChar(80)
+  esFinal       Boolean @default(false) @map("es_final")
+  bloqueaDatos  Boolean @default(false) @map("bloquea_datos")
+  orden         Int     @db.SmallInt
+
+  evaluacionesActuales Evaluacion[] @relation("EvaluacionEstadoActual")
+  historialOrigen      HistorialEstado[] @relation("HistorialOrigen")
+  historialDestino     HistorialEstado[] @relation("HistorialDestino")
+
+  @@map("estado_evaluacion")
+}
+
+model Evaluacion {
+  id                 BigInt    @id @default(autoincrement())
+  uuidLocal          String    @default(dbgenerated("gen_random_uuid()")) @map("uuid_local") @db.Uuid
+  idCaso             BigInt    @map("id_caso")
+  idEstablecimiento  BigInt    @map("id_establecimiento")
+  idVersionFicha     BigInt    @map("id_version_ficha")
+  idVersionMatriz    BigInt    @map("id_version_matriz")
+  idEvaluador        BigInt    @map("id_evaluador")
+  idEstado           Int?      @map("id_estado") @db.SmallInt
+  idCoordinador      BigInt?   @map("id_coordinador")
+  bloqueada          Boolean   @default(false)
+  fechaInicio        DateTime? @map("fecha_inicio")
+  fechaFinalizacion  DateTime? @map("fecha_finalizacion")
+  fechaProgramada    DateTime? @map("fecha_programada") @db.Date
+  fechaEnvio         DateTime? @map("fecha_envio")
+  fechaRevision      DateTime? @map("fecha_revision")
+  versionRegistro    Int       @default(1) @map("version_registro")
+  latitud            Decimal?  @db.Decimal(10, 7)
+  longitud           Decimal?  @db.Decimal(10, 7)
+
+  caso            Caso                @relation(fields: [idCaso], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  establecimiento Establecimiento     @relation(fields: [idEstablecimiento], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versionFicha    VersionFicha        @relation(fields: [idVersionFicha], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versionMatriz   VersionMatrizRiesgo @relation(fields: [idVersionMatriz], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  evaluador       Usuario             @relation("EvaluacionEvaluador", fields: [idEvaluador], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  coordinador     Usuario?            @relation("EvaluacionCoordinador", fields: [idCoordinador], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  estado          EstadoEvaluacion?   @relation("EvaluacionEstadoActual", fields: [idEstado], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  programacionesOrigen ProgramacionInstitucional[] @relation("ProgramacionOrigen")
+  historialEstados     HistorialEstado[]
+  respuestas           RespuestaItem[]
+  calculoRiesgo        CalculoRiesgo?
+  evaluacionFactores   EvaluacionFactorRiesgo[]
+  medidasCorrectivas   MedidaCorrectiva[]
+  evidencias           Evidencia[]
+  informe              InformeEvaluacion?
+
+  @@map("evaluacion")
+}
+
+model HistorialEstado {
+  id               BigInt   @id @default(autoincrement())
+  idEvaluacion     BigInt   @map("id_evaluacion")
+  idEstadoOrigen   Int?     @map("id_estado_origen") @db.SmallInt
+  idEstadoDestino  Int      @map("id_estado_destino") @db.SmallInt
+  idUsuario        BigInt   @map("id_usuario")
+  comentario       String?
+  fechaHora        DateTime @default(now()) @map("fecha_hora")
+
+  evaluacion    Evaluacion       @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  estadoOrigen  EstadoEvaluacion? @relation("HistorialOrigen", fields: [idEstadoOrigen], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  estadoDestino EstadoEvaluacion  @relation("HistorialDestino", fields: [idEstadoDestino], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  usuario       Usuario           @relation(fields: [idUsuario], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("historial_estado")
+}
+
+model RespuestaItem {
+  id                   BigInt  @id @default(autoincrement())
+  idEvaluacion         BigInt  @map("id_evaluacion")
+  idItemFicha          BigInt  @map("id_item_ficha")
+  idOpcionRespuesta    BigInt  @map("id_opcion_respuesta")
+  idCriticidad         Int?    @map("id_criticidad") @db.SmallInt
+  valorAplicado        Decimal? @map("valor_aplicado") @db.Decimal(6, 2)
+  pesoAplicado         Decimal @default(1.00) @map("peso_aplicado") @db.Decimal(6, 2)
+  excluidoDelCalculo   Boolean @default(false) @map("excluido_del_calculo")
+  observacion          String?
+  uuidLocal            String  @default(dbgenerated("gen_random_uuid()")) @map("uuid_local") @db.Uuid
+  sincronizado         Boolean @default(false)
+
+  evaluacion      Evaluacion      @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  itemFicha       ItemFicha       @relation(fields: [idItemFicha], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  opcionRespuesta OpcionRespuesta @relation(fields: [idOpcionRespuesta], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criticidad      NivelCriticidad? @relation(fields: [idCriticidad], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  evidencias Evidencia[]
+
+  @@unique([idEvaluacion, idItemFicha], name: "uq_respuesta_item")
+  @@unique([uuidLocal], name: "uq_respuesta_uuid")
+  @@map("respuesta_item")
+}
+
+/// Snapshot inmutable del resultado del cálculo de riesgo de una evaluación.
+model CalculoRiesgo {
+  id                        BigInt   @id @default(autoincrement())
+  idEvaluacion               BigInt   @unique @map("id_evaluacion")
+  idNivelRiesgo               Int?    @map("id_nivel_riesgo") @db.SmallInt
+  idSubcategoriaRp             BigInt? @map("id_subcategoria_rp")
+  idRangoCalificacion          BigInt? @map("id_rango_calificacion")
+  porcentajeCumplimiento       Decimal? @map("porcentaje_cumplimiento") @db.Decimal(6, 2)
+  rpValor                      Decimal? @map("rp_valor") @db.Decimal(8, 4)
+  reValor                      Decimal? @map("re_valor") @db.Decimal(8, 4)
+  rtValor                      Decimal? @map("rt_valor") @db.Decimal(8, 4)
+  frecuencia                   String?  @db.VarChar(20)
+  puntosObtenidos               Decimal? @map("puntos_obtenidos") @db.Decimal(8, 2)
+  puntosExcluidosNa              Decimal? @map("puntos_excluidos_na") @db.Decimal(8, 2)
+  puntajeTotalPosible            Decimal? @map("puntaje_total_posible") @db.Decimal(8, 2)
+  denominadorEfectivo            Decimal? @map("denominador_efectivo") @db.Decimal(8, 2)
+  itemsRespondidos                Int?    @map("items_respondidos") @db.SmallInt
+  itemsNa                         Int?    @map("items_na") @db.SmallInt
+  calificacionTexto                String? @map("calificacion_texto") @db.VarChar(200)
+  aprueba                          Boolean?
+  otorgaPermisoSanitario           Boolean  @default(false) @map("otorga_permiso_sanitario")
+  ncCriticas                       Int      @default(0) @map("nc_criticas") @db.SmallInt
+  ncMayores                        Int      @default(0) @map("nc_mayores") @db.SmallInt
+  ncMenores                        Int      @default(0) @map("nc_menores") @db.SmallInt
+  fechaProximaInspeccion           DateTime? @map("fecha_proxima_inspeccion") @db.Date
+  fechaCalculo                     DateTime  @default(now()) @map("fecha_calculo")
+  reDetalle                        Json?    @map("re_detalle") @db.JsonB
+
+  evaluacion         Evaluacion          @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  nivelRiesgo        NivelRiesgo?        @relation(fields: [idNivelRiesgo], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  subcategoriaRp     SubcategoriaAlimento? @relation(fields: [idSubcategoriaRp], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  rangoCalificacion  RangoCalificacion?  @relation(fields: [idRangoCalificacion], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("calculo_riesgo")
+}
+
+model EvaluacionFactorRiesgo {
+  id              BigInt   @id @default(autoincrement())
+  idEvaluacion    BigInt   @map("id_evaluacion")
+  idFactor        BigInt   @map("id_factor")
+  idOpcionFactor  BigInt   @map("id_opcion_factor")
+  puntajeAplicado Decimal? @map("puntaje_aplicado") @db.Decimal(6, 2)
+  pesoAplicado    Decimal? @map("peso_aplicado") @db.Decimal(6, 4)
+  aporte          Decimal? @db.Decimal(8, 4)
+
+  evaluacion   Evaluacion                   @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  factor       FactorRiesgoEstablecimiento  @relation(fields: [idFactor], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  opcionFactor OpcionFactor                 @relation(fields: [idOpcionFactor], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("evaluacion_factor_riesgo")
+}
+
+model MedidaCorrectiva {
+  id            BigInt    @id @default(autoincrement())
+  idEvaluacion  BigInt    @map("id_evaluacion")
+  numero        Int       @db.SmallInt
+  detalle       String
+  plazoDias     Int?      @map("plazo_dias") @db.SmallInt
+  fechaLimite   DateTime? @map("fecha_limite") @db.Date
+  cumplida      Boolean   @default(false)
+
+  evaluacion Evaluacion @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([idEvaluacion, numero], name: "uq_medida")
+  @@map("medida_correctiva")
+}
+
+model Evidencia {
+  id                  BigInt   @id @default(autoincrement())
+  uuidLocal           String   @unique @default(dbgenerated("gen_random_uuid()")) @map("uuid_local") @db.Uuid
+  idEvaluacion        BigInt   @map("id_evaluacion")
+  idRespuestaItem     BigInt?  @map("id_respuesta_item")
+  tipo                String   @db.VarChar(15)
+  nombreArchivo       String   @map("nombre_archivo") @db.VarChar(250)
+  rutaAlmacenamiento  String?  @map("ruta_almacenamiento") @db.VarChar(500)
+  tipoMime            String?  @map("tipo_mime") @db.VarChar(100)
+  tamanoBytes         BigInt?  @map("tamano_bytes")
+  hashSha256          String?  @map("hash_sha256") @db.Char(64)
+  latitud             Decimal? @db.Decimal(10, 7)
+  longitud            Decimal? @db.Decimal(10, 7)
+  comentario          String?
+  fechaCaptura        DateTime @default(now()) @map("fecha_captura")
+  sincronizado        Boolean  @default(false)
+
+  evaluacion    Evaluacion     @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  respuestaItem RespuestaItem? @relation(fields: [idRespuestaItem], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("evidencia")
+}
+
+model InformeEvaluacion {
+  id                BigInt   @id @default(autoincrement())
+  idEvaluacion      BigInt   @unique @map("id_evaluacion")
+  resumenEjecutivo  String?  @map("resumen_ejecutivo")
+  hallazgos         String?
+  noConformidades   String?  @map("no_conformidades")
+  recomendaciones   String?
+  fechaGeneracion   DateTime @default(now()) @map("fecha_generacion")
+
+  evaluacion Evaluacion @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("informe_evaluacion")
+}
+
+model Expediente {
+  id                 BigInt    @id @default(autoincrement())
+  idCaso             BigInt    @unique @map("id_caso")
+  resultadoFinal     String?   @map("resultado_final") @db.VarChar(100)
+  fechaCierre        DateTime? @map("fecha_cierre") @db.Date
+  informeOficialUrl  String?   @map("informe_oficial_url") @db.VarChar(255)
+  estado             String    @default("Abierto") @db.VarChar(30)
+
+  caso Caso @relation(fields: [idCaso], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("expediente")
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 8 — SOPORTE, SINCRONIZACIÓN Y AUDITORÍA
+// ---------------------------------------------------------------------------
+
+model Notificacion {
+  id             BigInt   @id @default(autoincrement())
+  idUsuario      BigInt   @map("id_usuario")
+  tipo           String   @db.VarChar(50)
+  titulo         String   @db.VarChar(200)
+  mensaje        String
+  entidad        String?  @db.VarChar(50)
+  idEntidad      BigInt?  @map("id_entidad")
+  leida          Boolean  @default(false)
+  enviadaCorreo  Boolean  @default(false) @map("enviada_correo")
+  fechaCreacion  DateTime @default(now()) @map("fecha_creacion")
+
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("notificacion")
+}
+
+model Auditoria {
+  id                BigInt   @id @default(autoincrement())
+  entidad           String   @db.VarChar(60)
+  idEntidad         String?  @map("id_entidad") @db.VarChar(40)
+  accion            String   @db.VarChar(20)
+  idUsuario         BigInt?  @map("id_usuario")
+  ip                String?  @db.Inet
+  valoresAnteriores Json?    @map("valores_anteriores") @db.JsonB
+  valoresNuevos     Json?    @map("valores_nuevos") @db.JsonB
+  fechaHora         DateTime @default(now()) @map("fecha_hora")
+
+  usuario Usuario? @relation(fields: [idUsuario], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("auditoria")
+}
+
+model OperacionPendiente {
+  id                    BigInt   @id @default(autoincrement())
+  uuidLocal             String   @unique @map("uuid_local") @db.Uuid
+  idUsuario             BigInt   @map("id_usuario")
+  tipoOperacion         String   @map("tipo_operacion") @db.VarChar(20)
+  entidad               String   @db.VarChar(60)
+  payload               Json     @db.JsonB
+  estado                String   @default("PENDIENTE") @db.VarChar(20)
+  intentos              Int      @default(0) @db.SmallInt
+  errorMensaje          String?  @map("error_mensaje")
+  fechaCreacionCliente  DateTime @map("fecha_creacion_cliente")
+  fechaRecepcion        DateTime @default(now()) @map("fecha_recepcion")
+
+  usuario Usuario @relation(fields: [idUsuario], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("operacion_pendiente")
+}

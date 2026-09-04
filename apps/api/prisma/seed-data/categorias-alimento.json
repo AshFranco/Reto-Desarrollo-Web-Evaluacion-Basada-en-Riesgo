@@ -1,0 +1,1052 @@
+[
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Productos lácteos líquidos no fermentados, proceso de pasteurización y UHT",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Productos lácteos fermentados",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Grasa láctea",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Queso fresco pasteurizado (madurado menos menos de 60 días)",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Queso madurado pasteurizado (madurado más de 60 días)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Queso elaborado, fundido, procesado",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Queso fresco pasteurizado (con ingredientes añadidos)",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Productos lácteos en polvo",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Helados",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Dulces",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Mantequilla no pasteurizada",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Queso fresco no pasteurizado",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Productos lácteos",
+    "subcategoria": "Queso madurado (>60 días ) no pasteurizado",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Grasas y  aceites y emulsiones grasas",
+    "subcategoria": "Grasas y aceites (aw muy baja: <0.6)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Grasas y  aceites y emulsiones grasas",
+    "subcategoria": "Emulsiones grasas, principalmente del tipo agua en aceite",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Grasas y  aceites y emulsiones grasas",
+    "subcategoria": "Emulsiones grasas, principalmente del tipo agua en aceite, incluidos los productos a base de emulsiones grasas mezcladas y/o aromatizados",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Hielos comestibles incluidos sorbetes",
+    "subcategoria": "Helados a base de agua elaborados con grasas vegetales.",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Frutas congeladas",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Frutas desecadas",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Frutas en vinagre, aceite o salmuera",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Frutas en conserva, enlatadas o en frascos (pasteurizadas)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": "MEDIO",
+    "puntajeQuimico": 4.0,
+    "puntajeRiesgoTotal": 3.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Confituras, jaleas, mermeladas",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Hortalizas, algas marinas, nueces y semillas congeladas",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Hortalizas, algas marinas, nueces y semillas desecadas",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Hortalizas, algas marinas, nueces y semillas en vinagre, aceite, salmuera o salsa de soja",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Frutas y Hortalizas",
+    "subcategoria": "Hortalizas, algas marinas, nueces y semillas en conserva, en latas o frascos (pasteurizadas) o en bolsas de esterilización",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Confitería",
+    "subcategoria": "Productos de cacao y chocolate, incluidos los productos de imitación y los sucedáneos del chocolate",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Confitería",
+    "subcategoria": "Dulces  incluidos los caramelos duros y blandos, los turrones, etc.",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Confitería",
+    "subcategoria": "Goma de mascar",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Confitería",
+    "subcategoria": "Decoraciones (p. ej. para productos de pastelería fina), revestimientos (que no sean de fruta) y salsas dulces",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Granos enteros, triturados o en copos, incluido el arroz",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Harinas y almidones",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Cereales para el desayuno, incluidos los copos de avena",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Pastas y fideos frescos y productos análogos",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Pastas y fideos deshidratados y productos análogos",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Pastas y fideos precocidos y productos análogos",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Mezclas batidas para rebozar (p. ej. para empanar o rebozar pescado o carne de aves de corral)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Productos a base de arroz precocidos o elaborados, incluidas las tortas de arroz (sólo del tipo oriental)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Cereales y productos a base de cereales, derivados de granos de cereales, de raíces y tubérculos, legumbres, leguminosas y médula o corazón blando de palmera, excluidos los productos de panadería",
+    "subcategoria": "Productos a base de soja (excluidos aderezos y condimentos a base de soja)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos de panadería",
+    "subcategoria": "Pan y productos de panadería ordinaria",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos de panadería",
+    "subcategoria": "Productos de panadería fina (dulces, salados, aromatizados) y mezclas",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Carne y productos cárnicos, incluidos los de aves de corral y Pescados y productos pesqueros",
+    "subcategoria": "Crudo no intacto",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": "ALTO",
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Carne y productos cárnicos, incluidos los de aves de corral y Pescados y productos pesqueros",
+    "subcategoria": "Crudo intacto",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": "ALTO",
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Carne y productos cárnicos, incluidos los de aves de corral y Pescados y productos pesqueros",
+    "subcategoria": "Procesado térmicamente - Comercialmente estéril",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Carne y productos cárnicos, incluidos los de aves de corral y Pescados y productos pesqueros",
+    "subcategoria": "No tratado térmicamente - Estable a temperatura ambiente",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Carne y productos cárnicos, incluidos los de aves de corral y Pescados y productos pesqueros",
+    "subcategoria": "Tratado térmicamente - Estable a temperatura ambiente",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Carne y productos cárnicos, incluidos los de aves de corral y Pescados y productos pesqueros",
+    "subcategoria": "Completamente cocido - No estable a temperatura ambiente",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Carne y productos cárnicos, incluidos los de aves de corral y Pescados y productos pesqueros",
+    "subcategoria": "Tratado térmico parcial (sin alcanzar la letalidad)\n - No estable a temperatura ambiente",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Huevos y productos a base de huevo",
+    "subcategoria": "Huevos frescos",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Huevos y productos a base de huevo",
+    "subcategoria": "Productos líquidos a base de huevo pasteurizado",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Huevos y productos a base de huevo",
+    "subcategoria": "Productos congelados a base de huevo pasteurizado",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Huevos y productos a base de huevo",
+    "subcategoria": "Productos a base de huevo en polvo y/o cuajados por calor",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Huevos y productos a base de huevo",
+    "subcategoria": "Huevos en conserva, incluidos los huevos en álcali, salados y envasados",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Edulcorantes, incluida la miel",
+    "subcategoria": "Azúcares refinados y en bruto",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Edulcorantes, incluida la miel",
+    "subcategoria": "Soluciones azucaradas y jarabes, también azúcares (parcialmente) invertidos, incluida la melaza",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Edulcorantes, incluida la miel",
+    "subcategoria": "Otros azúcares y jarabes (por ej. xilosa, jarabe de arce y revestimientos de azúcar)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Edulcorantes, incluida la miel",
+    "subcategoria": "Miel",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Edulcorantes, incluida la miel",
+    "subcategoria": "Edulcorantes de mesa, incluidos los que contienen edulcorantes de gran intensidad",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Sal y sucedáneos de la sal",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Hierbas aromáticas, especias, aderezos y condimentos (p. ej. el aderezo para fideos instantáneos)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Vinagres",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Mostazas",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Sopas y caldos",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Salsas y productos análogos",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Levadura y productos similares",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Aderezos y condimentos a base de soja",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Sales, especias, sopas, salsas, y productos proteínicos",
+    "subcategoria": "Productos proteínicos distintos a los de soja",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Preparados para lactantes líquidos",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Preparados para lactantes en polvo",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Preparados de continuación líquidos",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Preparados de continuación en polvo",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Preparados para usos medicinales específicos destinados a los lactantes líquidos",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Preparados para usos medicinales específicos destinados a los lactantes en polvo",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Alimentos complementarios para lactantes y niños pequeños sólidos (polvos y granulados)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Alimentos complementarios para lactantes y niños pequeños semisólidos (compotas)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Alimentos dietéticos para usos medicinales especiales (excluidos los productos de preparados para lactantes, preparados de continuación y preparados para usos medicinales especiales destinados a los lactantes)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Preparados dietéticos para adelgazamiento y control del peso",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Productos alimenticios para usos nutricionales especiales",
+    "subcategoria": "Alimentos dietéticos (complementos alimenticios para usos dietéticos), excluidos los indicados en las categorías previas",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Aguas",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Jugos y néctares de frutas y hortalizas tratados térmicamente",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Jugos artesanales (no tratados térmicamente)",
+    "riesgoMicrobiologico": "ALTO",
+    "puntajeMicrobiologico": 8.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 8.0,
+    "nivelRiesgoProducto": "ALTO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Bebidas a base de agua aromatizadas, incluidas las bebidas para deportistas, bebidas electrolíticas y bebidas con partículas añadidas",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Café, sucedáneos del café, té, infusiones de hierbas y otras bebidas calientes a base de cereales y granos, excluido el cacao",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Cerveza y bebidas a base de malta",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Sidra y sidra de pera",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Vinos de uva",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Vinos (distintos de los de uva)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Aguamiel",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Licores destilados que contengan más de un 15 por ciento de alcohol",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Bebidas alcohólicas y no alcohólicas, excluidos los productos lácteos",
+    "subcategoria": "Bebidas alcohólicas aromatizadas (p. ej. cerveza, vino y bebidas espirituosas tipo refresco, refrescos con bajo contenido de alcohol)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Aperitivos listos para el consumo",
+    "subcategoria": "Aperitivos a base de patatas (papas), cereales, harina o almidón (derivados de raíces y tubérculos, legumbres y leguminosas)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Aperitivos listos para el consumo",
+    "subcategoria": "Nueces elaboradas, incluidas las nueces revestidas y mezclas de nueces (p. ej. con frutas secas)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Postres",
+    "subcategoria": "Postres a base de leche",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Postres",
+    "subcategoria": "Postres a base de huevo",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Postres",
+    "subcategoria": "Postres a base de grasas, excluidos los postres lácteos (como pudines, yogur aromatizado o con fruta)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Postres",
+    "subcategoria": "Postres a base de cereales y almidón (p. ej. pudines de arroz, pudines de yuca)",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Pescado, filetes de pescado y productos pesqueros congelados, incluidos moluscos, \ncrustáceos y equinodermos",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Pescado, filetes de pescado y productos pesqueros rebozados congelados, incluidos \nmoluscos, crustáceos y equinodermos",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Productos pesqueros picados, amalgamados (mezclados) y congelados, incluidos moluscos, \ncrustáceos y equinodermos",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Pescado y productos pesqueros cocidos, incluidos moluscos, crustáceos y \nequinodermos",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "p",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Pescado y productos pesqueros ahumados, desecados, fermentados y/o salados, \nincluidos moluscos, crustáceos y equinodermos",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Pescado y productos pesqueros marinados y/o en gelatina, incluidos moluscos, \ncrustáceos y equinodermos",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Sucedáneos de salmón, caviar y otros productos pesqueros a base de huevas",
+    "riesgoMicrobiologico": "MEDIO",
+    "puntajeMicrobiologico": 4.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 4.0,
+    "nivelRiesgoProducto": "MEDIO"
+  },
+  {
+    "categoria": "Pescado y productos pesqueros, incluidos moluscos, crustáceos y equinodermos",
+    "subcategoria": "Pescado y productos pesqueros (incluidos los moluscos, crustáceos y equinodermos) en conserva, con inclusión de los enlatados y fermentados",
+    "riesgoMicrobiologico": "BAJO",
+    "puntajeMicrobiologico": 2.0,
+    "riesgoQuimico": null,
+    "puntajeQuimico": null,
+    "puntajeRiesgoTotal": 2.0,
+    "nivelRiesgoProducto": "BAJO"
+  }
+]
