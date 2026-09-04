@@ -2,6 +2,12 @@
 node_modules/
 .pnpm-store/
 
+# Lockfiles — generados en Windows, incompatibles con binarios Linux en CI
+package-lock.json
+
+# MSW dev artifacts
+apps/web/dev-dist/
+
 # Builds
 dist/
 build/

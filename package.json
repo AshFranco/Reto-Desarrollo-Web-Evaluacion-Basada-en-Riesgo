@@ -1,0 +1,10 @@
+{
+  "name": "ebr-bpm",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build:engine": "npm run build -w packages/risk-engine",
+    "dev": "npm run dev -w apps/web",
+    "test": "npm run test --workspaces --if-present"
+  }
+}

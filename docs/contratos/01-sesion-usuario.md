@@ -1,9 +1,9 @@
 # Contrato 01 — Sesión de usuario autenticado
 
-**Lo entrega:** Integrante 1
-**Lo consumen:** Integrantes 2, 3, 4
-**Se cierra el:** martes 25 de agosto
-**Estado:** Borrador — llenar en la reunión conjunta de hoy
+**Lo entrega:** Integrante 1 (Gabriela — backend `apps/api`)  
+**Lo consumen:** Integrantes 2, 3, 4  
+**Se cierra el:** martes 25 de agosto  
+**Estado:** Cerrado — completado a partir del código en `feat/EBR-backend-api` · Integrante 3 · 2026-09-03
 
 ---
 
@@ -16,49 +16,84 @@ sola vez para que nadie la invente por su cuenta.
 
 ## 1. Qué se recibe al iniciar sesión correctamente
 
+### Petición
+
+```
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "correo": "ana.perez@digemaps.gob.do",
+  "password": "secreto123",
+  "captchaToken": "<token de hCaptcha>"
+}
+```
+
+> **Nota:** `captchaToken` es obligatorio. El backend lo verifica con hCaptcha.
+> El login **requiere conexión a internet** — no hay login offline.
+
+### Respuesta
+
 ```json
 {
-  "accessToken": "",
-  "refreshToken": "",
-  "expiresIn": 0,
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "usuario": {
-    "id": 0,
-    "nombreCompleto": "",
-    "correo": "",
-    "roles": [""]
+    "id": "12",
+    "nombreCompleto": "Ana Pérez",
+    "rol": "TECNICO_EVALUADOR",
+    "empresaId": null
   }
 }
 ```
 
-> Completar con los nombres de campo reales acordados. Si algún nombre cambia
-> respecto a este borrador (por ejemplo `accessToken` vs `access_token`), se
-> corrige aquí y se avisa a los tres roles que lo consumen.
+> `id` es **string** (BigInt serializado). `rol` es **singular** (no `roles[]`).
+> El `refreshToken` **NO viene en el JSON** — el servidor lo envía en una cookie
+> `httpOnly`/`secure`/`sameSite=strict` de nombre `refresh_token`, alcance
+> `/api/v1/auth`. El navegador la gestiona automáticamente.
 
-## 2. Qué contiene el token de acceso (para que el backend valide permisos)
+## 2. Qué contiene el token de acceso
 
-- ¿Qué identifica al usuario dentro del token?
-- ¿Los roles van dentro del token o se consultan aparte?
-- ¿Cuánto dura el token de acceso? ¿Cuánto el de renovación?
+```json
+{
+  "sub": "12",
+  "rol": "TECNICO_EVALUADOR",
+  "empresaId": null,
+  "iat": 1725368400,
+  "exp": 1725369300
+}
+```
+
+- `sub`: id del usuario como **string** (no número).
+- `rol`: código de rol único. Un usuario tiene un solo rol activo por sesión.
+- `empresaId`: id de empresa como string, o `null` para usuarios internos de DIGEMAPS.
+- Access token dura **15 minutos** (`JWT_ACCESS_EXPIRES_IN=15m`).
+- Refresh token dura **7 días** en cookie firmada.
 
 ## 3. Cómo se renueva la sesión
 
-Petición:
+El navegador envía automáticamente la cookie `refresh_token` al llamar a:
+
 ```
-POST /
-Body: { "refreshToken": "" }
+POST /api/v1/auth/refresh
 ```
 
-Respuesta: misma forma que el punto 1.
+No se envía nada en el body. El servidor rota el token y devuelve:
+
+```json
+{ "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+```
+
+**Límite:** 20 peticiones por minuto por IP.
 
 ## 4. Qué pasa cuando el token expira o es inválido
 
-- Código de estado HTTP que debe esperar el frontend: ____
-- Forma del cuerpo de error: ____
+| Situación | HTTP | Cuerpo |
+|---|---|---|
+| Access token expirado o inválido en ruta protegida | `401` | `{ "message": "Unauthorized" }` |
+| Cookie de refresh ausente al llamar refresh | `403` | `{ "message": "No hay sesión activa." }` |
+| Cookie de refresh inválida o revocada | `401` | `{ "message": "Sesión inválida. Inicie sesión nuevamente." }` |
 
 ## 5. Lista de roles válidos del sistema
-
-Confirmar los códigos exactos que va a usar el sistema (deben coincidir con la
-tabla `rol` de la base de datos):
 
 - `ADMINISTRADOR`
 - `ADMIN_EMPRESA`
@@ -66,16 +101,31 @@ tabla `rol` de la base de datos):
 - `COORDINADOR`
 - `TECNICO_EVALUADOR`
 
-## 6. Qué necesita el Integrante 3 para el inicio de sesión sin conexión
+## 6. Comportamiento offline — decisiones del Integrante 3
 
-- ¿Se guarda el token en el almacenamiento local del dispositivo? ¿Con qué nombre de clave?
-- ¿Qué pasa si el usuario abre la aplicación sin conexión y el token ya expiró?
+El `refreshToken` viaja solo en cookie `httpOnly` — JavaScript no puede leerlo ni
+guardarlo. Esto simplifica el diseño offline:
+
+- El `accessToken` y los datos del `usuario` se guardan en **IndexedDB** (tabla `sesion`, registro único `id = 1`).
+- El cliente calcula `expiresAt = Date.now() + 900_000` (15 min) al recibir el token.
+- Si el técnico está **sin conexión** y el access token expiró: puede seguir capturando. Los datos quedan en IndexedDB.
+- Al recuperar red: el `SyncProcessor` llama `POST /api/v1/auth/refresh`. El navegador envía la cookie automáticamente. Si responde `200`, actualiza el access token en IndexedDB y procede a sincronizar.
+- Si la cookie expiró (7 días offline): se muestra banner _"Sesión expirada — inicia sesión para sincronizar"_. **Los datos capturados no se pierden.**
+
+## 7. Cierre de sesión
+
+```
+POST /api/v1/auth/logout
+Authorization: Bearer <accessToken>
+```
+
+Revoca todos los refresh tokens del usuario en la base de datos y limpia la cookie.
 
 ---
 
-**Firma de acuerdo** (nombre y fecha de quien confirma que este contrato es el definitivo):
+**Firma de acuerdo:**
 
-- Integrante 1: ____
+- Integrante 1: _(pendiente — confirmar que el shape de `usuario` es el definitivo)_
 - Integrante 2: ____
-- Integrante 3: ____
+- Integrante 3: Int-3 · 2026-09-03 _(completado desde código `feat/EBR-backend-api`)_
 - Integrante 4: ____
