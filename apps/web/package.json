@@ -42,5 +42,10 @@
     "vite": "^5.4.9",
     "vite-plugin-pwa": "^0.21.0",
     "vitest": "^2.1.2"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
