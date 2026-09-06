@@ -1,0 +1,194 @@
+[
+  {
+    "codigo": "VOLUMEN_PRODUCCION",
+    "nombre": "Volumen de producción",
+    "peso": 0.16,
+    "opciones": [
+      {
+        "etiqueta": "Grande (>2,000,000 por mes)",
+        "puntaje": 3,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Mediano (800,000 - 2,000,000 por mes)",
+        "puntaje": 2.33,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Pequeño (200,000 - 800,000 por mes)",
+        "puntaje": 1.67,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Micro (<200,000 por mes)",
+        "puntaje": 1,
+        "limiteInf": null,
+        "limiteSup": null
+      }
+    ],
+    "esAutomatico": false
+  },
+  {
+    "codigo": "IMPLEMENTACION_HACCP",
+    "nombre": "Implementación sistema HACCP",
+    "peso": 0.09,
+    "opciones": [
+      {
+        "etiqueta": "No tiene implementado el sistema HACCP",
+        "puntaje": 3,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene implementado el HACCP en el 25% de las líneas de producción",
+        "puntaje": 2.33,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene implementado el HACCP en el 75% de las líneas de producción",
+        "puntaje": 1.67,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene implementado el HACCP en todas las líneas de producción",
+        "puntaje": 1,
+        "limiteInf": null,
+        "limiteSup": null
+      }
+    ],
+    "esAutomatico": false
+  },
+  {
+    "codigo": "CUMPLIMIENTO_BPM",
+    "nombre": "Cumplimiento con las BPM",
+    "peso": 0.56,
+    "opciones": [
+      {
+        "etiqueta": "≤ 60%",
+        "puntaje": 3,
+        "limiteInf": 0,
+        "limiteSup": 60
+      },
+      {
+        "etiqueta": ">60% - 70%",
+        "puntaje": 2.33,
+        "limiteInf": 60,
+        "limiteSup": 70
+      },
+      {
+        "etiqueta": ">70% - 80%",
+        "puntaje": 1.67,
+        "limiteInf": 70,
+        "limiteSup": 80
+      },
+      {
+        "etiqueta": ">80%",
+        "puntaje": 1,
+        "limiteInf": 80,
+        "limiteSup": 100
+      }
+    ],
+    "esAutomatico": true
+  },
+  {
+    "codigo": "PROVEEDOR_INABIE",
+    "nombre": "Proveedor INABIE",
+    "peso": 0.05,
+    "opciones": [
+      {
+        "etiqueta": "Los productos que elaboran los sirven a nivel nacional",
+        "puntaje": 3,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Los productos que elaboran los sirven a nivel regional",
+        "puntaje": 2.33,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Los productos que elaboran los sirven a nivel local",
+        "puntaje": 1.67,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "No es suplidor del INABIE",
+        "puntaje": 1,
+        "limiteInf": null,
+        "limiteSup": null
+      }
+    ],
+    "esAutomatico": false
+  },
+  {
+    "codigo": "RECHAZOS_REGISTROS_SANITARIOS",
+    "nombre": "Rechazos Registros Sanitarios por incumplimiento microbiológico",
+    "peso": 0.06,
+    "opciones": [
+      {
+        "etiqueta": "Tiene más de 2 rechazos en los últimos 5 años",
+        "puntaje": 3,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene 2 rechazos en los últimos 5 años",
+        "puntaje": 2.33,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene 1 rechazo en los últimos 5 años",
+        "puntaje": 1.67,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "No tiene ningún rechazo en los últimos 5 años",
+        "puntaje": 1,
+        "limiteInf": null,
+        "limiteSup": null
+      }
+    ],
+    "esAutomatico": false
+  },
+  {
+    "codigo": "PLAN_MUESTREO_MICROBIOLOGICO",
+    "nombre": "Planes de muestreo microbiológico/Análisis de laboratorio",
+    "peso": 0.08,
+    "opciones": [
+      {
+        "etiqueta": "No cuenta con plan de muestreo microbiológico",
+        "puntaje": 3,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene plan de muestreo microbiológico solo para las materias primas",
+        "puntaje": 2.33,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene un plan de muestreo microbiológico solo para las áreas de proceso y productos terminados",
+        "puntaje": 1.67,
+        "limiteInf": null,
+        "limiteSup": null
+      },
+      {
+        "etiqueta": "Tiene un plan de muestreo microbiológico para las materias primas, las áreas de proceso y productos terminados",
+        "puntaje": 1,
+        "limiteInf": null,
+        "limiteSup": null
+      }
+    ],
+    "esAutomatico": false
+  }
+]

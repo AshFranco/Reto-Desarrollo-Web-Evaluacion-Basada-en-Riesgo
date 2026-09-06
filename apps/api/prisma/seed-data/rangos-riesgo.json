@@ -1,0 +1,23 @@
+[
+  {
+    "limiteInferior": 1.0,
+    "limiteInferiorIncluye": true,
+    "limiteSuperior": 3.6,
+    "nivelRiesgo": "BAJO",
+    "frecuencia": "ANUAL"
+  },
+  {
+    "limiteInferior": 3.6,
+    "limiteInferiorIncluye": false,
+    "limiteSuperior": 6.3,
+    "nivelRiesgo": "MEDIO",
+    "frecuencia": "SEMESTRAL"
+  },
+  {
+    "limiteInferior": 6.3,
+    "limiteInferiorIncluye": false,
+    "limiteSuperior": null,
+    "nivelRiesgo": "ALTO",
+    "frecuencia": "TRIMESTRAL"
+  }
+]

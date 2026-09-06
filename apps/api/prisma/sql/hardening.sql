@@ -1,0 +1,31 @@
+-- ============================================================================
+-- EBR/BPM - Endurecimiento de base de datos (PENDIENTE DE REESCRITURA)
+-- ============================================================================
+--
+-- Este archivo contenía las políticas de Row-Level Security para el
+-- esquema SIMPLIFICADO anterior (25 tablas). Con la adopción del esquema
+-- oficial de 51 tablas, las políticas de abajo YA NO SON VÁLIDAS porque
+-- referencian columnas que cambiaron o desaparecieron:
+--
+--   - `empresa`, `caso.id_empresa`  -> ahora se llega a la empresa vía
+--     `establecimiento.id_empresa` (caso/evaluación ya no la tienen directo)
+--   - `evaluacion.id_tecnico`       -> ahora es `evaluacion.id_evaluador`
+--   - nombres de tabla en snake_case distintos en varios casos
+--
+-- TAREA PENDIENTE: reescribir las políticas RLS para el esquema oficial.
+-- Puntos clave a cubrir (mínimo):
+--   1. `empresa`: visible solo para su(s) usuario(s) vía `usuario.id_empresa`,
+--      o para roles internos (join contra `usuario_rol` -> `rol`).
+--   2. `solicitud_bpm`: filtrar por `id_empresa` directo.
+--   3. `caso` / `evaluacion`: filtrar vía
+--      `establecimiento.id_empresa` (JOIN, ya no columna directa).
+--   4. `evaluacion`: el técnico solo ve/edita las suyas
+--      (`id_evaluador = current_setting('app.current_user_id')`).
+--   5. Trigger de bloqueo: adaptar a que `evaluacion.bloqueada` sigue
+--      existiendo igual, pero `respuesta_item` (antes `respuesta_evaluacion`)
+--      cambió de nombre de tabla y columnas.
+--
+-- El middleware de la app (`RlsContextMiddleware`) ya fija
+-- `app.current_user_id` / `app.current_user_role` en cada request; una vez
+-- reescritas las políticas de abajo, no hace falta tocar el middleware.
+-- ============================================================================
