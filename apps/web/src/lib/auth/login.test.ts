@@ -41,6 +41,18 @@ describe('login', () => {
     await expect(login('admin@ebr.local', 'cualquiera', 'DEV_CAPTCHA_BYPASS')).rejects.toThrow('Error al iniciar sesión (500)');
   });
 
+  it('descarga el catálogo en Dexie tras login exitoso (necesario para trabajar offline)', async () => {
+    await login('tecnico@ebr.local', 'clave-de-prueba', 'DEV_CAPTCHA_BYPASS');
+
+    const meta = await db.catalogo_meta.get(1);
+    expect(meta).toBeTruthy();
+    expect(meta?.versionFichaId).toBeTruthy();
+    expect(meta?.opcionesRespuesta.length).toBeGreaterThan(0);
+
+    const items = await db.catalogo_item.count();
+    expect(items).toBeGreaterThan(0);
+  });
+
   it('manda correo, password y captchaToken en el cuerpo de la petición (lo que el backend real exige)', async () => {
     let cuerpoRecibido: unknown = null;
     server.use(

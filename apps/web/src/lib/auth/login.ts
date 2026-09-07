@@ -1,4 +1,5 @@
 import { saveSession } from './session';
+import { descargarCatalogo } from '@/lib/catalogo/loader';
 import type { LoginResponse } from '@/lib/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -31,5 +32,8 @@ export async function login(correo: string, password: string, captchaToken: stri
 
   const data: LoginResponse = await respuesta.json();
   await saveSession(data);
+  // Descarga el catálogo de formularios inmediatamente post-login para que
+  // el técnico pueda trabajar offline desde la primera inspección del día.
+  await descargarCatalogo();
   return data;
 }
