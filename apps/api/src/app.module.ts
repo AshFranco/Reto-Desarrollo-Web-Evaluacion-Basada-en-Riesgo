@@ -16,6 +16,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { EmpresasModule } from './modules/empresas/empresas.module';
+import { EstablecimientosModule } from './modules/establecimientos/establecimientos.module';
 import { SolicitudesBpmModule } from './modules/solicitudes-bpm/solicitudes-bpm.module';
 import { CasosModule } from './modules/casos/casos.module';
 import { AlertasLapchModule } from './modules/alertas-lapch/alertas-lapch.module';
@@ -66,6 +67,7 @@ import { HealthController } from './health.controller';
     AuthModule,
     UsuariosModule,
     EmpresasModule,
+    EstablecimientosModule,
     SolicitudesBpmModule,
     CasosModule,
     AlertasLapchModule,
