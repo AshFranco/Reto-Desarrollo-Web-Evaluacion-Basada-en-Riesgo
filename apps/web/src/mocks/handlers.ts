@@ -99,6 +99,44 @@ export const MOCK_ASIGNACION = {
   evaluador: { nombreCompleto: 'Juan Técnico' },
 };
 
+export const MOCK_CATALOGO_MOTOR = {
+  idVersionFicha: '1',
+  idVersionMatriz: '1',
+  reglaAprobacion: {
+    porcentajeMinimoAprobacion: 60,
+    maxNcCriticas: 1,
+    maxNcMayores: 5,
+    porcentajePermisoSanitario: 81,
+  },
+  factores: [
+    {
+      id: '1', numero: 1, nombre: 'Riesgo del Producto (RP)', peso: 0.20, esAutomatico: false,
+      opciones: [
+        { id: '1', descripcion: 'Alto',   puntaje: 5, limiteInf: null, limiteSup: null },
+        { id: '2', descripcion: 'Medio',  puntaje: 3, limiteInf: null, limiteSup: null },
+        { id: '3', descripcion: 'Bajo',   puntaje: 1, limiteInf: null, limiteSup: null },
+      ],
+    },
+    {
+      id: '3', numero: 3, nombre: 'Cumplimiento BPM (automático)', peso: 0.56, esAutomatico: true,
+      opciones: [
+        { id: '7',  descripcion: 'Cumple (>80%)',           puntaje: 1, limiteInf: 80,  limiteSup: 100 },
+        { id: '8',  descripcion: 'Cumple parcial (60–80%)', puntaje: 3, limiteInf: 60,  limiteSup: 79.99 },
+        { id: '9',  descripcion: 'No cumple (<60%)',        puntaje: 5, limiteInf: 0,   limiteSup: 59.99 },
+      ],
+    },
+  ],
+  rangosCalificacion: [
+    { limiteInferior: 0,  limiteSuperior: 60,  incluyeInferior: true, incluyeSuperior: false, descripcion: 'No aprueba', accion: 'Plan de corrección' },
+    { limiteInferior: 60, limiteSuperior: 100, incluyeInferior: true, incluyeSuperior: true,  descripcion: 'Aprueba',    accion: 'Emisión de certificado' },
+  ],
+  rangosFrecuencia: [
+    { id: '1', limiteInferior: 1,   limiteSuperior: 3.6,  incluyeInferior: true, incluyeSuperior: true,  nivelRiesgo: 'BAJO',   frecuencia: 'Anual',    mesesHastaProxima: 12 },
+    { id: '2', limiteInferior: 3.6, limiteSuperior: 6.3,  incluyeInferior: false, incluyeSuperior: true, nivelRiesgo: 'MEDIO',  frecuencia: 'Semestral', mesesHastaProxima: 6 },
+    { id: '3', limiteInferior: 6.3, limiteSuperior: null, incluyeInferior: false, incluyeSuperior: true, nivelRiesgo: 'ALTO',   frecuencia: 'Trimestral', mesesHastaProxima: 3 },
+  ],
+};
+
 const BASE = 'http://localhost:3000';
 
 export const handlers = [
@@ -113,6 +151,9 @@ export const handlers = [
   ),
   http.get(`${BASE}/api/v1/formularios/vigente`, () =>
     HttpResponse.json(MOCK_CATALOGO)
+  ),
+  http.get(`${BASE}/api/v1/motor-riesgo/catalogo`, () =>
+    HttpResponse.json(MOCK_CATALOGO_MOTOR)
   ),
   http.get(`${BASE}/api/v1/asignaciones/mias`, () =>
     HttpResponse.json([

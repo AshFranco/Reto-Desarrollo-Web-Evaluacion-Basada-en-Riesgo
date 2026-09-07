@@ -78,10 +78,56 @@ export interface AsignacionLocal {
   sincronizadoEn: number;
 }
 
+export interface CatalogoMotorLocal {
+  id: 1;
+  idVersionFicha: string;
+  idVersionMatriz: string;
+  descargadoEn: number;
+  reglaAprobacion: {
+    porcentajeMinimoAprobacion: number;
+    maxNcCriticas: number;
+    maxNcMayores: number;
+    porcentajePermisoSanitario: number;
+  };
+  factores: Array<{
+    id: string;
+    numero: number;
+    nombre: string;
+    peso: number;
+    esAutomatico: boolean;
+    opciones: Array<{
+      id: string;
+      descripcion: string;
+      puntaje: number;
+      limiteInf: number | null;
+      limiteSup: number | null;
+    }>;
+  }>;
+  rangosCalificacion: Array<{
+    limiteInferior: number;
+    limiteSuperior: number;
+    incluyeInferior: boolean;
+    incluyeSuperior: boolean;
+    descripcion: string;
+    accion: string;
+  }>;
+  rangosFrecuencia: Array<{
+    id: string;
+    limiteInferior: number;
+    limiteSuperior: number | null;
+    incluyeInferior: boolean;
+    incluyeSuperior: boolean;
+    nivelRiesgo: string;
+    frecuencia: string;
+    mesesHastaProxima: number;
+  }>;
+}
+
 export class EbrDatabase extends Dexie {
   sesion!: EntityTable<SesionLocal, 'id'>;
   catalogo_item!: EntityTable<CatalogoItemLocal, 'id'>;
   catalogo_meta!: EntityTable<CatalogoMetaLocal, 'id'>;
+  catalogo_motor!: EntityTable<CatalogoMotorLocal, 'id'>;
   evaluacion!: EntityTable<EvaluacionLocal, 'uuidLocal'>;
   respuesta!: EntityTable<RespuestaLocal, 'uuidLocal'>;
   evidencia!: EntityTable<EvidenciaLocal, 'uuidLocal'>;
@@ -99,6 +145,9 @@ export class EbrDatabase extends Dexie {
       evidencia:      'uuidLocal, evaluacionUuid, subida',
       cola_sync:      'uuidLocal, tipo, estado, timestamp',
       asignacion:     'id, estado',
+    });
+    this.version(2).stores({
+      catalogo_motor: 'id',
     });
   }
 }

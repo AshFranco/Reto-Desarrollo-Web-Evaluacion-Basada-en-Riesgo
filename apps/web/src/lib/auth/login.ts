@@ -1,5 +1,6 @@
 import { saveSession } from './session';
 import { descargarCatalogo } from '@/lib/catalogo/loader';
+import { descargarCatalogoMotor } from '@/lib/catalogo/loaderMotor';
 import type { LoginResponse } from '@/lib/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -12,17 +13,13 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
  * Si el backend responde con error (401, 400, etc.) se propaga tal cual —
  * no se oculta ni se reintenta aquí. La pantalla de login es quien decide
  * qué mostrarle al usuario.
- *
- * captchaToken es obligatorio porque LoginDto (backend) lo exige con
- * @IsNotEmpty() — sin él, el backend real rechaza la petición con 400
- * antes de siquiera revisar la contraseña.
  */
-export async function login(correo: string, password: string, captchaToken: string): Promise<LoginResponse> {
+export async function login(correo: string, password: string): Promise<LoginResponse> {
   const respuesta = await fetch(`${API_BASE}/api/v1/auth/login`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ correo, password, captchaToken }),
+    body: JSON.stringify({ correo, password }),
   });
 
   if (!respuesta.ok) {
@@ -32,8 +29,6 @@ export async function login(correo: string, password: string, captchaToken: stri
 
   const data: LoginResponse = await respuesta.json();
   await saveSession(data);
-  // Descarga el catálogo de formularios inmediatamente post-login para que
-  // el técnico pueda trabajar offline desde la primera inspección del día.
-  await descargarCatalogo();
+  await Promise.all([descargarCatalogo(), descargarCatalogoMotor()]);
   return data;
 }
