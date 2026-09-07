@@ -18,6 +18,26 @@ INSERT INTO rol (codigo, nombre, descripcion, es_interno) VALUES
 
 
 -- ---------------------------------------------------------------------
+-- Niveles de riesgo (BAJO/MEDIO/ALTO). Se siembra AQUÍ, antes que
+-- rango_frecuencia y rango_nivel_riesgo (más abajo en este mismo
+-- archivo), porque ambos hacen JOIN contra nivel_riesgo.codigo. Antes
+-- vivía en 04_seed_matriz_alimentos.sql, que corre DESPUÉS de este
+-- archivo -- el JOIN contra una tabla todavía vacía no daba error,
+-- simplemente insertaba 0 filas en silencio, dejando rango_frecuencia
+-- y rango_nivel_riesgo completamente vacías (bug real, no defecto de
+-- version_matriz_id: ver discusión en el PR de CI).
+--
+-- Reconcilia las dos escalas del dominio:
+--   puntaje_matriz  (2/4/8) — Matriz de Riesgo de Alimentos, fórmula IFS col. D
+--   puntaje_rp      (1/2/3) — Hoja Frecuencia Inspección, filas 14-16
+-- ---------------------------------------------------------------------
+INSERT INTO nivel_riesgo (codigo, nombre, puntaje_matriz, puntaje_rp, color_hex, orden) VALUES
+  ('BAJO',  'Riesgo bajo',  2.00, 1.00, '#2E7D32', 1),
+  ('MEDIO', 'Riesgo medio', 4.00, 2.00, '#F9A825', 2),
+  ('ALTO',  'Riesgo alto',  8.00, 3.00, '#C62828', 3);
+
+
+-- ---------------------------------------------------------------------
 -- Permisos
 -- ---------------------------------------------------------------------
 INSERT INTO permiso (codigo, modulo, nombre) VALUES
