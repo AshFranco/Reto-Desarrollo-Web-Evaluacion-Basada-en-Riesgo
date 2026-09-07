@@ -6,6 +6,12 @@ import { AsignarEvaluadorDto } from './dto/asignar-evaluador.dto';
 export class AsignacionesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * RF-10: asigna (o reasigna) un evaluador a un caso. Además, crea la
+   * Evaluacion asociada si el caso todavía no tiene una -- es el punto
+   * natural del flujo donde ya se conocen caso + evaluador + establecimiento,
+   * y habilita RF-11 (calendario) y RF-12 (ejecución) para el técnico.
+   */
   async asignar(dto: AsignarEvaluadorDto, coordinadorId: string) {
     const evaluador = await this.prisma.usuario.findUnique({
       where: { id: BigInt(dto.evaluadorId) },
@@ -18,6 +24,14 @@ export class AsignacionesService {
 
     const caso = await this.prisma.caso.findUnique({ where: { id: BigInt(dto.casoId) } });
     if (!caso) throw new NotFoundException('Caso no encontrado.');
+
+    const versionFicha = await this.prisma.versionFicha.findFirst({ where: { estado: 'Activa' } });
+    const versionMatriz = await this.prisma.versionMatrizRiesgo.findFirst({ where: { estado: 'Activa' } });
+    if (!versionFicha || !versionMatriz) {
+      throw new BadRequestException('No hay una versión activa de la ficha o de la matriz de riesgo.');
+    }
+
+    const estadoProgramada = await this.prisma.estadoEvaluacion.findUnique({ where: { codigo: 'PROGRAMADA' } });
 
     return this.prisma.$transaction(async (tx) => {
       // No hay flag "activa" en el esquema oficial; se marca la anterior
@@ -38,7 +52,33 @@ export class AsignacionesService {
 
       await tx.caso.update({ where: { id: BigInt(dto.casoId) }, data: { estado: 'Asignado' } });
 
-      return { ...asignacion, id: asignacion.id.toString(), idCaso: asignacion.idCaso.toString() };
+      // Crea la Evaluacion si el caso no tenía una todavía. Si ya existía
+      // (ej. una reasignación), solo se actualiza el evaluador.
+      let evaluacion = await tx.evaluacion.findFirst({ where: { idCaso: BigInt(dto.casoId) } });
+      if (!evaluacion) {
+        evaluacion = await tx.evaluacion.create({
+          data: {
+            idCaso: BigInt(dto.casoId),
+            idEstablecimiento: caso.idEstablecimiento,
+            idVersionFicha: versionFicha.id,
+            idVersionMatriz: versionMatriz.id,
+            idEvaluador: BigInt(dto.evaluadorId),
+            idEstado: estadoProgramada?.id,
+          },
+        });
+      } else if (evaluacion.idEvaluador !== BigInt(dto.evaluadorId)) {
+        evaluacion = await tx.evaluacion.update({
+          where: { id: evaluacion.id },
+          data: { idEvaluador: BigInt(dto.evaluadorId) },
+        });
+      }
+
+      return {
+        ...asignacion,
+        id: asignacion.id.toString(),
+        idCaso: asignacion.idCaso.toString(),
+        evaluacionId: evaluacion.id.toString(),
+      };
     });
   }
 
