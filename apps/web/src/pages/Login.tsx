@@ -4,11 +4,6 @@ import { Alert, Box, Button, CircularProgress, Paper, TextField, Typography } fr
 import { login } from '@/lib/auth/login';
 import { rutaPorRol } from '@/routes/rutaPorRol';
 
-// TEMPORAL: reemplazar cuando se integre un captcha real antes de producción.
-// No hay servicio de captcha configurado en desarrollo (ver auth.service.ts
-// del backend, que lo marca igual como "temporal para pruebas locales").
-const DEV_CAPTCHA_BYPASS = 'DEV_CAPTCHA_BYPASS';
-
 export default function Login() {
   const navigate = useNavigate();
   const [correo, setCorreo] = useState('');
@@ -21,7 +16,7 @@ export default function Login() {
     setError(null);
     setCargando(true);
     try {
-      const data = await login(correo, password, DEV_CAPTCHA_BYPASS);
+      const data = await login(correo, password);
       navigate(rutaPorRol(data.usuario.rol));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
