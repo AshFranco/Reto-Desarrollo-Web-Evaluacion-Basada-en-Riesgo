@@ -12,6 +12,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
@@ -38,20 +39,26 @@ async function bootstrap() {
   }
 
   // --- Cabeceras de seguridad (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, etc.) ---
+  // En desarrollo, la CSP se relaja (sin bloquear <script>/<style> inline)
+  // para que la interfaz de Swagger (/api/docs) funcione -- Swagger UI
+  // necesita scripts y estilos inline que la CSP estricta bloquearía.
+  // En producción se mantiene la política estricta de siempre.
   app.use(
     helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'"],
-          imgSrc: ["'self'", 'data:', 'blob:'],
-          connectSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          frameAncestors: ["'none'"],
-          upgradeInsecureRequests: [],
-        },
-      },
+      contentSecurityPolicy: config.isProduction
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'"],
+              imgSrc: ["'self'", 'data:', 'blob:'],
+              connectSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              frameAncestors: ["'none'"],
+              upgradeInsecureRequests: [],
+            },
+          }
+        : false,
       hsts: {
         maxAge: 63072000, // 2 años
         includeSubDomains: true,
@@ -89,6 +96,31 @@ async function bootstrap() {
 
   // --- Prefijo global: nunca exponer rutas "crudas" de recursos internos ---
   app.setGlobalPrefix('api');
+
+  // --- Documentación interactiva de la API (solo fuera de producción) ---
+  if (!config.isProduction) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('EBR/BPM API')
+      .setDescription(
+        'Sistema PWA de Evaluación Basada en Riesgo — DIGEMAPS. ' +
+          'Documentación interactiva de todos los endpoints del backend.',
+      )
+      .setVersion('1.0')
+      .addBearerAuth(
+        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        'access-token',
+      )
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    // Sin esto, el botón "Authorize" registra el token pero Swagger no lo
+    // adjunta a las peticiones de "Try it out" salvo que cada endpoint
+    // tenga @ApiBearerAuth() individualmente. Esto lo aplica por defecto
+    // a TODAS las rutas de una sola vez.
+    document.security = [{ 'access-token': [] }];
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+  }
 
   // --- Validación estricta de entradas: rechaza campos no declarados en el DTO ---
   app.useGlobalPipes(

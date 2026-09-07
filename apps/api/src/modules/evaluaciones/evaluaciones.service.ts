@@ -23,6 +23,31 @@ import {
 export class EvaluacionesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** RF-04 (Dashboard Técnico) / RF-11 (Calendario): lista las evaluaciones del técnico. */
+  async listarMias(tecnicoId: string) {
+    const evaluaciones = await this.prisma.evaluacion.findMany({
+      where: { idEvaluador: BigInt(tecnicoId) },
+      include: { establecimiento: { select: { nombre: true, calle: true } }, estado: true },
+      orderBy: { id: 'desc' },
+    });
+    return evaluaciones.map((e) => this.serializar(e));
+  }
+
+  /** Detalle de una evaluación, necesario antes de "iniciar" (para pintar la ficha). */
+  async obtener(evaluacionId: string, tecnicoId: string) {
+    const evaluacion = await this.obtenerYValidarPropiedad(evaluacionId, tecnicoId);
+    const detalle = await this.prisma.evaluacion.findUnique({
+      where: { id: evaluacion.id },
+      include: {
+        establecimiento: { include: { empresa: true } },
+        versionFicha: true,
+        estado: true,
+        respuestas: true,
+      },
+    });
+    return this.serializar(detalle);
+  }
+
   async iniciar(evaluacionId: string, tecnicoId: string) {
     const evaluacion = await this.obtenerYValidarPropiedad(evaluacionId, tecnicoId);
     const estadoProgramada = await this.prisma.estadoEvaluacion.findUniqueOrThrow({

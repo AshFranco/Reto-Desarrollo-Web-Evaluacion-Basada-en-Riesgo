@@ -44,7 +44,7 @@ Test-Paso "Ruta protegida rechaza sin token (401 esperado)" {
 # --- 3) Login (recuerda que el captcha debe estar comentado para esta prueba local) ---
 $global:token = $null
 Test-Paso "Login con usuario admin" {
-    $body = @{ correo = "admin@ebr.local"; password = "AdminLocal#2026!"; captchaToken = "x" } | ConvertTo-Json
+    $body = @{ correo = "admin@ebr.local"; password = "AdminLocal#2026!" } | ConvertTo-Json
     $r = Invoke-RestMethod -Uri "$baseUrl/auth/login" -Method POST -Body $body -ContentType "application/json"
     if (-not $r.accessToken) { throw "No se recibio accessToken" }
     $global:token = $r.accessToken

@@ -52,4 +52,20 @@ export class UsuariosService {
       dobleFactorActivo: usuario.dobleFactorActivo,
     };
   }
+
+  /**
+   * RF-10 (Asignación de Evaluador): el Coordinador necesita un selector
+   * real de técnicos disponibles, no un campo de texto libre para el id.
+   */
+  async listarPorRol(codigoRol: string) {
+    const usuarios = await this.prisma.usuario.findMany({
+      where: {
+        estado: 'APROBADO',
+        roles: { some: { rol: { codigo: codigoRol } } },
+      },
+      select: { id: true, nombreCompleto: true, correoElectronico: true },
+      orderBy: { nombreCompleto: 'asc' },
+    });
+    return usuarios.map((u) => ({ ...u, id: u.id.toString() }));
+  }
 }
