@@ -1,15 +1,28 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
 import { JwtPayload } from '../auth/token.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
+const ROLES_EMPRESA = ['ADMINISTRADOR_EMPRESA', 'USUARIO_DELEGADO'];
 
 @Injectable()
 export class EmpresasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async crear(dto: CrearEmpresaDto) {
+  /**
+   * RF-03: "la empresa gestiona sus propios datos". Un Admin Empresa o
+   * Usuario Delegado puede registrar SU empresa -- pero solo si todavía
+   * no está vinculado a ninguna (evita que un mismo usuario cree varias
+   * empresas encadenadas). Al crearla, se le asigna automáticamente.
+   */
+  async crear(dto: CrearEmpresaDto, user: JwtPayload) {
+    if (ROLES_EMPRESA.includes(user.rol) && user.empresaId) {
+      throw new BadRequestException(
+        'Su usuario ya está vinculado a una empresa; no puede registrar otra.',
+      );
+    }
+
     const empresa = await this.prisma.empresa.create({
       data: {
         razonSocial: dto.razonSocial,
@@ -22,6 +35,16 @@ export class EmpresasService {
         actividadEconomica: dto.actividadEconomica,
       },
     });
+
+    // Vincula automáticamente la empresa recién creada al usuario que la
+    // registró, si es un rol de empresa sin empresa asignada todavía.
+    if (ROLES_EMPRESA.includes(user.rol) && !user.empresaId) {
+      await this.prisma.usuario.update({
+        where: { id: BigInt(user.sub) },
+        data: { idEmpresa: empresa.id },
+      });
+    }
+
     return this.serializar(empresa);
   }
 

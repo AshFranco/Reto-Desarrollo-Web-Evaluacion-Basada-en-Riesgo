@@ -6,7 +6,6 @@ import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { LoginThrottleService } from './login-throttle.service';
-import { CaptchaService } from './captcha.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AppConfigService } from '../../config/app-config.service';
 
@@ -27,7 +26,6 @@ import { AppConfigService } from '../../config/app-config.service';
     PasswordService,
     TokenService,
     LoginThrottleService,
-    CaptchaService,
     JwtStrategy,
   ],
   exports: [TokenService, PasswordService],
