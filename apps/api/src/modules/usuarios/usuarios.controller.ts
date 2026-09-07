@@ -26,4 +26,10 @@ export class UsuariosController {
   perfil(@CurrentUser() user: JwtPayload) {
     return this.usuariosService.perfil(user.sub);
   }
+
+  @Get('por-rol/:codigoRol')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.COORDINADOR)
+  listarPorRol(@Param('codigoRol') codigoRol: string) {
+    return this.usuariosService.listarPorRol(codigoRol);
+  }
 }

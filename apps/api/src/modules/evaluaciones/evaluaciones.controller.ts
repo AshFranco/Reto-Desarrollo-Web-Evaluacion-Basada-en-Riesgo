@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { EvaluacionesService } from './evaluaciones.service';
 import {
   RegistrarRespuestasDto,
@@ -12,6 +12,18 @@ import { RolUsuario } from '../../common/enums';
 @Controller({ path: 'evaluaciones', version: '1' })
 export class EvaluacionesController {
   constructor(private readonly evaluacionesService: EvaluacionesService) {}
+
+  @Get('mias')
+  @Roles(RolUsuario.TECNICO_EVALUADOR)
+  misEvaluaciones(@CurrentUser() user: JwtPayload) {
+    return this.evaluacionesService.listarMias(user.sub);
+  }
+
+  @Get(':id')
+  @Roles(RolUsuario.TECNICO_EVALUADOR)
+  obtener(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.evaluacionesService.obtener(id, user.sub);
+  }
 
   @Post(':id/iniciar')
   @Roles(RolUsuario.TECNICO_EVALUADOR)

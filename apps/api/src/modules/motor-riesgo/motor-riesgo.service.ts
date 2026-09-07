@@ -211,4 +211,89 @@ export class MotorRiesgoService {
 
     return { ...calculo, id: calculo.id.toString(), idEvaluacion: calculo.idEvaluacion.toString() };
   }
+
+  /**
+   * Catálogo completo para el cálculo OFFLINE en el dispositivo del técnico
+   * (@ebr/risk-engine corre igual en la PWA que en este backend -- mismo
+   * paquete compartido, mismos números, sin duplicar la fórmula).
+   *
+   * Incluye:
+   *  - Los 6 factores de riesgo con sus opciones (el técnico elige los 5
+   *    manuales; el automático "Cumplimiento BPM" lo resuelve el propio
+   *    engine en el dispositivo con resolverOpcionFactorAutomatico()).
+   *  - Los rangos de calificación de la ficha activa (aprueba/no aprueba).
+   *  - Los rangos de frecuencia de la matriz activa (nivel de riesgo).
+   *  - Los ids de versión activa, para que el dispositivo los adjunte al
+   *    sincronizar la evaluación luego (evaluacion.id_version_ficha /
+   *    id_version_matriz deben coincidir con lo que se usó offline).
+   */
+  async obtenerCatalogoOffline() {
+    const versionFicha = await this.prisma.versionFicha.findFirst({ where: { estado: 'Activa' } });
+    const versionMatriz = await this.prisma.versionMatrizRiesgo.findFirst({ where: { estado: 'Activa' } });
+    if (!versionFicha || !versionMatriz) {
+      throw new BadRequestException('No hay una versión activa de la ficha o de la matriz de riesgo.');
+    }
+
+    const factoresDb = await this.prisma.factorRiesgoEstablecimiento.findMany({
+      where: { idVersionMatriz: versionMatriz.id },
+      include: { opciones: { orderBy: { orden: 'asc' } } },
+      orderBy: { numero: 'asc' },
+    });
+
+    const rangosCalifDb = await this.prisma.rangoCalificacion.findMany({
+      where: { idVersionFicha: versionFicha.id },
+      orderBy: { orden: 'asc' },
+    });
+
+    const rangosFrecDb = await this.prisma.rangoFrecuencia.findMany({
+      where: { idVersionMatriz: versionMatriz.id },
+      include: { nivelRiesgo: true },
+      orderBy: { orden: 'asc' },
+    });
+
+    return {
+      idVersionFicha: versionFicha.id.toString(),
+      idVersionMatriz: versionMatriz.id.toString(),
+      reglaAprobacion: {
+        porcentajeMinimoAprobacion: versionFicha.porcentajeMinimoAprobacion
+          ? Number(versionFicha.porcentajeMinimoAprobacion)
+          : 60,
+        maxNcCriticas: versionFicha.maxNcCriticas ?? 1,
+        maxNcMayores: versionFicha.maxNcMayores ?? 5,
+        porcentajePermisoSanitario: Number(versionFicha.porcentajePermisoSanitario),
+      },
+      factores: factoresDb.map((f) => ({
+        id: f.id.toString(),
+        numero: f.numero ?? 0,
+        nombre: f.nombre,
+        peso: Number(f.peso ?? 0),
+        esAutomatico: f.esAutomatico,
+        opciones: f.opciones.map((o) => ({
+          id: o.id.toString(),
+          descripcion: o.descripcion ?? '',
+          puntaje: Number(o.puntaje ?? 0),
+          limiteInf: o.limiteInf != null ? Number(o.limiteInf) : null,
+          limiteSup: o.limiteSup != null ? Number(o.limiteSup) : null,
+        })),
+      })),
+      rangosCalificacion: rangosCalifDb.map((r) => ({
+        limiteInferior: Number(r.limiteInferior),
+        limiteSuperior: Number(r.limiteSuperior),
+        incluyeInferior: r.incluyeInferior,
+        incluyeSuperior: r.incluyeSuperior,
+        descripcion: r.descripcion,
+        accion: r.accion,
+      })),
+      rangosFrecuencia: rangosFrecDb.map((r) => ({
+        id: r.id.toString(),
+        limiteInferior: Number(r.limiteInferior),
+        limiteSuperior: r.limiteSuperior != null ? Number(r.limiteSuperior) : null,
+        incluyeInferior: r.incluyeInferior,
+        incluyeSuperior: r.incluyeSuperior,
+        nivelRiesgo: r.nivelRiesgo?.codigo ?? '',
+        frecuencia: r.frecuencia,
+        mesesHastaProxima: r.mesesHastaProxima ?? 0,
+      })),
+    };
+  }
 }

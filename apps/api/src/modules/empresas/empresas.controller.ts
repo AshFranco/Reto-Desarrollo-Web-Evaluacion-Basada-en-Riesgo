@@ -18,9 +18,14 @@ export class EmpresasController {
   constructor(private readonly empresasService: EmpresasService) {}
 
   @Post()
-  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.COORDINADOR)
-  crear(@Body() dto: CrearEmpresaDto) {
-    return this.empresasService.crear(dto);
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+    RolUsuario.USUARIO_DELEGADO,
+  )
+  crear(@Body() dto: CrearEmpresaDto, @CurrentUser() user: JwtPayload) {
+    return this.empresasService.crear(dto, user);
   }
 
   @Get()
