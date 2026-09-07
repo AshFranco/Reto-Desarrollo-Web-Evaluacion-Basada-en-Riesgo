@@ -115,7 +115,30 @@ export const handlers = [
     HttpResponse.json(MOCK_CATALOGO)
   ),
   http.get(`${BASE}/api/v1/asignaciones/mias`, () =>
-    HttpResponse.json([])
+    HttpResponse.json([
+      {
+        id: '1',
+        idCaso: '10',
+        estado: 'Asignado',
+        fechaAsignacion: '2026-09-05T08:00:00.000Z',
+        caso: {
+          id: '10',
+          estado: 'Asignado',
+          establecimiento: { nombre: 'Panadería El Trigal', calle: 'Av. 27 de Febrero 45' },
+        },
+      },
+      {
+        id: '2',
+        idCaso: '11',
+        estado: 'Asignado',
+        fechaAsignacion: '2026-09-06T09:00:00.000Z',
+        caso: {
+          id: '11',
+          estado: 'Asignado',
+          establecimiento: { nombre: 'Lácteos del Norte S.R.L.', calle: 'Calle La Salud 12' },
+        },
+      },
+    ])
   ),
   http.post(`${BASE}/api/v1/evaluaciones/:id/iniciar`, () =>
     HttpResponse.json({ estado: 'En_Curso' })

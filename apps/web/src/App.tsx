@@ -11,6 +11,7 @@ import DashboardAdmin from '@/pages/dashboard/DashboardAdmin';
 import DashboardCoordinador from '@/pages/dashboard/DashboardCoordinador';
 import DashboardTecnico from '@/pages/dashboard/DashboardTecnico';
 import DashboardEmpresa from '@/pages/dashboard/DashboardEmpresa';
+import EvaluacionPage from '@/pages/tecnico/EvaluacionPage';
 import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
 
 const queryClient = new QueryClient({
@@ -54,6 +55,7 @@ export default function App() {
             <Route element={<RoleRoute rolesPermitidos={['TECNICO_EVALUADOR']} />}>
               <Route element={<AppLayout />}>
                 <Route path="/tecnico" element={<DashboardTecnico />} />
+                <Route path="/tecnico/evaluacion/:asignacionId" element={<EvaluacionPage />} />
               </Route>
             </Route>
 

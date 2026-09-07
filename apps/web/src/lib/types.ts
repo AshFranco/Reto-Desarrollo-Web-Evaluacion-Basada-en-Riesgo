@@ -100,6 +100,19 @@ export interface CasoResumen {
   asignaciones: AsignacionEvaluador[];
 }
 
+/** Forma que devuelve GET /api/v1/asignaciones/mias para el Técnico Evaluador. */
+export interface AsignacionMia {
+  id: string;
+  idCaso: string;
+  estado: string;
+  fechaAsignacion: string;
+  caso: {
+    id: string;
+    estado: string;
+    establecimiento: { nombre: string; calle: string };
+  };
+}
+
 /** Forma que devuelve GET /api/v1/casos/:id — sí incluye la empresa. */
 export interface CasoDetalle {
   id: string;
