@@ -18,14 +18,14 @@ function crearWrapper() {
 }
 
 describe('useCalendario', () => {
-  it('llama a GET /api/v1/calendario sin parámetros cuando no se pasa rango', async () => {
-    const { result } = renderHook(() => useCalendario(), { wrapper: crearWrapper() });
+  it('no hace la petición si no se pasa evaluadorId', async () => {
+    const { result } = renderHook(() => useCalendario(undefined), { wrapper: crearWrapper() });
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([]);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(result.current.fetchStatus).toBe('idle');
   });
 
-  it('arma el query string con desde/hasta cuando se pasa un rango', async () => {
+  it('llama a GET /api/v1/calendario?evaluadorId=X cuando se pasa un evaluadorId', async () => {
     let urlRecibida = '';
     server.use(
       http.get('http://localhost:3000/api/v1/calendario', ({ request }) => {
@@ -34,25 +34,42 @@ describe('useCalendario', () => {
       })
     );
 
-    const { result } = renderHook(() => useCalendario({ desde: '2026-01-01', hasta: '2026-01-31' }), {
-      wrapper: crearWrapper(),
-    });
+    const { result } = renderHook(() => useCalendario('2'), { wrapper: crearWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(urlRecibida).toContain('evaluadorId=2');
+  });
+
+  it('arma el query string con desde/hasta además de evaluadorId', async () => {
+    let urlRecibida = '';
+    server.use(
+      http.get('http://localhost:3000/api/v1/calendario', ({ request }) => {
+        urlRecibida = request.url;
+        return HttpResponse.json([]);
+      })
+    );
+
+    const { result } = renderHook(
+      () => useCalendario('2', { desde: '2026-01-01', hasta: '2026-01-31' }),
+      { wrapper: crearWrapper() }
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(urlRecibida).toContain('evaluadorId=2');
     expect(urlRecibida).toContain('desde=2026-01-01');
     expect(urlRecibida).toContain('hasta=2026-01-31');
   });
 
-  it('propaga el 403 real que devuelve el backend cuando lo llama un rol distinto de Técnico Evaluador', async () => {
+  it('propaga el 400 real que devuelve el backend cuando falta evaluadorId', async () => {
     server.use(
       http.get('http://localhost:3000/api/v1/calendario', () =>
-        HttpResponse.json({ message: 'No tiene permisos para esta operación.' }, { status: 403 })
+        HttpResponse.json({ message: 'Debe indicar el parámetro evaluadorId.' }, { status: 400 })
       )
     );
 
-    const { result } = renderHook(() => useCalendario(), { wrapper: crearWrapper() });
+    const { result } = renderHook(() => useCalendario('2'), { wrapper: crearWrapper() });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error?.message).toBe('No tiene permisos para esta operación.');
+    expect(result.current.error?.message).toBe('Debe indicar el parámetro evaluadorId.');
   });
 });

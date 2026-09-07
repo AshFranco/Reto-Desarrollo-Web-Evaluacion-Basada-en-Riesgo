@@ -34,10 +34,12 @@ export function useEmpresa(id: string | null | undefined) {
 }
 
 /**
- * POST /empresas exige rol ADMINISTRADOR o COORDINADOR en el backend — un
- * ADMINISTRADOR_EMPRESA o USUARIO_DELEGADO recibirá 403 si lo llama. Se
- * expone igual porque se pidió explícitamente, pero DashboardEmpresa.tsx
- * NO lo usa para "crear mi empresa" por esta razón — ver el aviso ahí.
+ * POST /empresas: confirmado en vivo que ahora también acepta
+ * ADMINISTRADOR_EMPRESA y USUARIO_DELEGADO, no solo ADMINISTRADOR/
+ * COORDINADOR (empresas.controller.ts). Cuando lo llama un rol de empresa
+ * sin empresaId todavía, el backend vincula la empresa creada a ese
+ * usuario automáticamente (empresas.service.ts) — por eso DashboardEmpresa
+ * no manda ningún id ni hace nada especial después del alta.
  */
 export function useCrearEmpresa() {
   const queryClient = useQueryClient();

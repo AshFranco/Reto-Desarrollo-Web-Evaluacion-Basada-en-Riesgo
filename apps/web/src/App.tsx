@@ -12,6 +12,7 @@ import DashboardCoordinador from '@/pages/dashboard/DashboardCoordinador';
 import DashboardTecnico from '@/pages/dashboard/DashboardTecnico';
 import DashboardEmpresa from '@/pages/dashboard/DashboardEmpresa';
 import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
+import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 5 } },
@@ -61,6 +62,8 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/empresa" element={<DashboardEmpresa />} />
                 <Route path="/empresa/solicitudes/nueva" element={<FormularioSolicitud />} />
+                <Route path="/empresa/establecimientos/nuevo" element={<FormularioEstablecimiento />} />
+                <Route path="/empresa/establecimientos/:id/editar" element={<FormularioEstablecimiento />} />
               </Route>
             </Route>
           </Routes>
