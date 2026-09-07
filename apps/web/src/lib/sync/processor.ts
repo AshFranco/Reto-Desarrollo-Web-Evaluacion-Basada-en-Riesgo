@@ -61,10 +61,10 @@ export class SyncProcessor {
         if (payload['respuestaItemId']) form.append('respuestaItemId', payload['respuestaItemId'] as string);
         form.append('tipo', 'FOTO');
         if (payload['blob'] instanceof Blob) form.append('archivo', payload['blob'] as Blob, payload['nombreArchivo'] as string);
-        const { Authorization } = headers;
+        const authHeader = headers['Authorization'];
         res = await fetch(`${API_BASE}/api/v1/evidencias`, {
           method: 'POST',
-          headers: { Authorization },
+          headers: authHeader ? { Authorization: authHeader } : undefined,
           body: form,
         });
       } else if (op.tipo === 'FINALIZAR_EVALUACION' && evalId) {

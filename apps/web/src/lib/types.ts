@@ -37,3 +37,82 @@ export interface FormularioVigenteResponse {
   secciones: NodoCatalogo[];
   opcionesRespuesta: OpcionRespuestaLocal[];
 }
+
+export interface Establecimiento {
+  id: string;
+  nombre: string;
+}
+
+export interface Empresa {
+  id: string;
+  razonSocial: string;
+  rnc: string;
+  nombreComercial: string | null;
+  direccion: string | null;
+  idMunicipio: string | null;
+  telefono: string | null;
+  correo: string | null;
+  actividadEconomica: string | null;
+  fechaRegistro: string;
+  // Solo viene incluido en GET /empresas/:id, no en el listado.
+  establecimientos?: Establecimiento[];
+}
+
+export interface SolicitudBpm {
+  id: string;
+  idEmpresa: string;
+  idUsuario: string;
+  tipoEstablecimiento: string;
+  motivo: string;
+  observaciones: string | null;
+  estado: string;
+  fechaCreacion: string;
+  fechaEnvio: string | null;
+}
+
+export interface OrigenCaso {
+  id: string;
+  codigo: string;
+  nombre: string;
+  orden: number;
+}
+
+export interface AsignacionEvaluador {
+  id: string;
+  idCaso: string;
+  idEvaluador: string;
+  idCoordinador: string;
+  fechaAsignacion: string;
+  estado: string;
+  evaluador?: { nombreCompleto: string };
+}
+
+/** Forma que devuelve GET /api/v1/casos — sin datos de empresa, solo establecimiento. */
+export interface CasoResumen {
+  id: string;
+  idEstablecimiento: string;
+  idOrigen: string | null;
+  estado: string;
+  prioridad: string | null;
+  fechaCreacion: string;
+  establecimiento: { nombre: string; idEmpresa: string };
+  origen: OrigenCaso | null;
+  asignaciones: AsignacionEvaluador[];
+}
+
+/** Forma que devuelve GET /api/v1/casos/:id — sí incluye la empresa. */
+export interface CasoDetalle {
+  id: string;
+  idEstablecimiento: string;
+  estado: string;
+  prioridad: string | null;
+  fechaCreacion: string;
+  fechaCierre: string | null;
+  establecimiento: { id: string; nombre: string; empresa: Empresa };
+  solicitud: SolicitudBpm | null;
+  alerta: { id: string; numeroAlerta: string; descripcion: string } | null;
+  denuncia: { id: string; tipoDenuncia: string; descripcion: string } | null;
+  programacion: { id: string; fechaProgramada: string; frecuenciaAplicada: string } | null;
+  evaluaciones: { id: string; idEstado: string | null; fechaProgramada: string | null }[];
+  expediente: { id: string; estado: string } | null;
+}
