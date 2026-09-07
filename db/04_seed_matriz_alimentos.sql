@@ -7,13 +7,9 @@
 -- =====================================================================
 SET search_path TO ebr, public;
 
--- Niveles de riesgo. Reconcilia las dos escalas del dominio:
---   puntaje_matriz  (2/4/8) — Matriz de Riesgo de Alimentos, fórmula IFS col. D
---   puntaje_rp      (1/2/3) — Hoja Frecuencia Inspección, filas 14-16
-INSERT INTO nivel_riesgo (codigo, nombre, puntaje_matriz, puntaje_rp, color_hex, orden) VALUES
-  ('BAJO',  'Riesgo bajo',  2.00, 1.00, '#2E7D32', 1),
-  ('MEDIO', 'Riesgo medio', 4.00, 2.00, '#F9A825', 2),
-  ('ALTO',  'Riesgo alto',  8.00, 3.00, '#C62828', 3);
+-- Niveles de riesgo (BAJO/MEDIO/ALTO): sembrados en 02_seed_catalogos.sql,
+-- ANTES de este archivo, porque rango_frecuencia y rango_nivel_riesgo
+-- (que se pueblan en 02) necesitan hacer JOIN contra esta tabla.
 
 -- Categorías de alimento (17 registros extraídos de 110 filas con el nombre repetido)
 INSERT INTO categoria_alimento (nombre, orden) VALUES
