@@ -10,11 +10,6 @@ export class LoginDto {
   @MaxLength(128)
   password: string;
 
-  // Token del proveedor de captcha (hCaptcha/reCAPTCHA), validado en el servidor.
-  @IsString()
-  @IsNotEmpty({ message: 'Verificación anti-bot requerida' })
-  captchaToken: string;
-
   // Código TOTP, requerido solo si el usuario tiene MFA habilitado.
   @IsOptional()
   @IsString()

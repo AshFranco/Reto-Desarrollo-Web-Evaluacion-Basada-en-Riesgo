@@ -7,7 +7,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { LoginThrottleService } from './login-throttle.service';
-import { CaptchaService } from './captcha.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
 
@@ -53,7 +52,6 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly loginThrottle: LoginThrottleService,
-    private readonly captchaService: CaptchaService,
   ) {}
 
   async registrar(dto: RegistroUsuarioDto) {
@@ -107,10 +105,6 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, meta: RequestMeta) {
-    // TEMPORAL PARA PRUEBAS LOCALES: sin servicio de captcha real configurado.
-    // NUNCA dejar comentado en producción/staging.
-     await this.captchaService.verify(dto.captchaToken, meta.ip);
-
     const usuario = await this.prisma.usuario.findUnique({
       where: { correoElectronico: dto.correo },
       include: { roles: { include: { rol: true } } },
