@@ -1,8 +1,11 @@
+import { lazy, Suspense, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
+import { CssBaseline, ThemeProvider, createTheme, CircularProgress, Box } from '@mui/material';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SyncProcessor } from '@/lib/sync/processor';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 5 } },
@@ -13,6 +16,12 @@ const theme = createTheme({
 });
 
 const processor = new SyncProcessor();
+
+const PageLoader = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+    <CircularProgress />
+  </Box>
+);
 
 export default function App() {
   useEffect(() => {
@@ -25,9 +34,23 @@ export default function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<div style={{ padding: 32 }}>EBR — infraestructura lista</div>} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/app/*"
+                element={
+                  <ProtectedRoute>
+                    {/* Jorge construye las sub-rutas aquí */}
+                    <Box sx={{ p: 4 }}>
+                      <div>Panel EBR — rutas de la aplicación pendientes</div>
+                    </Box>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
