@@ -16,6 +16,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -23,7 +24,22 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useCasos, useCasoDetalle, useAsignarEvaluador } from '@/lib/coordinador/useCasos';
 import { useTecnicos } from '@/lib/coordinador/useTecnicos';
 import { useCalendario } from '@/lib/coordinador/useCalendario';
+import {
+  useInformesPendientes,
+  useRevisarInforme,
+  type AccionRevision,
+  type InformePendiente,
+} from '@/lib/coordinador/useInformesPendientes';
+import {
+  useExpedientes,
+  useCasosCerrables,
+  useCerrarExpediente,
+  type CasoCerrable,
+} from '@/lib/coordinador/useExpedientes';
 import type { CasoResumen } from '@/lib/types';
+
+const TOOLTIP_ACCION_EQUIVALENTE =
+  "Hoy el backend registra 'Devolver' y 'Solicitar corrección' exactamente igual (mismo estado, Devuelta). La diferencia queda solo en las observaciones que escribas.";
 
 function FormularioAsignar({ casoId }: { casoId: string }) {
   const { data: tecnicos, isLoading: cargandoTecnicos, isError: errorTecnicos } = useTecnicos();
@@ -274,6 +290,220 @@ function Calendario() {
   );
 }
 
+function FilaInformePendiente({ informe }: { informe: InformePendiente }) {
+  const revisar = useRevisarInforme();
+  const [observaciones, setObservaciones] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
+
+  async function ejecutar(accion: AccionRevision) {
+    setError(null);
+    setExito(null);
+    try {
+      await revisar.mutateAsync({
+        evaluacionId: informe.evaluacionId,
+        accion,
+        observaciones: observaciones.trim() || undefined,
+      });
+      setExito(accion === 'APROBAR' ? 'Informe aprobado.' : 'Informe devuelto al técnico.');
+      setObservaciones('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al revisar el informe');
+    }
+  }
+
+  return (
+    <TableRow>
+      <TableCell>{informe.empresa}</TableCell>
+      <TableCell>{informe.establecimiento}</TableCell>
+      <TableCell sx={{ minWidth: 220 }}>
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="Observaciones (opcional)"
+          value={observaciones}
+          onChange={(e) => setObservaciones(e.target.value)}
+          disabled={revisar.isPending}
+        />
+        {error && (
+          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+            {error}
+          </Typography>
+        )}
+        {exito && (
+          <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5 }}>
+            {exito}
+          </Typography>
+        )}
+      </TableCell>
+      <TableCell>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            size="small"
+            variant="contained"
+            color="success"
+            disabled={revisar.isPending}
+            onClick={() => ejecutar('APROBAR')}
+          >
+            Aprobar
+          </Button>
+          <Tooltip title={TOOLTIP_ACCION_EQUIVALENTE}>
+            <span>
+              <Button
+                size="small"
+                variant="outlined"
+                color="warning"
+                disabled={revisar.isPending}
+                onClick={() => ejecutar('DEVOLVER')}
+              >
+                Devolver
+              </Button>
+            </span>
+          </Tooltip>
+          <Tooltip title={TOOLTIP_ACCION_EQUIVALENTE}>
+            <span>
+              <Button
+                size="small"
+                variant="outlined"
+                color="warning"
+                disabled={revisar.isPending}
+                onClick={() => ejecutar('SOLICITAR_CORRECCION')}
+              >
+                Solicitar corrección
+              </Button>
+            </span>
+          </Tooltip>
+        </Box>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function SeccionInformesPendientes() {
+  const { data: pendientes, isLoading } = useInformesPendientes();
+
+  if (isLoading) return <CircularProgress size={24} />;
+  if (pendientes.length === 0) {
+    return <Typography color="text.secondary">No hay informes pendientes de revisión.</Typography>;
+  }
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Empresa</TableCell>
+            <TableCell>Establecimiento</TableCell>
+            <TableCell>Observaciones</TableCell>
+            <TableCell>Acción</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {pendientes.map((p) => (
+            <FilaInformePendiente key={p.evaluacionId} informe={p} />
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+function FilaCasoCerrable({ caso }: { caso: CasoCerrable }) {
+  const cerrar = useCerrarExpediente();
+  const [error, setError] = useState<string | null>(null);
+
+  async function ejecutar() {
+    setError(null);
+    try {
+      await cerrar.mutateAsync(caso.casoId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cerrar el expediente');
+    }
+  }
+
+  return (
+    <TableRow>
+      <TableCell>{caso.empresa}</TableCell>
+      <TableCell>{caso.establecimiento}</TableCell>
+      <TableCell>
+        <Button size="small" variant="contained" disabled={cerrar.isPending} onClick={ejecutar}>
+          {cerrar.isPending ? <CircularProgress size={18} /> : 'Cerrar expediente'}
+        </Button>
+        {error && (
+          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+            {error}
+          </Typography>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function SeccionExpedientesPendientes() {
+  const { data: cerrables, isLoading } = useCasosCerrables();
+
+  if (isLoading) return <CircularProgress size={24} />;
+  if (cerrables.length === 0) {
+    return <Typography color="text.secondary">No hay expedientes pendientes de cierre.</Typography>;
+  }
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Empresa</TableCell>
+            <TableCell>Establecimiento</TableCell>
+            <TableCell>Acción</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {cerrables.map((c) => (
+            <FilaCasoCerrable key={c.casoId} caso={c} />
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+function TablaExpedientesCerrados() {
+  const { data: expedientes, isLoading, isError, error } = useExpedientes();
+
+  if (isLoading) return <CircularProgress size={24} />;
+  if (isError) {
+    return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los expedientes'}</Alert>;
+  }
+  if (!expedientes || expedientes.length === 0) {
+    return <Typography color="text.secondary">No hay expedientes cerrados todavía.</Typography>;
+  }
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Empresa</TableCell>
+            <TableCell>Establecimiento</TableCell>
+            <TableCell>Fecha de cierre</TableCell>
+            <TableCell>Resultado final</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {expedientes.map((exp) => (
+            <TableRow key={exp.id}>
+              <TableCell>{exp.caso.establecimiento.empresa?.razonSocial ?? '—'}</TableCell>
+              <TableCell>{exp.caso.establecimiento.nombre}</TableCell>
+              <TableCell>{exp.fechaCierre ? new Date(exp.fechaCierre).toLocaleDateString() : '—'}</TableCell>
+              <TableCell>{exp.resultadoFinal ?? 'No calculado'}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 export default function DashboardCoordinador() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -291,6 +521,27 @@ export default function DashboardCoordinador() {
           Calendario de evaluaciones
         </Typography>
         <Calendario />
+      </Box>
+
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Informes pendientes de revisión
+        </Typography>
+        <SeccionInformesPendientes />
+      </Box>
+
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Expedientes pendientes de cierre
+        </Typography>
+        <SeccionExpedientesPendientes />
+      </Box>
+
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Expedientes cerrados
+        </Typography>
+        <TablaExpedientesCerrados />
       </Box>
     </Box>
   );

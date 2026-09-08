@@ -151,7 +151,16 @@ export interface CasoResumen {
   asignaciones: AsignacionEvaluador[];
 }
 
-/** Forma que devuelve GET /api/v1/casos/:id — sí incluye la empresa. */
+/**
+ * Forma que devuelve GET /api/v1/casos/:id — sí incluye la empresa.
+ *
+ * evaluaciones[].idEstado: corregido a number — probado en vivo que el
+ * backend lo devuelve como número (FK cruda a estado_evaluacion.id, ej.
+ * `"idEstado":4`), no como string. GET /casos/:id no resuelve ese id a su
+ * código (a diferencia de GET /evaluaciones/mias, que sí incluye el
+ * objeto `estado` completo pero es exclusivo del Técnico Evaluador dueño
+ * de la evaluación) — ver ID_ESTADO_EVALUACION en useCasos.ts.
+ */
 export interface CasoDetalle {
   id: string;
   idEstablecimiento: string;
@@ -164,6 +173,28 @@ export interface CasoDetalle {
   alerta: { id: string; numeroAlerta: string; descripcion: string } | null;
   denuncia: { id: string; tipoDenuncia: string; descripcion: string } | null;
   programacion: { id: string; fechaProgramada: string; frecuenciaAplicada: string } | null;
-  evaluaciones: { id: string; idEstado: string | null; fechaProgramada: string | null }[];
+  evaluaciones: { id: string; idEstado: number | null; fechaProgramada: string | null }[];
   expediente: { id: string; estado: string } | null;
+}
+
+/**
+ * Forma real de GET /api/v1/expedientes (expedientes.service.ts, buscar):
+ * probado en vivo, solo devuelve expedientes YA cerrados — el único lugar
+ * que crea o actualiza un Expediente es cerrar(), que siempre fija
+ * estado:'Cerrado'. No existe un expediente "Abierto" persistido de
+ * antemano para un caso que todavía no se cerró.
+ */
+export interface Expediente {
+  id: string;
+  idCaso: string;
+  resultadoFinal: string | null;
+  fechaCierre: string | null;
+  informeOficialUrl: string | null;
+  estado: string;
+  caso: {
+    id: string;
+    estado: string;
+    fechaCreacion: string;
+    establecimiento: Establecimiento;
+  };
 }

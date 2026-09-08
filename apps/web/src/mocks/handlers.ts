@@ -144,6 +144,21 @@ export const MOCK_TECNICO = {
   correoElectronico: 'tecnico.prueba@ebr.local',
 };
 
+export const MOCK_EXPEDIENTE = {
+  id: '1',
+  idCaso: '1',
+  resultadoFinal: null,
+  fechaCierre: '2026-01-05T00:00:00.000Z',
+  informeOficialUrl: null,
+  estado: 'Cerrado',
+  caso: {
+    id: '1',
+    estado: 'Cerrado',
+    fechaCreacion: '2026-01-01T00:00:00.000Z',
+    establecimiento: { ...MOCK_ESTABLECIMIENTO, empresa: MOCK_EMPRESA },
+  },
+};
+
 const BASE = 'http://localhost:3000';
 
 export const handlers = [
@@ -194,4 +209,9 @@ export const handlers = [
   http.post(`${BASE}/api/v1/asignaciones`, () => HttpResponse.json(MOCK_ASIGNACION)),
   http.get(`${BASE}/api/v1/calendario`, () => HttpResponse.json([])),
   http.get(`${BASE}/api/v1/usuarios/por-rol/:codigoRol`, () => HttpResponse.json([MOCK_TECNICO])),
+  http.patch(`${BASE}/api/v1/informes/:evaluacionId/revisar`, () =>
+    HttpResponse.json({ id: '1', idEstado: 5 })
+  ),
+  http.get(`${BASE}/api/v1/expedientes`, () => HttpResponse.json([MOCK_EXPEDIENTE])),
+  http.patch(`${BASE}/api/v1/expedientes/:casoId/cerrar`, () => HttpResponse.json(MOCK_EXPEDIENTE)),
 ];
