@@ -47,12 +47,20 @@ export class CasosService {
   async buscarHistorico(filtros: FiltrosBusquedaCaso, user: JwtPayload) {
     const empresaIdEfectivo = ROLES_INTERNOS.includes(user.rol) ? filtros.empresaId : user.empresaId;
 
+    let hastaDate: Date | undefined;
+    if (filtros.fechaCreacionHasta) {
+      hastaDate = new Date(filtros.fechaCreacionHasta);
+      if (filtros.fechaCreacionHasta.length === 10) {
+        hastaDate.setUTCHours(23, 59, 59, 999);
+      }
+    }
+
     const where: any = {
       estado: filtros.estado,
       establecimiento: empresaIdEfectivo ? { idEmpresa: BigInt(empresaIdEfectivo) } : undefined,
       fechaCreacion: {
         gte: filtros.fechaCreacionDesde ? new Date(filtros.fechaCreacionDesde) : undefined,
-        lte: filtros.fechaCreacionHasta ? new Date(filtros.fechaCreacionHasta) : undefined,
+        lte: hastaDate,
       },
     };
     if (filtros.solicitudId) where.idSolicitud = BigInt(filtros.solicitudId);

@@ -26,6 +26,7 @@ export class ExpedientesController {
   @Roles(
     RolUsuario.ADMINISTRADOR,
     RolUsuario.COORDINADOR,
+    RolUsuario.TECNICO_EVALUADOR,
     RolUsuario.ADMINISTRADOR_EMPRESA,
     RolUsuario.USUARIO_DELEGADO,
   )
