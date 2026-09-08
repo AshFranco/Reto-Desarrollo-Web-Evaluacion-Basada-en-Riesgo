@@ -10,7 +10,7 @@ afterEach(() => db.delete());
 
 describe('login', () => {
   it('con credenciales válidas guarda la sesión y devuelve los datos del usuario', async () => {
-    const data = await login('tecnico@ebr.local', 'clave-de-prueba', 'DEV_CAPTCHA_BYPASS');
+    const data = await login('tecnico@ebr.local', 'clave-de-prueba');
 
     expect(data.accessToken).toBeTruthy();
     expect(data.usuario.rol).toBe('TECNICO_EVALUADOR');
@@ -20,14 +20,14 @@ describe('login', () => {
     expect(sesion?.usuario.nombreCompleto).toBe(data.usuario.nombreCompleto);
   });
 
-  it('propaga el error tal cual cuando el backend responde 401 (ej. captcha) y no guarda sesión', async () => {
+  it('propaga el error tal cual cuando el backend responde 401 (credenciales inválidas) y no guarda sesión', async () => {
     server.use(
       http.post('http://localhost:3000/api/v1/auth/login', () =>
-        HttpResponse.json({ message: 'Verificación anti-bot fallida.' }, { status: 401 })
+        HttpResponse.json({ message: 'Credenciales inválidas.' }, { status: 401 })
       )
     );
 
-    await expect(login('admin@ebr.local', 'cualquiera', 'DEV_CAPTCHA_BYPASS')).rejects.toThrow('Verificación anti-bot fallida.');
+    await expect(login('admin@ebr.local', 'cualquiera')).rejects.toThrow('Credenciales inválidas.');
 
     const sesion = await getSession();
     expect(sesion).toBeNull();
@@ -38,11 +38,11 @@ describe('login', () => {
       http.post('http://localhost:3000/api/v1/auth/login', () => new HttpResponse(null, { status: 500 }))
     );
 
-    await expect(login('admin@ebr.local', 'cualquiera', 'DEV_CAPTCHA_BYPASS')).rejects.toThrow('Error al iniciar sesión (500)');
+    await expect(login('admin@ebr.local', 'cualquiera')).rejects.toThrow('Error al iniciar sesión (500)');
   });
 
   it('descarga el catálogo en Dexie tras login exitoso (necesario para trabajar offline)', async () => {
-    await login('tecnico@ebr.local', 'clave-de-prueba', 'DEV_CAPTCHA_BYPASS');
+    await login('tecnico@ebr.local', 'clave-de-prueba');
 
     const meta = await db.catalogo_meta.get(1);
     expect(meta).toBeTruthy();
@@ -53,7 +53,7 @@ describe('login', () => {
     expect(items).toBeGreaterThan(0);
   });
 
-  it('manda correo, password y captchaToken en el cuerpo de la petición (lo que el backend real exige)', async () => {
+  it('manda solo correo y password en el cuerpo de la petición (sin captchaToken — el backend ya no lo acepta)', async () => {
     let cuerpoRecibido: unknown = null;
     server.use(
       http.post('http://localhost:3000/api/v1/auth/login', async ({ request }) => {
@@ -65,12 +65,11 @@ describe('login', () => {
       })
     );
 
-    await login('tecnico@ebr.local', 'clave-de-prueba', 'DEV_CAPTCHA_BYPASS');
+    await login('tecnico@ebr.local', 'clave-de-prueba');
 
     expect(cuerpoRecibido).toEqual({
       correo: 'tecnico@ebr.local',
       password: 'clave-de-prueba',
-      captchaToken: 'DEV_CAPTCHA_BYPASS',
     });
   });
 });

@@ -13,16 +13,18 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
  * no se oculta ni se reintenta aquí. La pantalla de login es quien decide
  * qué mostrarle al usuario.
  *
- * captchaToken es obligatorio porque LoginDto (backend) lo exige con
- * @IsNotEmpty() — sin él, el backend real rechaza la petición con 400
- * antes de siquiera revisar la contraseña.
+ * Ya no manda captchaToken: el backend le quitó ese campo a LoginDto
+ * ("fix: elimina el captcha del login, no era requisito del SRS") y
+ * ahora rechaza con 400 cualquier campo que no esté declarado en el DTO
+ * (`ValidationPipe({ forbidNonWhitelisted: true })`) — mandarlo de más
+ * rompería el login en vez de arreglarlo.
  */
-export async function login(correo: string, password: string, captchaToken: string): Promise<LoginResponse> {
+export async function login(correo: string, password: string): Promise<LoginResponse> {
   const respuesta = await fetch(`${API_BASE}/api/v1/auth/login`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ correo, password, captchaToken }),
+    body: JSON.stringify({ correo, password }),
   });
 
   if (!respuesta.ok) {
