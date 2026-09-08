@@ -13,10 +13,10 @@ const META: CatalogoMetaLocal = {
   versionFichaId: '1',
   descargadoEn: Date.now(),
   opcionesRespuesta: [
-    { id: '1', codigo: 'C',   nombre: 'Cumple',           valor: 1.0, excluyeDelCalculo: false, generaNc: false },
-    { id: '2', codigo: 'CP',  nombre: 'Cumple Parcial',    valor: 0.5, excluyeDelCalculo: false, generaNc: true  },
-    { id: '3', codigo: 'IT',  nombre: 'Incumple Total',    valor: 0.0, excluyeDelCalculo: false, generaNc: true  },
-    { id: '4', codigo: 'N/A', nombre: 'No Aplica',         valor: 0.0, excluyeDelCalculo: true,  generaNc: false },
+    { id: '1', codigo: 'C',   valor: '1',   excluyeDelCalculo: false, generaNc: false },
+    { id: '2', codigo: 'CP',  valor: '0.5', excluyeDelCalculo: false, generaNc: true  },
+    { id: '3', codigo: 'IT',  valor: '0',   excluyeDelCalculo: false, generaNc: true  },
+    { id: '4', codigo: 'N/A', valor: '0',   excluyeDelCalculo: true,  generaNc: false },
   ],
 };
 
@@ -29,7 +29,7 @@ const ITEM: CatalogoItemLocal = {
   nivel: 4,
   orden: 1,
   esEvaluable: true,
-  peso: 1.0,
+  peso: '1',
   idCriticidad: null,
 };
 

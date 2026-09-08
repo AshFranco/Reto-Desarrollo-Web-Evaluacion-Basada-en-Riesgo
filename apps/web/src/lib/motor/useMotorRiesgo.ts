@@ -40,11 +40,13 @@ export function useMotorRiesgo({
           opcion: {
             id: Number(opcion.id),
             codigo: opcion.codigo,
-            valor: opcion.valor,
+            // valor/peso son Decimal en el backend y llegan como string —
+            // @ebr/risk-engine los tipa como number (usa Decimal.js internamente).
+            valor: Number(opcion.valor),
             excluyeDelCalculo: opcion.excluyeDelCalculo,
             generaNc: opcion.generaNc,
           },
-          peso: item.peso,
+          peso: Number(item.peso ?? 0),
           criticidad: item.idCriticidad as 'C' | 'M' | 'Me' | null,
         },
       ];
