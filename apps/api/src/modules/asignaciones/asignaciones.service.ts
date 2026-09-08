@@ -82,12 +82,32 @@ export class AsignacionesService {
     });
   }
 
+  /**
+   * RF-11 (Calendario)/RF-12 (Ejecución): el Técnico necesita el
+   * `evaluacionId` de cada asignación para poder navegar directo a
+   * "iniciar" su evaluación desde la lista, sin un paso intermedio.
+   */
   async listarPorEvaluador(evaluadorId: string) {
     const asignaciones = await this.prisma.asignacionEvaluador.findMany({
       where: { idEvaluador: BigInt(evaluadorId), estado: 'Asignado' },
       include: { caso: { include: { establecimiento: { select: { nombre: true, calle: true } } } } },
       orderBy: { fechaAsignacion: 'desc' },
     });
-    return asignaciones.map((a) => ({ ...a, id: a.id.toString(), idCaso: a.idCaso.toString() }));
+
+    // Una consulta para traer todas las evaluaciones de estos casos de una
+    // vez (evita N+1: una query por cada asignación en un loop).
+    const idsCaso = asignaciones.map((a) => a.idCaso);
+    const evaluaciones = await this.prisma.evaluacion.findMany({
+      where: { idCaso: { in: idsCaso } },
+      select: { id: true, idCaso: true },
+    });
+    const evaluacionPorCaso = new Map(evaluaciones.map((e) => [e.idCaso.toString(), e.id.toString()]));
+
+    return asignaciones.map((a) => ({
+      ...a,
+      id: a.id.toString(),
+      idCaso: a.idCaso.toString(),
+      evaluacionId: evaluacionPorCaso.get(a.idCaso.toString()) ?? null,
+    }));
   }
 }

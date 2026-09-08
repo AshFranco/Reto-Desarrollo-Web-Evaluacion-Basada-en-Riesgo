@@ -30,9 +30,9 @@ export class CalendarioController {
     const esInterno = user.rol === 'COORDINADOR' || user.rol === 'ADMINISTRADOR';
 
     if (esInterno && !query.evaluadorId) {
-      throw new BadRequestException(
-        'Debe indicar el parámetro evaluadorId para consultar el calendario de un técnico.',
-      );
+      // Sin evaluadorId: calendario combinado de todo el equipo,
+      // agrupado por técnico (para comparar carga de trabajo de un vistazo).
+      return this.calendarioService.obtenerCalendarioEquipo(query.desde, query.hasta);
     }
     if (!esInterno && query.evaluadorId && query.evaluadorId !== user.sub) {
       throw new BadRequestException('No puede consultar el calendario de otro técnico.');

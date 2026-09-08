@@ -22,21 +22,23 @@ describe('MotorRiesgoService', () => {
   // 5 factores manuales en su MEJOR opción (puntaje 1), más el factor
   // automático "Cumplimiento BPM" cuyo puntaje depende del % de la ficha.
   const FACTORES_MANUALES = [
-    { id: 2n, peso: 0.09, esAutomatico: false, opciones: [{ id: 20n, puntaje: 1, limiteInf: null, limiteSup: null }] },
-    { id: 3n, peso: 0.08, esAutomatico: false, opciones: [{ id: 30n, puntaje: 1, limiteInf: null, limiteSup: null }] },
-    { id: 4n, peso: 0.05, esAutomatico: false, opciones: [{ id: 40n, puntaje: 1, limiteInf: null, limiteSup: null }] },
-    { id: 5n, peso: 0.06, esAutomatico: false, opciones: [{ id: 50n, puntaje: 1, limiteInf: null, limiteSup: null }] },
-    { id: 6n, peso: 0.16, esAutomatico: false, opciones: [{ id: 60n, puntaje: 1, limiteInf: null, limiteSup: null }] },
+    { id: 2n, numero: 1, nombre: 'Factor 1', peso: 0.09, esAutomatico: false, opciones: [{ id: 20n, puntaje: 1, limiteInf: null, limiteSup: null }] },
+    { id: 3n, numero: 2, nombre: 'Factor 2', peso: 0.08, esAutomatico: false, opciones: [{ id: 30n, puntaje: 1, limiteInf: null, limiteSup: null }] },
+    { id: 4n, numero: 4, nombre: 'Factor 4', peso: 0.05, esAutomatico: false, opciones: [{ id: 40n, puntaje: 1, limiteInf: null, limiteSup: null }] },
+    { id: 5n, numero: 5, nombre: 'Factor 5', peso: 0.06, esAutomatico: false, opciones: [{ id: 50n, puntaje: 1, limiteInf: null, limiteSup: null }] },
+    { id: 6n, numero: 6, nombre: 'Factor 6', peso: 0.16, esAutomatico: false, opciones: [{ id: 60n, puntaje: 1, limiteInf: null, limiteSup: null }] },
   ];
   const FACTOR_AUTOMATICO = {
     id: 1n,
+    numero: 3,
+    nombre: 'Factor 3 Cumplimiento',
     peso: 0.56,
     esAutomatico: true,
     opciones: [
-      { id: 11n, puntaje: 3, limiteInf: 0, limiteSup: 60 },
-      { id: 12n, puntaje: 2.33, limiteInf: 60, limiteSup: 70 },
-      { id: 13n, puntaje: 1.67, limiteInf: 70, limiteSup: 80 },
-      { id: 14n, puntaje: 1, limiteInf: 80, limiteSup: 100 },
+      { id: 11n, descripcion: '<=60%', puntaje: 3, limiteInf: 0, limiteSup: 60 },
+      { id: 12n, descripcion: '60-70%', puntaje: 2.33, limiteInf: 60, limiteSup: 70 },
+      { id: 13n, descripcion: '70-80%', puntaje: 1.67, limiteInf: 70, limiteSup: 80 },
+      { id: 14n, descripcion: '>80%', puntaje: 1, limiteInf: 80, limiteSup: 100 },
     ],
   };
   const TODOS_LOS_FACTORES = [FACTOR_AUTOMATICO, ...FACTORES_MANUALES];
@@ -46,17 +48,19 @@ describe('MotorRiesgoService', () => {
   }));
 
   function mockRespuestasParaPorcentaje(porcentaje: number) {
-    // 1 solo ítem de 100 puntos posibles, con valor_aplicado = porcentaje,
-    // para que %cumplimiento salga exactamente igual al valor deseado.
-    prisma.versionFicha.findUniqueOrThrow.mockResolvedValue({
-      id: VERSION_FICHA_ID,
-      puntajeTotalPosible: 100,
-      maxNcCriticas: 1,
-      porcentajeMinimoAprobacion: 60,
-      porcentajePermisoSanitario: 81,
-    });
     prisma.respuestaItem.findMany.mockResolvedValue([
-      { valorAplicado: porcentaje, pesoAplicado: 1, excluidoDelCalculo: false, criticidad: null },
+      {
+        idItemFicha: 1n,
+        pesoAplicado: 1,
+        opcionRespuesta: {
+          id: 101n,
+          codigo: 'C',
+          valor: porcentaje / 100,
+          excluyeDelCalculo: false,
+          generaNc: false,
+        },
+        criticidad: null,
+      },
     ]);
   }
 
@@ -69,20 +73,38 @@ describe('MotorRiesgoService', () => {
           idVersionMatriz: VERSION_MATRIZ_ID,
           idVersionFicha: VERSION_FICHA_ID,
           establecimiento: { id: ESTABLECIMIENTO_ID },
-          versionFicha: { id: VERSION_FICHA_ID },
+          versionFicha: {
+            id: VERSION_FICHA_ID,
+            porcentajeMinimoAprobacion: 60,
+            maxNcCriticas: 1,
+            maxNcMayores: 5,
+            porcentajePermisoSanitario: 81,
+          },
         }),
       },
-      versionFicha: { findUniqueOrThrow: jest.fn() },
       respuestaItem: { findMany: jest.fn() },
       establecimientoCategoria: { findMany: jest.fn() },
       factorRiesgoEstablecimiento: { findMany: jest.fn().mockResolvedValue(TODOS_LOS_FACTORES) },
+      rangoCalificacion: {
+        findMany: jest.fn().mockResolvedValue([
+          { limiteInferior: 0, limiteSuperior: 60, incluyeInferior: true, incluyeSuperior: false, descripcion: 'Insatisfactorio', accion: 'No Aprueba' },
+          { limiteInferior: 60, limiteSuperior: 100, incluyeInferior: true, incluyeSuperior: true, descripcion: 'Aceptable', accion: 'Aprueba' },
+        ]),
+      },
       rangoFrecuencia: {
-        findFirst: jest.fn().mockImplementation(({ where }: any) => {
-          const rt = where.limiteInferior.lte;
-          if (rt <= 3.6) return Promise.resolve({ idNivelRiesgo: 1, frecuencia: 'ANUAL', mesesHastaProxima: 12, orden: 0 });
-          if (rt <= 6.3) return Promise.resolve({ idNivelRiesgo: 2, frecuencia: 'SEMESTRAL', mesesHastaProxima: 6, orden: 1 });
-          return Promise.resolve({ idNivelRiesgo: 3, frecuencia: 'TRIMESTRAL', mesesHastaProxima: 3, orden: 2 });
-        }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 1n, limiteInferior: 1, limiteSuperior: 3.6, incluyeInferior: true, incluyeSuperior: true, nivelRiesgo: { codigo: 'BAJO' }, frecuencia: 'ANUAL', mesesHastaProxima: 12 },
+          { id: 2n, limiteInferior: 3.6, limiteSuperior: 6.3, incluyeInferior: false, incluyeSuperior: true, nivelRiesgo: { codigo: 'MEDIO' }, frecuencia: 'SEMESTRAL', mesesHastaProxima: 6 },
+          { id: 3n, limiteInferior: 6.3, limiteSuperior: 9, incluyeInferior: false, incluyeSuperior: true, nivelRiesgo: { codigo: 'ALTO' }, frecuencia: 'TRIMESTRAL', mesesHastaProxima: 3 },
+        ]),
+      },
+      nivelRiesgo: {
+        findFirst: jest.fn().mockImplementation(({ where }: any) =>
+          Promise.resolve({
+            id: where.codigo === 'BAJO' ? 1n : where.codigo === 'MEDIO' ? 2n : 3n,
+            codigo: where.codigo,
+          }),
+        ),
       },
       calculoRiesgo: {
         upsert: jest.fn().mockImplementation(({ create }: any) => Promise.resolve({ id: 999n, ...create })),
@@ -116,7 +138,7 @@ describe('MotorRiesgoService', () => {
     expect(Number(resultado.reValor)).toBeCloseTo(1.0, 4);
     expect(Number(resultado.rpValor)).toBe(1);
     expect(Number(resultado.rtValor)).toBeCloseTo(1.0, 4);
-    expect(resultado.idNivelRiesgo).toBe(1);
+    expect(Number(resultado.idNivelRiesgo)).toBe(1);
     expect(resultado.frecuencia).toBe('ANUAL');
   });
 

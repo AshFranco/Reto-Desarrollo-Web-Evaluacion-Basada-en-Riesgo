@@ -1,5 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { JwtPayload } from '../auth/token.service';
+
+const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 
 @Injectable()
 export class ExpedientesService {
@@ -48,7 +51,25 @@ export class ExpedientesService {
     });
   }
 
-  async buscar(filtros: { empresaId?: string; estado?: string; desde?: string; hasta?: string }) {
+  /**
+   * Roles internos (Admin/Coordinador/Tecnico) pueden ver todo, y filtrar
+   * opcionalmente por empresa con el query param. Roles de empresa SOLO
+   * pueden ver los suyos -- el server IGNORA cualquier empresaId que el
+   * cliente intente mandar y fuerza el propio, para que no se pueda pedir
+   * el de otra empresa cambiando el parametro.
+   */
+  async buscar(filtros: { empresaId?: string; estado?: string; desde?: string; hasta?: string }, user: JwtPayload) {
+    let empresaIdEfectivo: string | undefined;
+
+    if (ROLES_INTERNOS.includes(user.rol)) {
+      empresaIdEfectivo = filtros.empresaId;
+    } else {
+      if (!user.empresaId) {
+        throw new ForbiddenException('Su usuario no está vinculado a ninguna empresa.');
+      }
+      empresaIdEfectivo = user.empresaId; // se ignora filtros.empresaId a propósito
+    }
+
     const expedientes = await this.prisma.expediente.findMany({
       where: {
         estado: filtros.estado,
@@ -56,8 +77,8 @@ export class ExpedientesService {
           gte: filtros.desde ? new Date(filtros.desde) : undefined,
           lte: filtros.hasta ? new Date(filtros.hasta) : undefined,
         },
-        caso: filtros.empresaId
-          ? { establecimiento: { idEmpresa: BigInt(filtros.empresaId) } }
+        caso: empresaIdEfectivo
+          ? { establecimiento: { idEmpresa: BigInt(empresaIdEfectivo) } }
           : undefined,
       },
       include: { caso: { include: { establecimiento: { include: { empresa: true } } } } },
