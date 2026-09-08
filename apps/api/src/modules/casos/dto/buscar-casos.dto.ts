@@ -5,7 +5,7 @@ export class BuscarCasosHistoricoQuery {
   @IsOptional() @IsNumberString() solicitudId?: string;
   @IsOptional() @IsNumberString() evaluacionId?: string;
   @IsOptional()
-  @IsIn(['Abierto', 'Asignado', 'En Evaluacion', 'En Revision', 'En Correccion', 'Cerrado', 'Cancelado'])
+  @IsIn(['Pendiente', 'Abierto', 'Asignado', 'En Evaluacion', 'En Revision', 'En Correccion', 'Cerrado', 'Cancelado'])
   estado?: string;
   @IsOptional() @IsDateString() fechaCreacionDesde?: string;
   @IsOptional() @IsDateString() fechaCreacionHasta?: string;
