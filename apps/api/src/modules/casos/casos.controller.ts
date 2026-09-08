@@ -1,5 +1,6 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { CasosService } from './casos.service';
+import { BuscarCasosHistoricoQuery } from './dto/buscar-casos.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { EmpresaOwnershipGuard } from '../../common/guards/empresa-ownership.guard';
 import { JwtPayload } from '../auth/token.service';
@@ -11,6 +12,17 @@ export class CasosController {
   @Get()
   listar(@CurrentUser() user: JwtPayload) {
     return this.casosService.listar(user);
+  }
+
+  /**
+   * RF de consulta histórica (Fase 7): busca sobre TODO el historial de
+   * casos, no solo los cerrados -- con filtros por empresa, solicitud,
+   * evaluación y rango de fecha de creación. Complementa a
+   * GET /expedientes, que solo cubre casos ya cerrados.
+   */
+  @Get('historico')
+  buscarHistorico(@Query() query: BuscarCasosHistoricoQuery, @CurrentUser() user: JwtPayload) {
+    return this.casosService.buscarHistorico(query, user);
   }
 
   @Get(':id')

@@ -44,6 +44,15 @@ export class InformesService {
     return { ...informe, id: informe.id.toString(), idEvaluacion: informe.idEvaluacion.toString() };
   }
 
+  /**
+   * NOTA sobre DEVOLVER vs SOLICITAR_CORRECCION: el catálogo estado_evaluacion
+   * no tiene un estado separado para "en corrección" -- ambas acciones
+   * llevan a la evaluación al mismo estado DEVUELTA. Para que el frontend
+   * pueda distinguir cuál de las dos eligió el Coordinador (sin tocar el
+   * catálogo ni el esquema), se guarda la acción real como prefijo del
+   * comentario en historial_estado, y se devuelve explícita en la
+   * respuesta de este endpoint.
+   */
   async revisar(evaluacionId: string, dto: RevisarInformeDto, coordinadorId: string) {
     const evaluacion = await this.prisma.evaluacion.findUnique({ where: { id: BigInt(evaluacionId) } });
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
@@ -56,6 +65,8 @@ export class InformesService {
     const nuevoEstadoCodigo = dto.accion === 'APROBAR' ? 'APROBADA' : 'DEVUELTA';
     const nuevoEstado = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: nuevoEstadoCodigo } });
 
+    const comentarioConAccion = `[${dto.accion}] ${dto.observaciones ?? ''}`.trim();
+
     return this.prisma.$transaction(async (tx) => {
       await tx.historialEstado.create({
         data: {
@@ -63,7 +74,7 @@ export class InformesService {
           idEstadoOrigen: estadoEnRevision.id,
           idEstadoDestino: nuevoEstado.id,
           idUsuario: BigInt(coordinadorId),
-          comentario: dto.observaciones,
+          comentario: comentarioConAccion,
         },
       });
 
@@ -71,7 +82,7 @@ export class InformesService {
         where: { id: BigInt(evaluacionId) },
         data: { idEstado: nuevoEstado.id, idCoordinador: BigInt(coordinadorId), fechaRevision: new Date() },
       });
-      return { ...actualizada, id: actualizada.id.toString() };
+      return { ...actualizada, id: actualizada.id.toString(), accion: dto.accion };
     });
   }
 }
