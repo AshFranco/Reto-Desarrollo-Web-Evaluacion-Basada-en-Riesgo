@@ -7,6 +7,7 @@ import {
   CircularProgress,
   Collapse,
   IconButton,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -20,9 +21,12 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useCasos, useCasoDetalle, useAsignarEvaluador } from '@/lib/coordinador/useCasos';
-import type { AsignacionEvaluador, CasoResumen } from '@/lib/types';
+import { useTecnicos } from '@/lib/coordinador/useTecnicos';
+import { useCalendario } from '@/lib/coordinador/useCalendario';
+import type { CasoResumen } from '@/lib/types';
 
 function FormularioAsignar({ casoId }: { casoId: string }) {
+  const { data: tecnicos, isLoading: cargandoTecnicos, isError: errorTecnicos } = useTecnicos();
   const asignar = useAsignarEvaluador();
   const [evaluadorId, setEvaluadorId] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -45,12 +49,11 @@ function FormularioAsignar({ casoId }: { casoId: string }) {
       <Typography variant="subtitle2" gutterBottom>
         Asignar Técnico Evaluador
       </Typography>
-      <Alert severity="info" sx={{ mb: 2 }}>
-        No existe todavía un endpoint para listar los Técnicos Evaluadores disponibles
-        (revisado en <code>usuarios.controller.ts</code>) — hay que conocer el ID numérico del
-        técnico por otra vía (por ejemplo, consultándolo directamente en la base de datos)
-        hasta que se agregue esa función al backend.
-      </Alert>
+      {errorTecnicos && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          No se pudo cargar la lista de técnicos.
+        </Alert>
+      )}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -63,12 +66,20 @@ function FormularioAsignar({ casoId }: { casoId: string }) {
       )}
       <Box sx={{ display: 'flex', gap: 2 }}>
         <TextField
-          label="ID del Técnico Evaluador"
+          select
+          label="Técnico Evaluador"
           size="small"
+          sx={{ minWidth: 260 }}
           value={evaluadorId}
           onChange={(e) => setEvaluadorId(e.target.value)}
-          disabled={asignar.isPending}
-        />
+          disabled={asignar.isPending || cargandoTecnicos}
+        >
+          {(tecnicos ?? []).map((t) => (
+            <MenuItem key={t.id} value={t.id}>
+              {t.nombreCompleto}
+            </MenuItem>
+          ))}
+        </TextField>
         <Button
           variant="contained"
           disabled={asignar.isPending || !evaluadorId}
@@ -77,6 +88,11 @@ function FormularioAsignar({ casoId }: { casoId: string }) {
           {asignar.isPending ? <CircularProgress size={20} /> : 'Asignar'}
         </Button>
       </Box>
+      {!cargandoTecnicos && !errorTecnicos && (tecnicos?.length ?? 0) === 0 && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          No hay ningún Técnico Evaluador aprobado en el sistema todavía.
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -200,47 +216,65 @@ function TablaCasos() {
   );
 }
 
-function ProximasEvaluaciones({ casos }: { casos: CasoResumen[] }) {
-  const asignados: { caso: CasoResumen; asignacion: AsignacionEvaluador }[] = [];
-  for (const caso of casos) {
-    const asignacion = caso.asignaciones[0];
-    if (asignacion) asignados.push({ caso, asignacion });
-  }
-  asignados.sort(
-    (a, b) => new Date(a.asignacion.fechaAsignacion).getTime() - new Date(b.asignacion.fechaAsignacion).getTime()
-  );
-
-  if (asignados.length === 0) {
-    return <Typography color="text.secondary">No hay casos con evaluador asignado todavía.</Typography>;
-  }
+function Calendario() {
+  const { data: tecnicos, isLoading: cargandoTecnicos } = useTecnicos();
+  const [evaluadorId, setEvaluadorId] = useState('');
+  const { data: eventos, isLoading, isError, error } = useCalendario(evaluadorId || undefined);
 
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Establecimiento</TableCell>
-            <TableCell>Evaluador</TableCell>
-            <TableCell>Fecha de asignación</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {asignados.map(({ caso, asignacion }) => (
-            <TableRow key={caso.id}>
-              <TableCell>{caso.establecimiento.nombre}</TableCell>
-              <TableCell>{asignacion.evaluador?.nombreCompleto ?? '—'}</TableCell>
-              <TableCell>{new Date(asignacion.fechaAsignacion).toLocaleDateString()}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Box>
+      <TextField
+        select
+        label="Técnico Evaluador"
+        size="small"
+        sx={{ minWidth: 260, mb: 2 }}
+        value={evaluadorId}
+        onChange={(e) => setEvaluadorId(e.target.value)}
+        disabled={cargandoTecnicos}
+      >
+        {(tecnicos ?? []).map((t) => (
+          <MenuItem key={t.id} value={t.id}>
+            {t.nombreCompleto}
+          </MenuItem>
+        ))}
+      </TextField>
+
+      {!evaluadorId && (
+        <Typography color="text.secondary">Elegí un técnico para ver su calendario.</Typography>
+      )}
+
+      {evaluadorId && isLoading && <CircularProgress size={24} />}
+      {evaluadorId && isError && (
+        <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar el calendario'}</Alert>
+      )}
+      {evaluadorId && eventos && eventos.length === 0 && (
+        <Typography color="text.secondary">Este técnico no tiene evaluaciones programadas.</Typography>
+      )}
+      {evaluadorId && eventos && eventos.length > 0 && (
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Establecimiento</TableCell>
+                <TableCell>Fecha programada</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {eventos.map((ev) => (
+                <TableRow key={ev.id}>
+                  <TableCell>{ev.establecimiento.nombre}</TableCell>
+                  <TableCell>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
   );
 }
 
 export default function DashboardCoordinador() {
-  const { data: casos } = useCasos();
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Typography variant="h4">Panel de Coordinador</Typography>
@@ -256,14 +290,7 @@ export default function DashboardCoordinador() {
         <Typography variant="h6" gutterBottom>
           Calendario de evaluaciones
         </Typography>
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          El endpoint <code>GET /api/v1/calendario</code> está restringido a Técnico Evaluador
-          y solo devuelve las evaluaciones de quien lo consulta — no existe hoy una forma de
-          ver el calendario de todo el equipo desde este rol. Mientras tanto, esta lista
-          muestra los casos con evaluador asignado, ordenados por fecha de asignación, como
-          aproximación.
-        </Alert>
-        {casos ? <ProximasEvaluaciones casos={casos} /> : <CircularProgress size={24} />}
+        <Calendario />
       </Box>
     </Box>
   );

@@ -89,6 +89,23 @@ export const MOCK_CASO_DETALLE = {
   expediente: null,
 };
 
+export const MOCK_ASIGNACION_MIA = {
+  id: '1',
+  idCaso: '1',
+  idEvaluador: '1',
+  idCoordinador: '3',
+  fechaAsignacion: '2026-01-03T00:00:00.000Z',
+  estado: 'Asignado',
+  caso: {
+    id: '1',
+    idEstablecimiento: '1',
+    estado: 'Asignado',
+    prioridad: 'NORMAL',
+    fechaCreacion: '2026-01-01T00:00:00.000Z',
+    establecimiento: { nombre: 'Planta Piloto de Prueba', calle: 'Calle Falsa 123' },
+  },
+};
+
 export const MOCK_ASIGNACION = {
   id: '1',
   idCaso: '1',
@@ -97,6 +114,34 @@ export const MOCK_ASIGNACION = {
   fechaAsignacion: '2026-01-03T00:00:00.000Z',
   estado: 'Asignado',
   evaluador: { nombreCompleto: 'Juan Técnico' },
+};
+
+export const MOCK_ESTABLECIMIENTO = {
+  id: '1',
+  idEmpresa: '1',
+  idMunicipio: null,
+  idDpsDas: null,
+  nombre: 'Planta de Prueba',
+  rnc: null,
+  calle: 'Calle Falsa 123',
+  telefono: null,
+  correo: null,
+  fechaInicioOperaciones: null,
+  numeroPermisoSanitario: 'PS-0001',
+  fechaVencimientoPermiso: null,
+  produccionAnual: null,
+  empleadosMasculino: 0,
+  empleadosFemenino: 0,
+  mercadoObjetivo: null,
+  latitud: null,
+  longitud: null,
+  activo: true,
+};
+
+export const MOCK_TECNICO = {
+  id: '2',
+  nombreCompleto: 'Juan Técnico',
+  correoElectronico: 'tecnico.prueba@ebr.local',
 };
 
 const BASE = 'http://localhost:3000';
@@ -115,7 +160,7 @@ export const handlers = [
     HttpResponse.json(MOCK_CATALOGO)
   ),
   http.get(`${BASE}/api/v1/asignaciones/mias`, () =>
-    HttpResponse.json([])
+    HttpResponse.json([MOCK_ASIGNACION_MIA])
   ),
   http.post(`${BASE}/api/v1/evaluaciones/:id/iniciar`, () =>
     HttpResponse.json({ estado: 'En_Curso' })
@@ -133,6 +178,12 @@ export const handlers = [
   http.get(`${BASE}/api/v1/empresas/:id`, () => HttpResponse.json(MOCK_EMPRESA)),
   http.post(`${BASE}/api/v1/empresas`, () => HttpResponse.json(MOCK_EMPRESA)),
   http.patch(`${BASE}/api/v1/empresas/:id`, () => HttpResponse.json(MOCK_EMPRESA)),
+  http.get(`${BASE}/api/v1/establecimientos`, () => HttpResponse.json([MOCK_ESTABLECIMIENTO])),
+  http.get(`${BASE}/api/v1/establecimientos/:id`, () =>
+    HttpResponse.json({ ...MOCK_ESTABLECIMIENTO, empresa: MOCK_EMPRESA })
+  ),
+  http.post(`${BASE}/api/v1/establecimientos`, () => HttpResponse.json(MOCK_ESTABLECIMIENTO)),
+  http.patch(`${BASE}/api/v1/establecimientos/:id`, () => HttpResponse.json(MOCK_ESTABLECIMIENTO)),
   http.get(`${BASE}/api/v1/solicitudes-bpm/mias`, () => HttpResponse.json([MOCK_SOLICITUD])),
   http.post(`${BASE}/api/v1/solicitudes-bpm`, () => HttpResponse.json(MOCK_SOLICITUD)),
   http.post(`${BASE}/api/v1/solicitudes-bpm/:id/enviar`, () =>
@@ -142,4 +193,5 @@ export const handlers = [
   http.get(`${BASE}/api/v1/casos/:id`, () => HttpResponse.json(MOCK_CASO_DETALLE)),
   http.post(`${BASE}/api/v1/asignaciones`, () => HttpResponse.json(MOCK_ASIGNACION)),
   http.get(`${BASE}/api/v1/calendario`, () => HttpResponse.json([])),
+  http.get(`${BASE}/api/v1/usuarios/por-rol/:codigoRol`, () => HttpResponse.json([MOCK_TECNICO])),
 ];

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -126,10 +126,10 @@ export default function FormularioSolicitud() {
             </TextField>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              Gestión de establecimientos: pendiente, no implementado en el backend todavía. Tu
-              empresa no tiene ningún establecimiento registrado, así que por ahora solo podés
-              guardar la solicitud como borrador — enviarla directamente no está disponible
-              hasta que exista esa función.
+              Tu empresa todavía no tiene ningún establecimiento registrado, así que por ahora
+              solo podés guardar la solicitud como borrador — enviarla directamente necesita
+              elegir un establecimiento.{' '}
+              <RouterLink to="/empresa/establecimientos/nuevo">Registrar uno ahora</RouterLink>.
             </Typography>
           )}
         </Card>

@@ -19,8 +19,98 @@ import {
   Typography,
 } from '@mui/material';
 import { useSesion } from '@/lib/auth/useSesion';
-import { useEmpresa, useEditarEmpresa, type DatosEmpresa } from '@/lib/empresa/useEmpresas';
+import { silentRefresh } from '@/lib/auth/refresh';
+import {
+  useEmpresa,
+  useEditarEmpresa,
+  useCrearEmpresa,
+  type DatosEmpresa,
+} from '@/lib/empresa/useEmpresas';
 import { useSolicitudesPropias } from '@/lib/empresa/useSolicitudes';
+import { useEstablecimientos } from '@/lib/empresa/useEstablecimientos';
+
+const EMPRESA_VACIA: DatosEmpresa = { razonSocial: '', rnc: '', nombreComercial: '', direccion: '', telefono: '', correo: '', actividadEconomica: '' };
+
+function FormularioCrearEmpresa() {
+  const crearEmpresa = useCrearEmpresa();
+  const [datos, setDatos] = useState<DatosEmpresa>(EMPRESA_VACIA);
+  const [error, setError] = useState<string | null>(null);
+
+  async function guardar() {
+    setError(null);
+    try {
+      await crearEmpresa.mutateAsync(datos);
+      // El JWT actual todavía tiene empresaId=null (quedó fijo desde el
+      // login, igual que vimos con el login inicial). silentRefresh() pide
+      // uno nuevo — auth.service.ts lee el usuario fresco de la base y
+      // firma el token con el empresaId ya vinculado. Recargamos para que
+      // toda la pantalla (sesión + empresa + establecimientos) arranque
+      // limpia con el token nuevo, en vez de manejar el caso a mano acá.
+      await silentRefresh();
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear la empresa');
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="subtitle1" gutterBottom>
+          Todavía no tenés una empresa registrada. Completá los datos para crearla — queda
+          vinculada a tu usuario automáticamente.
+        </Typography>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <TextField
+          label="Razón social"
+          fullWidth
+          required
+          margin="dense"
+          value={datos.razonSocial}
+          onChange={(e) => setDatos({ ...datos, razonSocial: e.target.value })}
+          disabled={crearEmpresa.isPending}
+        />
+        <TextField
+          label="RNC"
+          fullWidth
+          required
+          margin="dense"
+          value={datos.rnc}
+          onChange={(e) => setDatos({ ...datos, rnc: e.target.value })}
+          disabled={crearEmpresa.isPending}
+        />
+        <TextField
+          label="Nombre comercial"
+          fullWidth
+          margin="dense"
+          value={datos.nombreComercial}
+          onChange={(e) => setDatos({ ...datos, nombreComercial: e.target.value })}
+          disabled={crearEmpresa.isPending}
+        />
+        <TextField
+          label="Dirección"
+          fullWidth
+          margin="dense"
+          value={datos.direccion}
+          onChange={(e) => setDatos({ ...datos, direccion: e.target.value })}
+          disabled={crearEmpresa.isPending}
+        />
+        <Button
+          variant="contained"
+          sx={{ mt: 2 }}
+          disabled={crearEmpresa.isPending || !datos.razonSocial.trim() || !datos.rnc.trim()}
+          onClick={guardar}
+        >
+          {crearEmpresa.isPending ? <CircularProgress size={20} /> : 'Crear empresa'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEditar: boolean }) {
   const { data: empresa, isLoading, isError, error } = useEmpresa(empresaId);
@@ -192,6 +282,47 @@ function ListaSolicitudes() {
   );
 }
 
+function ListaEstablecimientos() {
+  const { data: establecimientos, isLoading, isError, error } = useEstablecimientos();
+
+  if (isLoading) return <CircularProgress size={24} />;
+  if (isError) {
+    return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los establecimientos'}</Alert>;
+  }
+  if (!establecimientos || establecimientos.length === 0) {
+    return <Typography color="text.secondary">Todavía no registraste ningún establecimiento.</Typography>;
+  }
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Nombre</TableCell>
+            <TableCell>Dirección</TableCell>
+            <TableCell>Permiso sanitario</TableCell>
+            <TableCell />
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {establecimientos.map((est) => (
+            <TableRow key={est.id}>
+              <TableCell>{est.nombre}</TableCell>
+              <TableCell>{est.calle ?? '—'}</TableCell>
+              <TableCell>{est.numeroPermisoSanitario ?? '—'}</TableCell>
+              <TableCell align="right">
+                <Button size="small" component={RouterLink} to={`/empresa/establecimientos/${est.id}/editar`}>
+                  Editar
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 export default function DashboardEmpresa() {
   const { sesion, cargando } = useSesion();
 
@@ -204,28 +335,24 @@ export default function DashboardEmpresa() {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Typography variant="h4">Panel de Empresa</Typography>
 
-      <Alert severity="info">
-        Gestión de establecimientos: pendiente, no implementado en el backend todavía. Por eso
-        una solicitud BPM se puede guardar como borrador, pero enviarla requiere un
-        establecimiento registrado — hoy eso solo es posible si tu empresa ya tiene alguno
-        cargado.
-      </Alert>
-
       <Box>
         <Typography variant="h6" gutterBottom>
           Mi empresa
         </Typography>
-        {empresaId ? (
-          <SeccionEmpresa empresaId={empresaId} puedeEditar={puedeEditar} />
-        ) : (
-          <Alert severity="warning">
-            Tu usuario todavía no tiene una empresa asociada. Registrar una empresa nueva lo
-            hace un Administrador (el backend no permite que un Administrador Empresa o
-            Usuario Delegado cree su propia empresa) — contacta a un Administrador para que la
-            registre y la asocie a tu cuenta.
-          </Alert>
-        )}
+        {empresaId ? <SeccionEmpresa empresaId={empresaId} puedeEditar={puedeEditar} /> : <FormularioCrearEmpresa />}
       </Box>
+
+      {empresaId && (
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6">Mis establecimientos</Typography>
+            <Button variant="contained" component={RouterLink} to="/empresa/establecimientos/nuevo">
+              Nuevo establecimiento
+            </Button>
+          </Box>
+          <ListaEstablecimientos />
+        </Box>
+      )}
 
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
