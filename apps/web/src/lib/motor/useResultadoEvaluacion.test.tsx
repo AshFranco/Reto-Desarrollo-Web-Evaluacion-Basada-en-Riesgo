@@ -1,11 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { db } from '@/lib/db';
+import { server } from '@/mocks/node';
 import { descargarCatalogo } from '@/lib/catalogo/loader';
 import { descargarCatalogoMotor } from '@/lib/catalogo/loaderMotor';
-import { MOCK_EVALUACION_DETALLE, MOCK_CATALOGO } from '@/mocks/handlers';
+import { MOCK_EVALUACION_DETALLE, MOCK_CATALOGO, MOCK_CATALOGO_MOTOR } from '@/mocks/handlers';
 import type { EvaluacionDetalle, RespuestaItemRaw } from '@/lib/types';
 import { useResultadoEvaluacion } from './useResultadoEvaluacion';
+
+// El handler predeterminado devuelve MOCK_CATALOGO_MOTOR_RIESGO (formato raw del
+// backend), pero loaderMotor.ts espera el formato Omit<EntradaCalculo,'respuestas'>.
+// Sobreescribimos el handler para los tests que llaman a descargarCatalogoMotor().
+const URL_MOTOR = 'http://localhost:3000/api/v1/motor-riesgo/catalogo';
+const handlerMotorLocal = http.get(URL_MOTOR, () => HttpResponse.json(MOCK_CATALOGO_MOTOR));
 
 // Evaluación con una respuesta 'C' sobre el ítem evaluable del catálogo mock
 // (item id='2', peso='1', idCriticidad=null → opción id='1' código='C')
@@ -31,7 +39,10 @@ const EVALUACION_CON_RESPUESTAS: EvaluacionDetalle = {
 beforeEach(async () => {
   await db.open();
 });
-afterEach(() => db.delete());
+afterEach(() => {
+  db.delete();
+  server.resetHandlers();
+});
 
 describe('useResultadoEvaluacion', () => {
   it('retorna null cuando evaluacion no está definida', () => {
@@ -56,6 +67,7 @@ describe('useResultadoEvaluacion', () => {
   });
 
   it('retorna ResultadoRiesgo cuando todos los datos están en Dexie', async () => {
+    server.use(handlerMotorLocal);
     await descargarCatalogo();
     await descargarCatalogoMotor();
 
@@ -77,6 +89,7 @@ describe('useResultadoEvaluacion', () => {
   });
 
   it('retorna null cuando la evaluación no tiene respuestas guardadas', async () => {
+    server.use(handlerMotorLocal);
     await descargarCatalogo();
     await descargarCatalogoMotor();
 
@@ -97,6 +110,7 @@ describe('useResultadoEvaluacion', () => {
   });
 
   it('ignora respuestas cuyo idOpcionRespuesta no existe en el catálogo', async () => {
+    server.use(handlerMotorLocal);
     await descargarCatalogo();
     await descargarCatalogoMotor();
 
