@@ -10,6 +10,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 import DashboardAdmin from '@/pages/dashboard/DashboardAdmin';
 import DashboardCoordinador from '@/pages/dashboard/DashboardCoordinador';
 import DashboardTecnico from '@/pages/dashboard/DashboardTecnico';
+import EjecutarEvaluacion from '@/pages/tecnico/EjecutarEvaluacion';
 import DashboardEmpresa from '@/pages/dashboard/DashboardEmpresa';
 import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
 import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento';
@@ -55,6 +56,7 @@ export default function App() {
             <Route element={<RoleRoute rolesPermitidos={['TECNICO_EVALUADOR']} />}>
               <Route element={<AppLayout />}>
                 <Route path="/tecnico" element={<DashboardTecnico />} />
+                <Route path="/tecnico/evaluaciones/:evaluacionId" element={<EjecutarEvaluacion />} />
               </Route>
             </Route>
 

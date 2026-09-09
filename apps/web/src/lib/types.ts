@@ -10,6 +10,11 @@ export interface LoginResponse {
   usuario: UsuarioLocal;
 }
 
+/**
+ * peso: corregido a `string | null` — probado en vivo que es un Decimal de
+ * Prisma (mismo patrón que Establecimiento.produccionAnual) y llega como
+ * string (ej. `"peso":"1"`), null en los nodos no evaluables (secciones).
+ */
 export interface NodoCatalogo {
   id: string;
   idPadre: string | null;
@@ -18,16 +23,21 @@ export interface NodoCatalogo {
   nivel: number;
   orden: number;
   esEvaluable: boolean;
-  peso: number;
+  peso: string | null;
   idCriticidad: string | null;
   hijos: NodoCatalogo[];
 }
 
+/**
+ * Confirmado en vivo contra opcion_respuesta (schema.prisma) y la respuesta
+ * real de GET /formularios/vigente: el modelo NO tiene columna `nombre`
+ * (se había inventado en una fase anterior sin verificar) y `valor` es un
+ * Decimal que llega como string (ej. `"valor":"0.5"`), no number.
+ */
 export interface OpcionRespuestaLocal {
   id: string;
   codigo: string;
-  nombre: string;
-  valor: number;
+  valor: string;
   excluyeDelCalculo: boolean;
   generaNc: boolean;
 }
@@ -118,8 +128,10 @@ export interface AsignacionEvaluador {
 
 /**
  * Forma real de GET /api/v1/asignaciones/mias (asignaciones.service.ts,
- * listarPorEvaluador): incluye el caso y su establecimiento, pero NO una
- * Evaluación ni su id — ese dato no existe en esta respuesta.
+ * listarPorEvaluador). Gabriela agregó `evaluacionId` (confirmado en vivo:
+ * coincide con el id que devuelve POST /asignaciones al crear la
+ * asignación) — antes no existía y era el motivo por el que el botón
+ * "Iniciar" del panel del Técnico estaba deshabilitado.
  */
 export interface AsignacionMia {
   id: string;
@@ -128,6 +140,7 @@ export interface AsignacionMia {
   idCoordinador: string;
   fechaAsignacion: string;
   estado: string;
+  evaluacionId: string | null;
   caso: {
     id: string;
     idEstablecimiento: string;
@@ -197,4 +210,64 @@ export interface Expediente {
     fechaCreacion: string;
     establecimiento: Establecimiento;
   };
+}
+
+/**
+ * Forma real de una fila de `respuesta_item` (registrar-respuestas.dto.ts /
+ * evaluaciones.service.ts), probada en vivo guardando una respuesta real:
+ * todos los ids BigInt llegan como string; `idCriticidad` es un Int (no
+ * BigInt) y llega como number o null. No incluye `codigoOpcion` ni el
+ * código de criticidad directamente — solo el id numérico de la opción
+ * elegida (`idOpcionRespuesta`), que hay que resolver contra
+ * `opcionesRespuesta` de useFichaVigente() para saber qué código es.
+ */
+export interface RespuestaItemRaw {
+  id: string;
+  idEvaluacion: string;
+  idItemFicha: string;
+  idOpcionRespuesta: string;
+  idCriticidad: number | null;
+  valorAplicado: string | null;
+  pesoAplicado: string;
+  excluidoDelCalculo: boolean;
+  observacion: string | null;
+  uuidLocal: string;
+  sincronizado: boolean;
+}
+
+/**
+ * Forma real de GET /api/v1/evaluaciones/:id (evaluaciones.service.ts,
+ * obtener), probada en vivo. `ultimaAccionCoordinador` es un agregado que
+ * arma el backend a partir del historial (DEVOLVER y SOLICITAR_CORRECCION
+ * comparten el mismo `estado.codigo` DEVUELTA; esta es la única forma de
+ * saber cuál de las dos eligió el Coordinador).
+ */
+export interface EvaluacionDetalle {
+  id: string;
+  idCaso: string;
+  idEstablecimiento: string;
+  idVersionFicha: string;
+  idEvaluador: string;
+  idEstado: number;
+  bloqueada: boolean;
+  fechaInicio: string | null;
+  fechaFinalizacion: string | null;
+  establecimiento: Establecimiento;
+  versionFicha: {
+    id: string;
+    numeroVersion: string;
+    nombre: string;
+    totalItemsEvaluables: number;
+    puntajeTotalPosible: string;
+  };
+  estado: {
+    id: number;
+    codigo: string;
+    nombre: string;
+    esFinal: boolean;
+    bloqueaDatos: boolean;
+    orden: number;
+  };
+  respuestas: RespuestaItemRaw[];
+  ultimaAccionCoordinador: string | null;
 }

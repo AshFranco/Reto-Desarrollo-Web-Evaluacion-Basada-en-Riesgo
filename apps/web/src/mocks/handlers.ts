@@ -17,21 +17,21 @@ export const MOCK_CATALOGO = {
   secciones: [
     {
       id: '1', idPadre: null, numeracion: '1', titulo: 'Sección A',
-      nivel: 1, orden: 1, esEvaluable: false, peso: 0, idCriticidad: null,
+      nivel: 1, orden: 1, esEvaluable: false, peso: null, idCriticidad: null,
       hijos: [
         {
           id: '2', idPadre: '1', numeracion: '1.1', titulo: 'Ítem evaluable',
-          nivel: 2, orden: 1, esEvaluable: true, peso: 1.0, idCriticidad: '1',
+          nivel: 2, orden: 1, esEvaluable: true, peso: '1', idCriticidad: null,
           hijos: [],
         },
       ],
     },
   ],
   opcionesRespuesta: [
-    { id: '1', codigo: 'C',   nombre: 'Cumple',               valor: 1.0, excluyeDelCalculo: false, generaNc: false },
-    { id: '2', codigo: 'CP',  nombre: 'Cumplimiento parcial',  valor: 0.5, excluyeDelCalculo: false, generaNc: true  },
-    { id: '3', codigo: 'IT',  nombre: 'Incumple totalmente',   valor: 0.0, excluyeDelCalculo: false, generaNc: true  },
-    { id: '4', codigo: 'N/A', nombre: 'No aplica',             valor: 0.0, excluyeDelCalculo: true,  generaNc: false },
+    { id: '1', codigo: 'C',   valor: '1',   excluyeDelCalculo: false, generaNc: false },
+    { id: '2', codigo: 'CP',  valor: '0.5', excluyeDelCalculo: false, generaNc: true  },
+    { id: '3', codigo: 'IT',  valor: '0',   excluyeDelCalculo: false, generaNc: true  },
+    { id: '4', codigo: 'N/A', valor: '0',   excluyeDelCalculo: true,  generaNc: false },
   ],
 };
 
@@ -96,6 +96,7 @@ export const MOCK_ASIGNACION_MIA = {
   idCoordinador: '3',
   fechaAsignacion: '2026-01-03T00:00:00.000Z',
   estado: 'Asignado',
+  evaluacionId: '1',
   caso: {
     id: '1',
     idEstablecimiento: '1',
@@ -138,6 +139,29 @@ export const MOCK_ESTABLECIMIENTO = {
   activo: true,
 };
 
+export const MOCK_EVALUACION_DETALLE = {
+  id: '1',
+  idCaso: '1',
+  idEstablecimiento: '1',
+  idVersionFicha: '1',
+  idEvaluador: '1',
+  idEstado: 1,
+  bloqueada: false,
+  fechaInicio: null,
+  fechaFinalizacion: null,
+  establecimiento: { ...MOCK_ESTABLECIMIENTO, empresa: MOCK_EMPRESA },
+  versionFicha: {
+    id: '1',
+    numeroVersion: '2024-10-Rev-FSP-FD',
+    nombre: 'Ficha de Inspección BPM',
+    totalItemsEvaluables: 1,
+    puntajeTotalPosible: '1',
+  },
+  estado: { id: 1, codigo: 'PROGRAMADA', nombre: 'Programada', esFinal: false, bloqueaDatos: false, orden: 1 },
+  respuestas: [],
+  ultimaAccionCoordinador: null,
+};
+
 export const MOCK_TECNICO = {
   id: '2',
   nombreCompleto: 'Juan Técnico',
@@ -177,14 +201,15 @@ export const handlers = [
   http.get(`${BASE}/api/v1/asignaciones/mias`, () =>
     HttpResponse.json([MOCK_ASIGNACION_MIA])
   ),
+  http.get(`${BASE}/api/v1/evaluaciones/:id`, () => HttpResponse.json(MOCK_EVALUACION_DETALLE)),
   http.post(`${BASE}/api/v1/evaluaciones/:id/iniciar`, () =>
-    HttpResponse.json({ estado: 'En_Curso' })
+    HttpResponse.json({ ...MOCK_EVALUACION_DETALLE, idEstado: 2 })
   ),
   http.post(`${BASE}/api/v1/evaluaciones/:id/respuestas`, () =>
-    HttpResponse.json({ procesadas: 1 })
+    HttpResponse.json({ mensaje: 'Avance guardado.' })
   ),
   http.post(`${BASE}/api/v1/evaluaciones/:id/finalizar`, () =>
-    HttpResponse.json({ bloqueada: true })
+    HttpResponse.json({ ...MOCK_EVALUACION_DETALLE, idEstado: 3, bloqueada: true })
   ),
   http.post(`${BASE}/api/v1/evidencias`, () =>
     HttpResponse.json({ id: '1', url: '/uploads/mock.jpg' })

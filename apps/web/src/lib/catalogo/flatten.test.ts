@@ -5,15 +5,15 @@ import type { NodoCatalogo } from '@/lib/types';
 const arbol: NodoCatalogo[] = [
   {
     id: '1', idPadre: null, numeracion: '1', titulo: 'Sección', nivel: 1, orden: 1,
-    esEvaluable: false, peso: 0, idCriticidad: null,
+    esEvaluable: false, peso: null, idCriticidad: null,
     hijos: [
       {
         id: '2', idPadre: '1', numeracion: '1.1', titulo: 'Subsección', nivel: 2, orden: 1,
-        esEvaluable: false, peso: 0, idCriticidad: null,
+        esEvaluable: false, peso: null, idCriticidad: null,
         hijos: [
           {
             id: '3', idPadre: '2', numeracion: '1.1.1', titulo: 'Criterio', nivel: 3, orden: 1,
-            esEvaluable: true, peso: 1.0, idCriticidad: '1',
+            esEvaluable: true, peso: '1', idCriticidad: '1',
             hijos: [],
           },
         ],

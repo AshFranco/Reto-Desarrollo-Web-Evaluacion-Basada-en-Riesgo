@@ -17,7 +17,7 @@ export interface CatalogoItemLocal {
   nivel: number;
   orden: number;
   esEvaluable: boolean;
-  peso: number;
+  peso: string | null;
   idCriticidad: string | null;
 }
 
