@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -16,33 +15,19 @@ import {
   Typography,
 } from '@mui/material';
 import { useEvaluacionesAsignadas } from '@/lib/tecnico/useEvaluacionesAsignadas';
-import { useIniciarEvaluacion } from '@/lib/tecnico/useEvaluacion';
 import type { AsignacionMia } from '@/lib/types';
 
+/**
+ * Antes este botón llamaba a POST .../iniciar y trataba "ya fue iniciada"
+ * como no-error para navegar igual (no había forma de saber el estado real
+ * desde esta lista). Ahora navega directo: EjecutarEvaluacion.tsx conoce el
+ * estado real de la evaluación y decide ahí si hace falta iniciarla —
+ * online contra el servidor, o encolada si no hay conexión (ver
+ * useSincronizacionEvaluacion.ts). Así también funciona sin red: navegar
+ * no depende de ninguna llamada al servidor.
+ */
 function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
   const navigate = useNavigate();
-  const iniciar = useIniciarEvaluacion();
-  const [error, setError] = useState<string | null>(null);
-
-  async function abrirEvaluacion() {
-    setError(null);
-    if (!asignacion.evaluacionId) return;
-
-    try {
-      await iniciar.mutateAsync(asignacion.evaluacionId);
-    } catch (err) {
-      const mensaje = err instanceof Error ? err.message : '';
-      // Si ya se había iniciado antes, no es un error real: el backend no
-      // distingue "Iniciar" de "Continuar" en esta lista (no expone el
-      // estado de la evaluación acá), así que se intenta iniciar siempre y,
-      // si ya estaba iniciada, se continúa igual hacia la ejecución.
-      if (!mensaje.includes('ya fue iniciada')) {
-        setError(mensaje || 'Error al iniciar la evaluación');
-        return;
-      }
-    }
-    navigate(`/tecnico/evaluaciones/${asignacion.evaluacionId}`);
-  }
 
   return (
     <TableRow>
@@ -55,16 +40,11 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
         <Button
           size="small"
           variant="contained"
-          disabled={!asignacion.evaluacionId || iniciar.isPending}
-          onClick={abrirEvaluacion}
+          disabled={!asignacion.evaluacionId}
+          onClick={() => navigate(`/tecnico/evaluaciones/${asignacion.evaluacionId}`)}
         >
-          {iniciar.isPending ? <CircularProgress size={18} /> : 'Iniciar / Continuar'}
+          Iniciar / Continuar
         </Button>
-        {error && (
-          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-            {error}
-          </Typography>
-        )}
         {!asignacion.evaluacionId && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
             Esta asignación todavía no tiene una evaluación asociada.
