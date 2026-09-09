@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -507,7 +508,12 @@ function TablaExpedientesCerrados() {
 export default function DashboardCoordinador() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h4">Panel de Coordinador</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4">Panel de Coordinador</Typography>
+        <Button variant="outlined" component={RouterLink} to="/historico">
+          Consulta histórica
+        </Button>
+      </Box>
 
       <Box>
         <Typography variant="h6" gutterBottom>

@@ -15,6 +15,7 @@ import EjecutarEvaluacion from '@/pages/tecnico/EjecutarEvaluacion';
 import DashboardEmpresa from '@/pages/dashboard/DashboardEmpresa';
 import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
 import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento';
+import ConsultaHistorica from '@/pages/historico/ConsultaHistorica';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 5 } },
@@ -67,6 +68,24 @@ export default function App() {
                 <Route path="/empresa/solicitudes/nueva" element={<FormularioSolicitud />} />
                 <Route path="/empresa/establecimientos/nuevo" element={<FormularioEstablecimiento />} />
                 <Route path="/empresa/establecimientos/:id/editar" element={<FormularioEstablecimiento />} />
+              </Route>
+            </Route>
+
+            <Route
+              element={
+                <RoleRoute
+                  rolesPermitidos={[
+                    'ADMINISTRADOR',
+                    'COORDINADOR',
+                    'TECNICO_EVALUADOR',
+                    'ADMINISTRADOR_EMPRESA',
+                    'USUARIO_DELEGADO',
+                  ]}
+                />
+              }
+            >
+              <Route element={<AppLayout />}>
+                <Route path="/historico" element={<ConsultaHistorica />} />
               </Route>
             </Route>
           </Routes>

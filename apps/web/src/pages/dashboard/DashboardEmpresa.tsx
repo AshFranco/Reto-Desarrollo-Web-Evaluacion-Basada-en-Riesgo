@@ -333,7 +333,12 @@ export default function DashboardEmpresa() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h4">Panel de Empresa</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4">Panel de Empresa</Typography>
+        <Button variant="outlined" component={RouterLink} to="/historico">
+          Consulta histórica
+        </Button>
+      </Box>
 
       <Box>
         <Typography variant="h6" gutterBottom>

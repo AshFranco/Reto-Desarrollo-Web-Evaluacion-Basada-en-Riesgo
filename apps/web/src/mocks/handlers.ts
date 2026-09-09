@@ -288,6 +288,31 @@ export const MOCK_CATALOGO_MOTOR = {
   },
 };
 
+export const MOCK_CASO_HISTORICO = {
+  id: '1',
+  idEstablecimiento: '1',
+  idOrigen: 1,
+  idSolicitud: '1',
+  idAlerta: null,
+  idDenuncia: null,
+  idProgramacion: null,
+  estado: 'Cerrado',
+  prioridad: 'NORMAL',
+  fechaCreacion: '2026-01-01T00:00:00.000Z',
+  establecimiento: { id: '1', nombre: 'Planta Piloto de Prueba', empresa: { id: '1', razonSocial: 'Alimentos de Prueba SRL' } },
+  origen: { id: 1, codigo: 'SOLICITUD', nombre: 'Solicitud de Empresa', orden: 1 },
+  solicitud: MOCK_SOLICITUD,
+  evaluaciones: [{ id: '1', idEstado: 5, fechaFinalizacion: '2026-01-04T00:00:00.000Z' }],
+  expediente: {
+    id: '1',
+    idCaso: '1',
+    resultadoFinal: 'Aprueba la inspección',
+    fechaCierre: '2026-01-05T00:00:00.000Z',
+    informeOficialUrl: null,
+    estado: 'Cerrado',
+  },
+};
+
 export const MOCK_EXPEDIENTE = {
   id: '1',
   idCaso: '1',
@@ -350,6 +375,7 @@ export const handlers = [
     HttpResponse.json({ ...MOCK_SOLICITUD, estado: 'Asignada', fechaEnvio: '2026-01-02T00:00:00.000Z' })
   ),
   http.get(`${BASE}/api/v1/casos`, () => HttpResponse.json([MOCK_CASO_RESUMEN])),
+  http.get(`${BASE}/api/v1/casos/historico`, () => HttpResponse.json([MOCK_CASO_HISTORICO])),
   http.get(`${BASE}/api/v1/casos/:id`, () => HttpResponse.json(MOCK_CASO_DETALLE)),
   http.post(`${BASE}/api/v1/asignaciones`, () => HttpResponse.json(MOCK_ASIGNACION)),
   http.get(`${BASE}/api/v1/calendario`, () => HttpResponse.json([])),
