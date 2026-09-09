@@ -168,6 +168,85 @@ export const MOCK_TECNICO = {
   correoElectronico: 'tecnico.prueba@ebr.local',
 };
 
+export const MOCK_EVIDENCIA = {
+  id: '1',
+  uuidLocal: 'a4508e28-6731-4079-8e63-69ab1adc60bb',
+  idEvaluacion: '1',
+  idRespuestaItem: null,
+  tipo: 'FOTO',
+  nombreArchivo: 'ff8b6ae7-81f6-4238-9627-c9e2e965a5e0.png',
+  rutaAlmacenamiento: 'ff8b6ae7-81f6-4238-9627-c9e2e965a5e0.png',
+  tipoMime: 'image/png',
+  tamanoBytes: '68',
+  hashSha256: null,
+  latitud: null,
+  longitud: null,
+  comentario: null,
+  fechaCaptura: '2026-01-01T00:00:00.000Z',
+  sincronizado: false,
+};
+
+export const MOCK_CATALOGO_MOTOR_RIESGO = {
+  idVersionFicha: '1',
+  idVersionMatriz: '1',
+  reglaAprobacion: {
+    porcentajeMinimoAprobacion: 60,
+    maxNcCriticas: 1,
+    maxNcMayores: 5,
+    porcentajePermisoSanitario: 81,
+  },
+  factores: [
+    {
+      id: '1', numero: 1, nombre: 'Volumen de producción', peso: 0.16, esAutomatico: false,
+      opciones: [
+        { id: '1', descripcion: 'Grande', puntaje: 3, limiteInf: null, limiteSup: null },
+        { id: '2', descripcion: 'Mediano', puntaje: 2.33, limiteInf: null, limiteSup: null },
+      ],
+    },
+    {
+      id: '3', numero: 3, nombre: 'Cumplimiento con las BPM', peso: 0.56, esAutomatico: true,
+      opciones: [
+        { id: '9', descripcion: '≤ 60%', puntaje: 3, limiteInf: 0, limiteSup: 60 },
+        { id: '12', descripcion: '>80%', puntaje: 1, limiteInf: 80, limiteSup: 100 },
+      ],
+    },
+  ],
+  rangosCalificacion: [],
+  rangosFrecuencia: [
+    { id: '1', limiteInferior: 1, limiteSuperior: 3.6, incluyeInferior: true, incluyeSuperior: true, nivelRiesgo: 'BAJO', frecuencia: 'ANUAL', mesesHastaProxima: 12 },
+    { id: '2', limiteInferior: 3.6, limiteSuperior: 6.3, incluyeInferior: false, incluyeSuperior: true, nivelRiesgo: 'MEDIO', frecuencia: 'SEMESTRAL', mesesHastaProxima: 6 },
+    { id: '3', limiteInferior: 6.3, limiteSuperior: null, incluyeInferior: false, incluyeSuperior: true, nivelRiesgo: 'ALTO', frecuencia: 'TRIMESTRAL', mesesHastaProxima: 3 },
+  ],
+};
+
+export const MOCK_RESULTADO_RIESGO = {
+  id: '1',
+  idEvaluacion: '1',
+  idNivelRiesgo: 1,
+  idSubcategoriaRp: null,
+  idRangoCalificacion: null,
+  porcentajeCumplimiento: '100.00',
+  rpValor: '1.0000',
+  reValor: '1.0000',
+  rtValor: '1.0000',
+  frecuencia: 'ANUAL',
+  puntosObtenidos: '45.00',
+  puntosExcluidosNa: '0.00',
+  puntajeTotalPosible: '45.00',
+  denominadorEfectivo: '45.00',
+  itemsRespondidos: 45,
+  itemsNa: 0,
+  calificacionTexto: 'Aprueba la inspección',
+  aprueba: true,
+  otorgaPermisoSanitario: true,
+  ncCriticas: 0,
+  ncMayores: 0,
+  ncMenores: 0,
+  fechaProximaInspeccion: '2027-01-01T00:00:00.000Z',
+  fechaCalculo: '2026-01-01T00:00:00.000Z',
+  reDetalle: [{ numero: 1, factor: 'Volumen de producción', puntaje: 3, peso: 0.16, aporte: 0.48 }],
+};
+
 export const MOCK_EXPEDIENTE = {
   id: '1',
   idCaso: '1',
@@ -211,9 +290,9 @@ export const handlers = [
   http.post(`${BASE}/api/v1/evaluaciones/:id/finalizar`, () =>
     HttpResponse.json({ ...MOCK_EVALUACION_DETALLE, idEstado: 3, bloqueada: true })
   ),
-  http.post(`${BASE}/api/v1/evidencias`, () =>
-    HttpResponse.json({ id: '1', url: '/uploads/mock.jpg' })
-  ),
+  http.post(`${BASE}/api/v1/evidencias`, () => HttpResponse.json(MOCK_EVIDENCIA)),
+  http.get(`${BASE}/api/v1/motor-riesgo/catalogo`, () => HttpResponse.json(MOCK_CATALOGO_MOTOR_RIESGO)),
+  http.post(`${BASE}/api/v1/motor-riesgo/calcular`, () => HttpResponse.json(MOCK_RESULTADO_RIESGO)),
   http.get(`${BASE}/api/v1/empresas`, () => HttpResponse.json([MOCK_EMPRESA])),
   http.get(`${BASE}/api/v1/empresas/:id`, () => HttpResponse.json(MOCK_EMPRESA)),
   http.post(`${BASE}/api/v1/empresas`, () => HttpResponse.json(MOCK_EMPRESA)),

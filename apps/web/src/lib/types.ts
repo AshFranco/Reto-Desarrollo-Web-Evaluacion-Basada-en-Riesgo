@@ -271,3 +271,139 @@ export interface EvaluacionDetalle {
   respuestas: RespuestaItemRaw[];
   ultimaAccionCoordinador: string | null;
 }
+
+/**
+ * Forma real de POST /api/v1/evidencias (evidencias.service.ts), probada
+ * en vivo subiendo un archivo real (magic bytes, no por extensión).
+ * `idRespuestaItem` es el id de la fila `respuesta_item` (NO el id del
+ * ítem del catálogo) -- por eso solo se puede asociar una evidencia a un
+ * criterio DESPUÉS de haberlo respondido al menos una vez; sin ese campo,
+ * queda asociada a la evaluación en general. Confirmado también que el
+ * backend rechaza la subida (403) si la evaluación ya está bloqueada.
+ * latitud/longitud son Decimal -- llegan como string cuando no son null,
+ * mismo patrón que el resto de la sesión.
+ */
+export interface Evidencia {
+  id: string;
+  uuidLocal: string;
+  idEvaluacion: string;
+  idRespuestaItem: string | null;
+  tipo: 'FOTO' | 'VIDEO' | 'DOCUMENTO';
+  nombreArchivo: string;
+  rutaAlmacenamiento: string | null;
+  tipoMime: string | null;
+  tamanoBytes: string | null;
+  hashSha256: string | null;
+  latitud: string | null;
+  longitud: string | null;
+  comentario: string | null;
+  fechaCaptura: string;
+  sincronizado: boolean;
+}
+
+/**
+ * Forma real de GET /api/v1/motor-riesgo/catalogo, probada en vivo. A
+ * diferencia de la mayoría de los endpoints de esta sesión, este SÍ
+ * convierte los Decimal a number del lado del servidor (el service hace
+ * Number(...) explícito antes de responder), así que peso/puntaje/
+ * limiteInf/limiteSup llegan como number, no como string.
+ */
+export interface FactorRiesgo {
+  id: string;
+  numero: number;
+  nombre: string;
+  peso: number;
+  esAutomatico: boolean;
+  opciones: {
+    id: string;
+    descripcion: string;
+    puntaje: number;
+    limiteInf: number | null;
+    limiteSup: number | null;
+  }[];
+}
+
+export interface RangoFrecuenciaRiesgo {
+  id: string;
+  limiteInferior: number;
+  limiteSuperior: number | null;
+  incluyeInferior: boolean;
+  incluyeSuperior: boolean;
+  nivelRiesgo: string;
+  frecuencia: string;
+  mesesHastaProxima: number;
+}
+
+export interface CatalogoMotorRiesgo {
+  idVersionFicha: string;
+  idVersionMatriz: string;
+  reglaAprobacion: {
+    porcentajeMinimoAprobacion: number;
+    maxNcCriticas: number;
+    maxNcMayores: number;
+    porcentajePermisoSanitario: number;
+  };
+  factores: FactorRiesgo[];
+  rangosCalificacion: {
+    limiteInferior: number;
+    limiteSuperior: number;
+    incluyeInferior: boolean;
+    incluyeSuperior: boolean;
+    descripcion: string;
+    accion: string;
+  }[];
+  rangosFrecuencia: RangoFrecuenciaRiesgo[];
+}
+
+/**
+ * Forma de POST /api/v1/motor-riesgo/calcular -- CONFIRMADA EN VIVO (2026-09-08)
+ * tras el fix de Gabriela al package.json de @ebr/risk-engine (agregó las
+ * condiciones "require" y "default" apuntando al mismo build ESM; Node 24
+ * soporta require() de ESM síncrono, así que ya no hace falta CJS aparte).
+ * Coincide exactamente con lo que ya estaba tipado acá (patrón
+ * Decimal-como-string, igual que el resto de la sesión) -- solo faltaban
+ * estos dos campos, que sí vinieron en la respuesta real (ambos `null` en
+ * la prueba, son FKs opcionales): idSubcategoriaRp e idRangoCalificacion.
+ *
+ * idNivelRiesgo es un id numérico (FK), no el código legible (BAJO/MEDIO/
+ * ALTO) -- no hay forma de resolverlo directamente en un GET, así que en
+ * pantalla se deriva cruzando `frecuencia` contra
+ * CatalogoMotorRiesgo.rangosFrecuencia (frecuencia y nivelRiesgo son 1:1
+ * por rango).
+ *
+ * NOTA aparte (no es parte de este bug, es un hueco de datos distinto):
+ * para que /calcular llegue a 200 hace falta además que el establecimiento
+ * tenga categorías de alimento asignadas (POST /categorias-alimento/asignar)
+ * y que la versión de ficha activa tenga rango_calificacion cargado -- en
+ * la base de Docker actual, rango_calificacion está vacío para la versión
+ * de ficha vigente (confirmado en vivo, GET /motor-riesgo/catalogo devuelve
+ * rangosCalificacion: []). Se sembraron filas de prueba solo para verificar
+ * esta forma y se borraron después -- falta cargarlo de verdad.
+ */
+export interface ResultadoRiesgo {
+  id: string;
+  idEvaluacion: string;
+  idNivelRiesgo: number | null;
+  idSubcategoriaRp: string | null;
+  idRangoCalificacion: string | null;
+  porcentajeCumplimiento: string | null;
+  rpValor: string | null;
+  reValor: string | null;
+  rtValor: string | null;
+  frecuencia: string | null;
+  puntosObtenidos: string | null;
+  puntosExcluidosNa: string | null;
+  puntajeTotalPosible: string | null;
+  denominadorEfectivo: string | null;
+  itemsRespondidos: number | null;
+  itemsNa: number | null;
+  calificacionTexto: string | null;
+  aprueba: boolean | null;
+  otorgaPermisoSanitario: boolean;
+  ncCriticas: number;
+  ncMayores: number;
+  ncMenores: number;
+  fechaProximaInspeccion: string | null;
+  fechaCalculo: string;
+  reDetalle: { numero: number; factor: string; puntaje: number; peso: number; aporte: number }[] | null;
+}
