@@ -168,6 +168,45 @@ export const MOCK_TECNICO = {
   correoElectronico: 'tecnico.prueba@ebr.local',
 };
 
+export const MOCK_CATALOGO_MOTOR = {
+  factoresManuales: [
+    { numero: 1, nombre: 'Volumen de producción',       peso: 0.16, puntaje: 1.00, esAutomatico: false },
+    { numero: 2, nombre: 'Implementación HACCP',        peso: 0.09, puntaje: 3.00, esAutomatico: false },
+    { numero: 4, nombre: 'Proveedor INABIE',            peso: 0.05, puntaje: 2.33, esAutomatico: false },
+    { numero: 5, nombre: 'Rechazos Registro Sanitario', peso: 0.06, puntaje: 1.67, esAutomatico: false },
+    { numero: 6, nombre: 'Plan de muestreo',            peso: 0.08, puntaje: 2.33, esAutomatico: false },
+  ],
+  factorAutomatico: {
+    numero: 3,
+    nombre: 'Cumplimiento con las BPM',
+    peso: 0.56,
+    opciones: [
+      { id: 1, descripcion: '≤ 60%',      puntaje: 3.00, limiteInf: 0,     limiteSup: 60  },
+      { id: 2, descripcion: '>60% - 70%', puntaje: 2.33, limiteInf: 60.01, limiteSup: 70  },
+      { id: 3, descripcion: '>70% - 80%', puntaje: 1.67, limiteInf: 70.01, limiteSup: 80  },
+      { id: 4, descripcion: '>80%',       puntaje: 1.00, limiteInf: 80.01, limiteSup: 100 },
+    ],
+  },
+  puntajesRpCategorias: [1],
+  rangosCalificacion: [
+    { limiteInferior: 0,  limiteSuperior: 60,  incluyeInferior: true,  incluyeSuperior: true,  descripcion: 'Condiciones inaceptables', accion: 'Considerar cierre' },
+    { limiteInferior: 60, limiteSuperior: 70,  incluyeInferior: false, incluyeSuperior: true,  descripcion: 'Condiciones deficientes',  accion: 'Urge corregir' },
+    { limiteInferior: 70, limiteSuperior: 80,  incluyeInferior: false, incluyeSuperior: true,  descripcion: 'Condiciones regulares',    accion: 'Necesario hacer correcciones' },
+    { limiteInferior: 80, limiteSuperior: 100, incluyeInferior: false, incluyeSuperior: true,  descripcion: 'Buenas condiciones',       accion: 'Hacer algunas correcciones' },
+  ],
+  rangosFrecuencia: [
+    { id: 1, limiteInferior: 1.0, limiteSuperior: 3.6, incluyeInferior: true,  incluyeSuperior: true,  nivelRiesgo: 'BAJO',  frecuencia: 'Anual',      mesesHastaProxima: 12 },
+    { id: 2, limiteInferior: 3.6, limiteSuperior: 6.3, incluyeInferior: false, incluyeSuperior: true,  nivelRiesgo: 'MEDIO', frecuencia: 'Semestral',  mesesHastaProxima: 6  },
+    { id: 3, limiteInferior: 6.3, limiteSuperior: 9.0, incluyeInferior: false, incluyeSuperior: true,  nivelRiesgo: 'ALTO',  frecuencia: 'Trimestral', mesesHastaProxima: 3  },
+  ],
+  reglaAprobacion: {
+    porcentajeMinimoAprobacion: 60,
+    maxNcCriticas: 1,
+    maxNcMayores: 5,
+    porcentajePermisoSanitario: 81,
+  },
+};
+
 export const MOCK_EXPEDIENTE = {
   id: '1',
   idCaso: '1',
@@ -239,4 +278,5 @@ export const handlers = [
   ),
   http.get(`${BASE}/api/v1/expedientes`, () => HttpResponse.json([MOCK_EXPEDIENTE])),
   http.patch(`${BASE}/api/v1/expedientes/:casoId/cerrar`, () => HttpResponse.json(MOCK_EXPEDIENTE)),
+  http.get(`${BASE}/api/v1/motor-riesgo/catalogo`, () => HttpResponse.json(MOCK_CATALOGO_MOTOR)),
 ];
