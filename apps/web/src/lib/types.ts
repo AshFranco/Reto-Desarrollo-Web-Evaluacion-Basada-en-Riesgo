@@ -109,8 +109,9 @@ export interface SolicitudBpm {
   fechaEnvio: string | null;
 }
 
+/** id: corregido a number — es un Int en el esquema (catálogo chico), no un BigInt; confirmado en vivo (`"id":1`, sin comillas). */
 export interface OrigenCaso {
-  id: string;
+  id: number;
   codigo: string;
   nombre: string;
   orden: number;
@@ -155,7 +156,7 @@ export interface AsignacionMia {
 export interface CasoResumen {
   id: string;
   idEstablecimiento: string;
-  idOrigen: string | null;
+  idOrigen: number | null;
   estado: string;
   prioridad: string | null;
   fechaCreacion: string;
@@ -406,4 +407,56 @@ export interface ResultadoRiesgo {
   fechaProximaInspeccion: string | null;
   fechaCalculo: string;
   reDetalle: { numero: number; factor: string; puntaje: number; peso: number; aporte: number }[] | null;
+}
+
+/**
+ * Forma real de GET /api/v1/casos/historico (casos.service.ts,
+ * buscarHistorico), probada en vivo con dos casos reales (uno sin
+ * evaluación/expediente, otro con ambos). `establecimiento.empresa` viene
+ * recortado a solo `{id, razonSocial}` (select explícito en el service),
+ * a diferencia de CasoDetalle que trae la Empresa completa.
+ */
+export interface CasoHistorico {
+  id: string;
+  idEstablecimiento: string;
+  idOrigen: number | null;
+  idSolicitud: string | null;
+  idAlerta: string | null;
+  idDenuncia: string | null;
+  idProgramacion: string | null;
+  estado: string;
+  prioridad: string | null;
+  fechaCreacion: string;
+  establecimiento: Omit<Establecimiento, 'empresa'> & { empresa: { id: string; razonSocial: string } };
+  origen: OrigenCaso | null;
+  solicitud: SolicitudBpm | null;
+  evaluaciones: { id: string; idEstado: number | null; fechaFinalizacion: string | null }[];
+  expediente: {
+    id: string;
+    idCaso: string;
+    resultadoFinal: string | null;
+    fechaCierre: string | null;
+    informeOficialUrl: string | null;
+    estado: string;
+  } | null;
+}
+
+/**
+ * Filtros de GET /api/v1/casos/historico, confirmados en vivo (2026-09-08
+ * y re-confirmados 2026-09-09 tras los PR #19/#21/#23/#24/#25, sin
+ * cambios). `estado` solo acepta los valores reales que usa caso.estado
+ * (Pendiente/Asignado/Cerrado) desde el fix del PR #22 — la lista vieja
+ * del DTO (Abierto/En Evaluacion/etc.) nunca coincidió con datos reales.
+ * Roles internos (Administrador/Coordinador/Técnico) ven todo y pueden
+ * filtrar por cualquier empresaId; roles de Empresa solo ven la suya —
+ * el servidor fuerza su propio empresaId server-side e ignora cualquier
+ * otro que se intente mandar.
+ */
+export interface FiltrosCasosHistorico {
+  empresaId?: string;
+  solicitudId?: string;
+  evaluacionId?: string;
+  estado?: 'Pendiente' | 'Asignado' | 'Cerrado';
+  fechaCreacionDesde?: string;
+  fechaCreacionHasta?: string;
 }

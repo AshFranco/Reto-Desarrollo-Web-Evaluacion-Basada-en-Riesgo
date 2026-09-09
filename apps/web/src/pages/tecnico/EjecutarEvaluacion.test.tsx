@@ -52,8 +52,7 @@ describe('EjecutarEvaluacion — sin conexión', () => {
     renderPantalla();
     await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
 
-    fireEvent.mouseDown(screen.getByLabelText('Respuesta'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Cumple' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(screen.getByText('Guardado localmente — pendiente de sincronizar.')).toBeInTheDocument());
@@ -118,8 +117,7 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
     renderPantalla();
     await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
 
-    fireEvent.mouseDown(screen.getByLabelText('Respuesta'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Cumple' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(screen.getByText('Guardado.')).toBeInTheDocument());

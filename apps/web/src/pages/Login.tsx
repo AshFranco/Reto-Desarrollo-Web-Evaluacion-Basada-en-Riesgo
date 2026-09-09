@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, CircularProgress, Paper, TextField, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import { login } from '@/lib/auth/login';
 import { rutaPorRol } from '@/routes/rutaPorRol';
 
@@ -33,9 +35,43 @@ export default function Login() {
         alignItems: 'center',
         minHeight: '100vh',
         padding: 2,
+        background: (t) =>
+          `radial-gradient(circle at 15% 10%, ${alpha(t.palette.primary.main, 0.1)} 0%, transparent 45%),
+           radial-gradient(circle at 85% 90%, ${alpha(t.palette.primary.light, 0.12)} 0%, transparent 50%)`,
       }}
     >
-      <Paper component="form" onSubmit={manejarSubmit} sx={{ padding: 4, width: '100%', maxWidth: 400 }}>
+      <Paper
+        component="form"
+        onSubmit={manejarSubmit}
+        variant="outlined"
+        sx={{ padding: 4, width: '100%', maxWidth: 400 }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 2.5,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
+              color: 'primary.contrastText',
+            }}
+          >
+            <ShieldOutlinedIcon fontSize="medium" />
+          </Box>
+          <Box>
+            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
+              EBR / BPM
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Evaluación Basada en Riesgo
+            </Typography>
+          </Box>
+        </Box>
+
         <Typography variant="h5" gutterBottom>
           Iniciar sesión
         </Typography>

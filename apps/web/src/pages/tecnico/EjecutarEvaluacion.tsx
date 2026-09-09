@@ -9,7 +9,12 @@ import {
   Divider,
   MenuItem,
   Paper,
+  Step,
+  StepButton,
+  Stepper,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { useFichaVigente } from '@/lib/tecnico/useFichaVigente';
@@ -26,6 +31,7 @@ import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
 import type { NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo } from '@/lib/types';
+import { EstadoCarga } from '@/components/ui/EstadoCarga';
 
 /**
  * No hay endpoint que exponga el catálogo de nivel_criticidad — estos
@@ -48,6 +54,19 @@ const ETIQUETA_OPCION: Record<string, string> = {
   IT: 'Incumple totalmente',
   'N/A': 'No aplica',
 };
+
+/** Colores tipo "pill" para las opciones de respuesta, siguiendo el sistema de colores de estado (verde/ámbar/rojo/neutro). */
+const ESTILO_OPCION_NEUTRO = { color: '#37474F', fondo: '#ECEFF1', borde: '#CFD8DC' };
+const ESTILO_OPCION: Record<string, { color: string; fondo: string; borde: string }> = {
+  C: { color: '#1B5E20', fondo: '#E6F4EA', borde: '#A5D6A7' },
+  CP: { color: '#8A5300', fondo: '#FDF1DC', borde: '#F0C36D' },
+  IT: { color: '#B71C1C', fondo: '#FCEAEA', borde: '#EF9A9A' },
+  'N/A': ESTILO_OPCION_NEUTRO,
+};
+
+function obtenerEstiloOpcion(codigo: string) {
+  return ESTILO_OPCION[codigo] ?? ESTILO_OPCION_NEUTRO;
+}
 
 /** Confirmado en vivo (.env ALLOWED_FILE_MIME_TYPES) — el servidor valida por magic bytes igual, esto es solo un filtro de UX. */
 const TIPOS_ACEPTADOS = 'image/jpeg,image/png,image/webp,application/pdf,video/mp4';
@@ -205,25 +224,51 @@ function FilaCriterio({
         <strong>{criterio.numeracion}</strong> {criterio.titulo}
       </Typography>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <TextField
-          select
-          label="Respuesta"
-          size="small"
-          sx={{ minWidth: 200 }}
-          value={draft.codigoOpcion}
-          onChange={(e) => {
-            setGuardado(false);
-            setGuardadoLocal(false);
-            setDraft((d) => ({ ...d, codigoOpcion: e.target.value as DraftRespuesta['codigoOpcion'] }));
-          }}
-          disabled={responder.isPending}
-        >
-          {opciones.map((o) => (
-            <MenuItem key={o.id} value={o.codigo}>
-              {ETIQUETA_OPCION[o.codigo] ?? o.codigo}
-            </MenuItem>
-          ))}
-        </TextField>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            Respuesta
+          </Typography>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={draft.codigoOpcion || null}
+            onChange={(_e, valor: string | null) => {
+              if (!valor) return;
+              setGuardado(false);
+              setGuardadoLocal(false);
+              setDraft((d) => ({ ...d, codigoOpcion: valor as DraftRespuesta['codigoOpcion'] }));
+            }}
+            disabled={responder.isPending}
+            sx={{ gap: 1, flexWrap: 'wrap' }}
+          >
+            {opciones.map((o) => {
+              const estilo = obtenerEstiloOpcion(o.codigo);
+              return (
+                <ToggleButton
+                  key={o.id}
+                  value={o.codigo}
+                  sx={{
+                    borderRadius: '999px !important',
+                    border: '1px solid',
+                    borderColor: estilo.borde,
+                    color: 'text.secondary',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    px: 2,
+                    '&.Mui-selected': {
+                      backgroundColor: estilo.fondo,
+                      color: estilo.color,
+                      '&:hover': { backgroundColor: estilo.fondo },
+                    },
+                    '&:hover': { backgroundColor: estilo.fondo },
+                  }}
+                >
+                  {ETIQUETA_OPCION[o.codigo] ?? o.codigo}
+                </ToggleButton>
+              );
+            })}
+          </ToggleButtonGroup>
+        </Box>
 
         {requiereCriticidad && (
           <TextField
@@ -329,7 +374,7 @@ function SeleccionFactores({
     }
   }
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga etiqueta="Calculando el resultado…" />;
   if (isError) return <Alert severity="error">Error al cargar los factores de riesgo.</Alert>;
 
   return (
@@ -456,6 +501,13 @@ export default function EjecutarEvaluacion() {
   const [inicioIntentado, setInicioIntentado] = useState(false);
 
   const criterios = useMemo(() => (ficha ? aplanarEvaluables(ficha.secciones) : []), [ficha]);
+  const secciones = ficha?.secciones ?? [];
+  const criteriosPorSeccion = useMemo(
+    () => secciones.map((s) => aplanarEvaluables([s])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ficha]
+  );
+  const [seccionActiva, setSeccionActiva] = useState(0);
 
   // Si la evaluación todavía está PROGRAMADA (nunca se inició), lo hace acá
   // -- online, llamando al servidor directo; sin conexión, encolando
@@ -529,7 +581,7 @@ export default function EjecutarEvaluacion() {
     }
   }
 
-  if (cargandoFicha || cargandoEvaluacion) return <CircularProgress />;
+  if (cargandoFicha || cargandoEvaluacion) return <EstadoCarga etiqueta="Cargando la evaluación…" />;
   if (errorFicha) return <Alert severity="error">Error al cargar la ficha vigente.</Alert>;
   if (errorEvaluacion || !evaluacion) return <Alert severity="error">Error al cargar la evaluación.</Alert>;
 
@@ -583,7 +635,17 @@ export default function EjecutarEvaluacion() {
         <SeccionResultadoRiesgo evaluacionId={evaluacion.id} />
       ) : (
         <>
-          {criterios.map((criterio) => (
+          {secciones.length > 1 && (
+            <Stepper nonLinear activeStep={seccionActiva} sx={{ mb: 1, flexWrap: 'wrap', rowGap: 2 }}>
+              {secciones.map((s, indice) => (
+                <Step key={s.id} completed={false}>
+                  <StepButton onClick={() => setSeccionActiva(indice)}>{s.titulo}</StepButton>
+                </Step>
+              ))}
+            </Stepper>
+          )}
+
+          {(criteriosPorSeccion[seccionActiva] ?? criterios).map((criterio) => (
             <FilaCriterio
               key={criterio.id}
               criterio={criterio}
