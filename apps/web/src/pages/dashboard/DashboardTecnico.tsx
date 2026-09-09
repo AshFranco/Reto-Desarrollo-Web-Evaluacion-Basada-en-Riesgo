@@ -3,8 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  CircularProgress,
   Paper,
   Table,
   TableBody,
@@ -14,8 +12,14 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import { useEvaluacionesAsignadas } from '@/lib/tecnico/useEvaluacionesAsignadas';
 import type { AsignacionMia } from '@/lib/types';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
+import { EstadoVacio } from '@/components/ui/EstadoVacio';
+import { EstadoCarga } from '@/components/ui/EstadoCarga';
+import { EstadoChip } from '@/components/ui/EstadoChip';
 
 /**
  * Antes este botón llamaba a POST .../iniciar y trataba "ya fue iniciada"
@@ -34,7 +38,7 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
       <TableCell>{asignacion.caso.establecimiento.nombre}</TableCell>
       <TableCell>{new Date(asignacion.fechaAsignacion).toLocaleDateString()}</TableCell>
       <TableCell>
-        <Chip size="small" label={asignacion.caso.estado} />
+        <EstadoChip estado={asignacion.caso.estado} />
       </TableCell>
       <TableCell>
         <Button
@@ -58,12 +62,12 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
 function TablaAsignaciones() {
   const { data: asignaciones, isLoading, isError, error } = useEvaluacionesAsignadas();
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga etiqueta="Cargando tus asignaciones…" />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar tus asignaciones'}</Alert>;
   }
   if (!asignaciones || asignaciones.length === 0) {
-    return <Typography color="text.secondary">No tenés casos asignados todavía.</Typography>;
+    return <EstadoVacio titulo="No tenés casos asignados todavía." icono={<AssignmentOutlinedIcon fontSize="large" />} />;
   }
 
   return (
@@ -87,10 +91,30 @@ function TablaAsignaciones() {
   );
 }
 
+function ResumenAsignaciones() {
+  const { data: asignaciones } = useEvaluacionesAsignadas();
+  const total = asignaciones?.length ?? 0;
+  const sinEvaluacion = asignaciones?.filter((a) => !a.evaluacionId).length ?? 0;
+
+  return (
+    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <StatCard icono={<AssignmentOutlinedIcon />} valor={total} etiqueta="Casos asignados" />
+      <StatCard
+        icono={<AssignmentOutlinedIcon />}
+        valor={sinEvaluacion}
+        etiqueta="Sin evaluación creada"
+        color="#B8860B"
+      />
+    </Box>
+  );
+}
+
 export default function DashboardTecnico() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h4">Panel de Técnico Evaluador</Typography>
+      <PageHeader etiqueta="Técnico evaluador" titulo="Panel de técnico evaluador" icono={<AssignmentOutlinedIcon />} />
+
+      <ResumenAsignaciones />
 
       <Box>
         <Typography variant="h6" gutterBottom>

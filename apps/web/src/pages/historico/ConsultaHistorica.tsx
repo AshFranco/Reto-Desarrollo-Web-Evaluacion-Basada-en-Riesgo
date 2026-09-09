@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   MenuItem,
   Paper,
   Table,
@@ -13,12 +12,17 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography,
 } from '@mui/material';
+import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import { useCasosHistorico } from '@/lib/historico/useCasosHistorico';
 import { useEmpresas } from '@/lib/empresa/useEmpresas';
 import { getSession } from '@/lib/auth/session';
 import type { UsuarioLocal, FiltrosCasosHistorico } from '@/lib/types';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { EstadoVacio } from '@/components/ui/EstadoVacio';
+import { EstadoCarga } from '@/components/ui/EstadoCarga';
+import { EstadoChip } from '@/components/ui/EstadoChip';
 
 /**
  * Mismo criterio que el backend (casos.service.ts): estos roles ven todo
@@ -61,7 +65,7 @@ export default function ConsultaHistorica() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h4">Consulta histórica de casos</Typography>
+      <PageHeader etiqueta="Historial" titulo="Consulta histórica de casos" icono={<HistoryOutlinedIcon />} />
 
       <Paper variant="outlined" sx={{ padding: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -146,12 +150,12 @@ export default function ConsultaHistorica() {
         </Box>
       </Paper>
 
-      {isLoading && <CircularProgress size={24} />}
+      {isLoading && <EstadoCarga etiqueta="Buscando en el histórico…" />}
       {isError && (
         <Alert severity="error">{error instanceof Error ? error.message : 'Error al buscar en el histórico'}</Alert>
       )}
       {!isLoading && !isError && casos && casos.length === 0 && (
-        <Typography color="text.secondary">No se encontraron casos con esos filtros.</Typography>
+        <EstadoVacio titulo="No se encontraron casos con esos filtros." icono={<SearchOffOutlinedIcon fontSize="large" />} />
       )}
       {!isLoading && !isError && casos && casos.length > 0 && (
         <TableContainer component={Paper} variant="outlined">
@@ -171,7 +175,9 @@ export default function ConsultaHistorica() {
                   <TableCell>{caso.establecimiento.empresa.razonSocial}</TableCell>
                   <TableCell>{caso.establecimiento.nombre}</TableCell>
                   <TableCell>{caso.origen?.nombre ?? '—'}</TableCell>
-                  <TableCell>{caso.estado}</TableCell>
+                  <TableCell>
+                    <EstadoChip estado={caso.estado} />
+                  </TableCell>
                   <TableCell>{new Date(caso.fechaCreacion).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}

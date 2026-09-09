@@ -53,6 +53,71 @@ describe('login', () => {
     expect(items).toBeGreaterThan(0);
   });
 
+  it('descarga también el catálogo del motor de riesgo cuando el rol es TECNICO_EVALUADOR', async () => {
+    await login('tecnico@ebr.local', 'clave-de-prueba');
+
+    const catalogoMotor = await db.catalogo_motor.get(1);
+    expect(catalogoMotor).toBeTruthy();
+  });
+
+  it('descarga también el catálogo del motor de riesgo cuando el rol es COORDINADOR o ADMINISTRADOR', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/auth/login', () =>
+        HttpResponse.json({
+          accessToken: 'token',
+          usuario: { id: '3', nombreCompleto: 'Coordinadora', rol: 'COORDINADOR', empresaId: null },
+        })
+      )
+    );
+
+    await login('coordinadora@ebr.local', 'clave-de-prueba');
+
+    const catalogoMotor = await db.catalogo_motor.get(1);
+    expect(catalogoMotor).toBeTruthy();
+  });
+
+  it('NO descarga el catálogo del motor de riesgo para ADMINISTRADOR_EMPRESA (el backend responde 403 para ese rol)', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/auth/login', () =>
+        HttpResponse.json({
+          accessToken: 'token',
+          usuario: { id: '4', nombreCompleto: 'Empresa SRL', rol: 'ADMINISTRADOR_EMPRESA', empresaId: '1' },
+        })
+      ),
+      http.get('http://localhost:3000/api/v1/motor-riesgo/catalogo', () =>
+        HttpResponse.json({ message: 'Forbidden' }, { status: 403 })
+      )
+    );
+
+    await expect(login('empresa@ebr.local', 'clave-de-prueba')).resolves.toBeTruthy();
+
+    const catalogoMotor = await db.catalogo_motor.get(1);
+    expect(catalogoMotor).toBeUndefined();
+
+    // El otro catálogo (formularios/vigente) sí se sigue descargando para este rol.
+    const meta = await db.catalogo_meta.get(1);
+    expect(meta).toBeTruthy();
+  });
+
+  it('NO descarga el catálogo del motor de riesgo para USUARIO_DELEGADO', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/auth/login', () =>
+        HttpResponse.json({
+          accessToken: 'token',
+          usuario: { id: '5', nombreCompleto: 'Delegado', rol: 'USUARIO_DELEGADO', empresaId: '1' },
+        })
+      ),
+      http.get('http://localhost:3000/api/v1/motor-riesgo/catalogo', () =>
+        HttpResponse.json({ message: 'Forbidden' }, { status: 403 })
+      )
+    );
+
+    await login('delegado@ebr.local', 'clave-de-prueba');
+
+    const catalogoMotor = await db.catalogo_motor.get(1);
+    expect(catalogoMotor).toBeUndefined();
+  });
+
   it('manda solo correo y password en el cuerpo de la petición (sin captchaToken — el backend ya no lo acepta)', async () => {
     let cuerpoRecibido: unknown = null;
     server.use(

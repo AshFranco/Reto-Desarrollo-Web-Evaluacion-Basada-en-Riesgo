@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Collapse,
   IconButton,
@@ -22,6 +21,9 @@ import {
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
+import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { useCasos, useCasoDetalle, useAsignarEvaluador } from '@/lib/coordinador/useCasos';
 import { useTecnicos } from '@/lib/coordinador/useTecnicos';
 import { useCalendario } from '@/lib/coordinador/useCalendario';
@@ -38,6 +40,11 @@ import {
   type CasoCerrable,
 } from '@/lib/coordinador/useExpedientes';
 import type { CasoResumen } from '@/lib/types';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
+import { EstadoVacio } from '@/components/ui/EstadoVacio';
+import { EstadoCarga } from '@/components/ui/EstadoCarga';
+import { EstadoChip } from '@/components/ui/EstadoChip';
 
 const TOOLTIP_ACCION_EQUIVALENTE =
   "Hoy el backend registra 'Devolver' y 'Solicitar corrección' exactamente igual (mismo estado, Devuelta). La diferencia queda solo en las observaciones que escribas.";
@@ -117,7 +124,7 @@ function FormularioAsignar({ casoId }: { casoId: string }) {
 function DetalleCaso({ casoId }: { casoId: string }) {
   const { data: detalle, isLoading, isError, error } = useCasoDetalle(casoId);
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar el detalle'}</Alert>;
   }
@@ -183,7 +190,7 @@ function FilaCaso({ caso }: { caso: CasoResumen }) {
         <TableCell>{caso.origen?.nombre ?? '—'}</TableCell>
         <TableCell>{caso.establecimiento.nombre}</TableCell>
         <TableCell>
-          <Chip size="small" label={caso.estado} color={evaluadorAsignado ? 'success' : 'default'} />
+          <EstadoChip estado={caso.estado} />
         </TableCell>
         <TableCell>{caso.prioridad ?? 'NORMAL'}</TableCell>
         <TableCell>{evaluadorAsignado ?? 'Sin asignar'}</TableCell>
@@ -202,12 +209,12 @@ function FilaCaso({ caso }: { caso: CasoResumen }) {
 function TablaCasos() {
   const { data: casos, isLoading, isError, error } = useCasos();
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los casos'}</Alert>;
   }
   if (!casos || casos.length === 0) {
-    return <Typography color="text.secondary">No hay casos registrados.</Typography>;
+    return <EstadoVacio titulo="No hay casos registrados." icono={<FolderOutlinedIcon fontSize="large" />} />;
   }
 
   return (
@@ -383,9 +390,9 @@ function FilaInformePendiente({ informe }: { informe: InformePendiente }) {
 function SeccionInformesPendientes() {
   const { data: pendientes, isLoading } = useInformesPendientes();
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (pendientes.length === 0) {
-    return <Typography color="text.secondary">No hay informes pendientes de revisión.</Typography>;
+    return <EstadoVacio titulo="No hay informes pendientes de revisión." icono={<AssignmentTurnedInOutlinedIcon fontSize="large" />} />;
   }
 
   return (
@@ -443,9 +450,9 @@ function FilaCasoCerrable({ caso }: { caso: CasoCerrable }) {
 function SeccionExpedientesPendientes() {
   const { data: cerrables, isLoading } = useCasosCerrables();
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (cerrables.length === 0) {
-    return <Typography color="text.secondary">No hay expedientes pendientes de cierre.</Typography>;
+    return <EstadoVacio titulo="No hay expedientes pendientes de cierre." icono={<TaskAltOutlinedIcon fontSize="large" />} />;
   }
 
   return (
@@ -471,12 +478,12 @@ function SeccionExpedientesPendientes() {
 function TablaExpedientesCerrados() {
   const { data: expedientes, isLoading, isError, error } = useExpedientes();
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los expedientes'}</Alert>;
   }
   if (!expedientes || expedientes.length === 0) {
-    return <Typography color="text.secondary">No hay expedientes cerrados todavía.</Typography>;
+    return <EstadoVacio titulo="No hay expedientes cerrados todavía." icono={<FolderOutlinedIcon fontSize="large" />} />;
   }
 
   return (
@@ -505,15 +512,40 @@ function TablaExpedientesCerrados() {
   );
 }
 
+function ResumenCoordinador() {
+  const { data: casos } = useCasos();
+  const { data: pendientes } = useInformesPendientes();
+  const { data: cerrables } = useCasosCerrables();
+
+  return (
+    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <StatCard icono={<FolderOutlinedIcon />} valor={casos?.length ?? 0} etiqueta="Casos totales" />
+      <StatCard
+        icono={<AssignmentTurnedInOutlinedIcon />}
+        valor={pendientes.length}
+        etiqueta="Informes por revisar"
+        color="#B8860B"
+      />
+      <StatCard icono={<TaskAltOutlinedIcon />} valor={cerrables.length} etiqueta="Expedientes por cerrar" color="#2E7D32" />
+    </Box>
+  );
+}
+
 export default function DashboardCoordinador() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4">Panel de Coordinador</Typography>
-        <Button variant="outlined" component={RouterLink} to="/historico">
-          Consulta histórica
-        </Button>
-      </Box>
+      <PageHeader
+        etiqueta="Coordinador"
+        titulo="Panel de coordinador"
+        icono={<FolderOutlinedIcon />}
+        accion={
+          <Button variant="outlined" component={RouterLink} to="/historico">
+            Consulta histórica
+          </Button>
+        }
+      />
+
+      <ResumenCoordinador />
 
       <Box>
         <Typography variant="h6" gutterBottom>

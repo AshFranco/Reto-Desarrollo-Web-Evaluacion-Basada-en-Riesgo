@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Paper,
   Table,
@@ -18,6 +17,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import DomainOutlinedIcon from '@mui/icons-material/DomainOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useSesion } from '@/lib/auth/useSesion';
 import { silentRefresh } from '@/lib/auth/refresh';
 import {
@@ -28,6 +29,11 @@ import {
 } from '@/lib/empresa/useEmpresas';
 import { useSolicitudesPropias } from '@/lib/empresa/useSolicitudes';
 import { useEstablecimientos } from '@/lib/empresa/useEstablecimientos';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
+import { EstadoVacio } from '@/components/ui/EstadoVacio';
+import { EstadoCarga } from '@/components/ui/EstadoCarga';
+import { EstadoChip } from '@/components/ui/EstadoChip';
 
 const EMPRESA_VACIA: DatosEmpresa = { razonSocial: '', rnc: '', nombreComercial: '', direccion: '', telefono: '', correo: '', actividadEconomica: '' };
 
@@ -119,7 +125,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
   const [datos, setDatos] = useState<DatosEmpresa | null>(null);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar la empresa'}</Alert>;
   }
@@ -242,12 +248,12 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
 function ListaSolicitudes() {
   const { data: solicitudes, isLoading, isError, error } = useSolicitudesPropias();
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar las solicitudes'}</Alert>;
   }
   if (!solicitudes || solicitudes.length === 0) {
-    return <Typography color="text.secondary">Todavía no hay solicitudes BPM registradas.</Typography>;
+    return <EstadoVacio titulo="Todavía no hay solicitudes BPM registradas." icono={<DescriptionOutlinedIcon fontSize="large" />} />;
   }
 
   return (
@@ -267,11 +273,7 @@ function ListaSolicitudes() {
               <TableCell>{s.tipoEstablecimiento}</TableCell>
               <TableCell>{s.motivo}</TableCell>
               <TableCell>
-                <Chip
-                  size="small"
-                  label={s.estado}
-                  color={s.estado === 'Asignada' ? 'success' : 'default'}
-                />
+                <EstadoChip estado={s.estado} />
               </TableCell>
               <TableCell>{new Date(s.fechaCreacion).toLocaleDateString()}</TableCell>
             </TableRow>
@@ -285,12 +287,12 @@ function ListaSolicitudes() {
 function ListaEstablecimientos() {
   const { data: establecimientos, isLoading, isError, error } = useEstablecimientos();
 
-  if (isLoading) return <CircularProgress size={24} />;
+  if (isLoading) return <EstadoCarga />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los establecimientos'}</Alert>;
   }
   if (!establecimientos || establecimientos.length === 0) {
-    return <Typography color="text.secondary">Todavía no registraste ningún establecimiento.</Typography>;
+    return <EstadoVacio titulo="Todavía no registraste ningún establecimiento." icono={<DomainOutlinedIcon fontSize="large" />} />;
   }
 
   return (
@@ -323,22 +325,40 @@ function ListaEstablecimientos() {
   );
 }
 
+function ResumenEmpresa() {
+  const { data: establecimientos } = useEstablecimientos();
+  const { data: solicitudes } = useSolicitudesPropias();
+
+  return (
+    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <StatCard icono={<DomainOutlinedIcon />} valor={establecimientos?.length ?? 0} etiqueta="Establecimientos" />
+      <StatCard icono={<DescriptionOutlinedIcon />} valor={solicitudes?.length ?? 0} etiqueta="Solicitudes BPM" />
+    </Box>
+  );
+}
+
 export default function DashboardEmpresa() {
   const { sesion, cargando } = useSesion();
 
-  if (cargando) return <CircularProgress />;
+  if (cargando) return <EstadoCarga etiqueta="Cargando tu panel…" />;
 
   const empresaId = sesion?.usuario.empresaId ?? null;
   const puedeEditar = sesion?.usuario.rol === 'ADMINISTRADOR_EMPRESA';
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4">Panel de Empresa</Typography>
-        <Button variant="outlined" component={RouterLink} to="/historico">
-          Consulta histórica
-        </Button>
-      </Box>
+      <PageHeader
+        etiqueta="Empresa"
+        titulo="Panel de empresa"
+        icono={<DomainOutlinedIcon />}
+        accion={
+          <Button variant="outlined" component={RouterLink} to="/historico">
+            Consulta histórica
+          </Button>
+        }
+      />
+
+      {empresaId && <ResumenEmpresa />}
 
       <Box>
         <Typography variant="h6" gutterBottom>
