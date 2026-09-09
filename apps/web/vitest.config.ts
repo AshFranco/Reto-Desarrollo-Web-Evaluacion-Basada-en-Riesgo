@@ -10,6 +10,11 @@ export default defineConfig({
     globals: true,
   },
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'virtual:pwa-register/react': fileURLToPath(
+        new URL('./src/test/mocks/pwa-register.tsx', import.meta.url)
+      ),
+    },
   },
 });
