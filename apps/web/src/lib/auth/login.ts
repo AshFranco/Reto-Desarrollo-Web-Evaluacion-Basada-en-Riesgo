@@ -1,5 +1,6 @@
 import { saveSession } from './session';
 import { descargarCatalogo } from '@/lib/catalogo/loader';
+import { descargarCatalogoMotor } from '@/lib/catalogo/loaderMotor';
 import type { LoginResponse } from '@/lib/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -34,8 +35,8 @@ export async function login(correo: string, password: string): Promise<LoginResp
 
   const data: LoginResponse = await respuesta.json();
   await saveSession(data);
-  // Descarga el catálogo de formularios inmediatamente post-login para que
-  // el técnico pueda trabajar offline desde la primera inspección del día.
-  await descargarCatalogo();
+  // Descarga el catálogo de formularios y el catálogo del motor de riesgo
+  // en paralelo para que el técnico pueda trabajar offline desde el primer día.
+  await Promise.all([descargarCatalogo(), descargarCatalogoMotor()]);
   return data;
 }

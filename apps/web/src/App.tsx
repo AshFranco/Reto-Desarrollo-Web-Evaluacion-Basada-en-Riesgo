@@ -3,6 +3,7 @@ import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { SyncProcessor } from '@/lib/sync/processor';
+import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import Login from '@/pages/Login';
 import NoAutorizado from '@/pages/NoAutorizado';
 import { RoleRoute } from '@/routes/RoleRoute';
@@ -69,6 +70,7 @@ export default function App() {
               </Route>
             </Route>
           </Routes>
+        <PwaUpdatePrompt />
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

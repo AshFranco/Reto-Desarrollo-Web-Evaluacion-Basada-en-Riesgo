@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { UsuarioLocal, OpcionRespuestaLocal } from '@/lib/types';
+import type { EntradaCalculo } from '@ebr/risk-engine';
 
 export interface SesionLocal {
   id: 1;
@@ -78,10 +79,17 @@ export interface AsignacionLocal {
   sincronizadoEn: number;
 }
 
+export interface CatalogoMotorLocal {
+  id: 1;
+  descargadoEn: number;
+  datos: Omit<EntradaCalculo, 'respuestas'>;
+}
+
 export class EbrDatabase extends Dexie {
   sesion!: EntityTable<SesionLocal, 'id'>;
   catalogo_item!: EntityTable<CatalogoItemLocal, 'id'>;
   catalogo_meta!: EntityTable<CatalogoMetaLocal, 'id'>;
+  catalogo_motor!: EntityTable<CatalogoMotorLocal, 'id'>;
   evaluacion!: EntityTable<EvaluacionLocal, 'uuidLocal'>;
   respuesta!: EntityTable<RespuestaLocal, 'uuidLocal'>;
   evidencia!: EntityTable<EvidenciaLocal, 'uuidLocal'>;
@@ -99,6 +107,9 @@ export class EbrDatabase extends Dexie {
       evidencia:      'uuidLocal, evaluacionUuid, subida',
       cola_sync:      'uuidLocal, tipo, estado, timestamp',
       asignacion:     'id, estado',
+    });
+    this.version(2).stores({
+      catalogo_motor: 'id',
     });
   }
 }
