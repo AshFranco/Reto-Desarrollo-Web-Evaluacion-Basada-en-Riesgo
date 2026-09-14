@@ -37,21 +37,62 @@ import { EstadoChip } from '@/components/ui/EstadoChip';
 
 const EMPRESA_VACIA: DatosEmpresa = { razonSocial: '', rnc: '', nombreComercial: '', direccion: '', telefono: '', correo: '', actividadEconomica: '' };
 
+const RNC_REGEX = /^[0-9]{9}$|^[0-9]{11}$/;
+const TELEFONO_REGEX = /^[0-9]{10}$/;
+const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ErroresEmpresa {
+  rnc?: string;
+  telefono?: string;
+  correo?: string;
+}
+
+function validarEmpresa(datos: { rnc: string; telefono?: string; correo?: string }): ErroresEmpresa {
+  const errores: ErroresEmpresa = {};
+  if (datos.rnc) {
+    if (datos.rnc.includes('-')) {
+      errores.rnc = 'El RNC no puede contener guiones ni signos negativos.';
+    } else if (!RNC_REGEX.test(datos.rnc)) {
+      errores.rnc = 'El RNC debe contener exactamente 9 u 11 dígitos numéricos.';
+    }
+  }
+
+  if (datos.telefono) {
+    if (datos.telefono.includes('-')) {
+      errores.telefono = 'El teléfono no puede contener signos negativos ni guiones.';
+    } else if (!TELEFONO_REGEX.test(datos.telefono)) {
+      errores.telefono = 'El teléfono debe contener exactamente 10 dígitos numéricos.';
+    }
+  }
+
+  if (datos.correo && !CORREO_REGEX.test(datos.correo)) {
+    errores.correo = 'El formato del correo electrónico no es válido.';
+  }
+
+  return errores;
+}
+
 function FormularioCrearEmpresa() {
   const crearEmpresa = useCrearEmpresa();
   const [datos, setDatos] = useState<DatosEmpresa>(EMPRESA_VACIA);
+  const [errores, setErrores] = useState<ErroresEmpresa>({});
   const [error, setError] = useState<string | null>(null);
 
+  function actualizarCampo<K extends keyof DatosEmpresa>(campo: K, valor: string) {
+    const nuevos = { ...datos, [campo]: valor };
+    setDatos(nuevos);
+    setErrores(validarEmpresa(nuevos));
+  }
+
   async function guardar() {
+    const errs = validarEmpresa(datos);
+    if (Object.keys(errs).length > 0) {
+      setErrores(errs);
+      return;
+    }
     setError(null);
     try {
       await crearEmpresa.mutateAsync(datos);
-      // El JWT actual todavía tiene empresaId=null (quedó fijo desde el
-      // login, igual que vimos con el login inicial). silentRefresh() pide
-      // uno nuevo — auth.service.ts lee el usuario fresco de la base y
-      // firma el token con el empresaId ya vinculado. Recargamos para que
-      // toda la pantalla (sesión + empresa + establecimientos) arranque
-      // limpia con el token nuevo, en vez de manejar el caso a mano acá.
       await silentRefresh();
       window.location.reload();
     } catch (err) {
@@ -59,11 +100,13 @@ function FormularioCrearEmpresa() {
     }
   }
 
+  const tieneErrores = Object.keys(errores).length > 0;
+
   return (
     <Card>
       <CardContent>
         <Typography variant="subtitle1" gutterBottom>
-          Todavía no tenés una empresa registrada. Completá los datos para crearla — queda
+          Todavía no tienes una empresa registrada. Completa los datos para crearla — queda
           vinculada a tu usuario automáticamente.
         </Typography>
         {error && (
@@ -77,7 +120,7 @@ function FormularioCrearEmpresa() {
           required
           margin="dense"
           value={datos.razonSocial}
-          onChange={(e) => setDatos({ ...datos, razonSocial: e.target.value })}
+          onChange={(e) => actualizarCampo('razonSocial', e.target.value)}
           disabled={crearEmpresa.isPending}
         />
         <TextField
@@ -86,15 +129,17 @@ function FormularioCrearEmpresa() {
           required
           margin="dense"
           value={datos.rnc}
-          onChange={(e) => setDatos({ ...datos, rnc: e.target.value })}
+          onChange={(e) => actualizarCampo('rnc', e.target.value)}
           disabled={crearEmpresa.isPending}
+          error={Boolean(errores.rnc)}
+          helperText={errores.rnc ?? '9 u 11 dígitos numéricos sin signos'}
         />
         <TextField
           label="Nombre comercial"
           fullWidth
           margin="dense"
           value={datos.nombreComercial}
-          onChange={(e) => setDatos({ ...datos, nombreComercial: e.target.value })}
+          onChange={(e) => actualizarCampo('nombreComercial', e.target.value)}
           disabled={crearEmpresa.isPending}
         />
         <TextField
@@ -102,13 +147,34 @@ function FormularioCrearEmpresa() {
           fullWidth
           margin="dense"
           value={datos.direccion}
-          onChange={(e) => setDatos({ ...datos, direccion: e.target.value })}
+          onChange={(e) => actualizarCampo('direccion', e.target.value)}
           disabled={crearEmpresa.isPending}
+        />
+        <TextField
+          label="Teléfono"
+          fullWidth
+          margin="dense"
+          value={datos.telefono}
+          onChange={(e) => actualizarCampo('telefono', e.target.value)}
+          disabled={crearEmpresa.isPending}
+          error={Boolean(errores.telefono)}
+          helperText={errores.telefono ?? '10 dígitos sin guiones ni signos'}
+          inputProps={{ maxLength: 10 }}
+        />
+        <TextField
+          label="Correo"
+          fullWidth
+          margin="dense"
+          value={datos.correo}
+          onChange={(e) => actualizarCampo('correo', e.target.value)}
+          disabled={crearEmpresa.isPending}
+          error={Boolean(errores.correo)}
+          helperText={errores.correo}
         />
         <Button
           variant="contained"
           sx={{ mt: 2 }}
-          disabled={crearEmpresa.isPending || !datos.razonSocial.trim() || !datos.rnc.trim()}
+          disabled={crearEmpresa.isPending || !datos.razonSocial.trim() || !datos.rnc.trim() || tieneErrores}
           onClick={guardar}
         >
           {crearEmpresa.isPending ? <CircularProgress size={20} /> : 'Crear empresa'}
@@ -118,11 +184,13 @@ function FormularioCrearEmpresa() {
   );
 }
 
+
 function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEditar: boolean }) {
   const { data: empresa, isLoading, isError, error } = useEmpresa(empresaId);
   const editarEmpresa = useEditarEmpresa(empresaId);
   const [editando, setEditando] = useState(false);
   const [datos, setDatos] = useState<DatosEmpresa | null>(null);
+  const [errores, setErrores] = useState<ErroresEmpresa>({});
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
 
   if (isLoading) return <EstadoCarga />;
@@ -133,6 +201,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
 
   function empezarEdicion() {
     setErrorGuardado(null);
+    setErrores({});
     setDatos({
       razonSocial: empresa!.razonSocial,
       rnc: empresa!.rnc,
@@ -145,8 +214,20 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
     setEditando(true);
   }
 
+  function actualizarCampo<K extends keyof DatosEmpresa>(campo: K, valor: string) {
+    if (!datos) return;
+    const nuevos = { ...datos, [campo]: valor };
+    setDatos(nuevos);
+    setErrores(validarEmpresa(nuevos));
+  }
+
   async function guardar() {
     if (!datos) return;
+    const errs = validarEmpresa(datos);
+    if (Object.keys(errs).length > 0) {
+      setErrores(errs);
+      return;
+    }
     setErrorGuardado(null);
     try {
       await editarEmpresa.mutateAsync(datos);
@@ -155,6 +236,8 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
       setErrorGuardado(err instanceof Error ? err.message : 'Error al guardar los cambios');
     }
   }
+
+  const tieneErrores = Object.keys(errores).length > 0;
 
   if (editando && datos) {
     return (
@@ -171,7 +254,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
             required
             margin="dense"
             value={datos.razonSocial}
-            onChange={(e) => setDatos({ ...datos, razonSocial: e.target.value })}
+            onChange={(e) => actualizarCampo('razonSocial', e.target.value)}
           />
           <TextField
             label="RNC"
@@ -179,38 +262,49 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
             required
             margin="dense"
             value={datos.rnc}
-            onChange={(e) => setDatos({ ...datos, rnc: e.target.value })}
+            onChange={(e) => actualizarCampo('rnc', e.target.value)}
+            error={Boolean(errores.rnc)}
+            helperText={errores.rnc ?? '9 u 11 dígitos numéricos sin signos'}
           />
           <TextField
             label="Nombre comercial"
             fullWidth
             margin="dense"
             value={datos.nombreComercial}
-            onChange={(e) => setDatos({ ...datos, nombreComercial: e.target.value })}
+            onChange={(e) => actualizarCampo('nombreComercial', e.target.value)}
           />
           <TextField
             label="Dirección"
             fullWidth
             margin="dense"
             value={datos.direccion}
-            onChange={(e) => setDatos({ ...datos, direccion: e.target.value })}
+            onChange={(e) => actualizarCampo('direccion', e.target.value)}
           />
           <TextField
             label="Teléfono"
             fullWidth
             margin="dense"
             value={datos.telefono}
-            onChange={(e) => setDatos({ ...datos, telefono: e.target.value })}
+            onChange={(e) => actualizarCampo('telefono', e.target.value)}
+            error={Boolean(errores.telefono)}
+            helperText={errores.telefono ?? '10 dígitos sin guiones ni signos'}
+            inputProps={{ maxLength: 10 }}
           />
           <TextField
             label="Correo"
             fullWidth
             margin="dense"
             value={datos.correo}
-            onChange={(e) => setDatos({ ...datos, correo: e.target.value })}
+            onChange={(e) => actualizarCampo('correo', e.target.value)}
+            error={Boolean(errores.correo)}
+            helperText={errores.correo}
           />
           <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-            <Button variant="contained" onClick={guardar} disabled={editarEmpresa.isPending}>
+            <Button
+              variant="contained"
+              onClick={guardar}
+              disabled={editarEmpresa.isPending || !datos.razonSocial.trim() || !datos.rnc.trim() || tieneErrores}
+            >
               {editarEmpresa.isPending ? <CircularProgress size={20} /> : 'Guardar'}
             </Button>
             <Button onClick={() => setEditando(false)} disabled={editarEmpresa.isPending}>
@@ -221,6 +315,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
       </Card>
     );
   }
+
 
   return (
     <Card>
