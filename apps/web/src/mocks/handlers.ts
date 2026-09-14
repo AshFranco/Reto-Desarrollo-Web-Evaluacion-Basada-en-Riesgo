@@ -159,6 +159,7 @@ export const MOCK_EVALUACION_DETALLE = {
   },
   estado: { id: 1, codigo: 'PROGRAMADA', nombre: 'Programada', esFinal: false, bloqueaDatos: false, orden: 1 },
   respuestas: [],
+  evidencias: [] as any[],
   ultimaAccionCoordinador: null,
 };
 
@@ -350,13 +351,84 @@ export const handlers = [
   http.post(`${BASE}/api/v1/evaluaciones/:id/iniciar`, () =>
     HttpResponse.json({ ...MOCK_EVALUACION_DETALLE, idEstado: 2 })
   ),
-  http.post(`${BASE}/api/v1/evaluaciones/:id/respuestas`, () =>
-    HttpResponse.json({ mensaje: 'Avance guardado.' })
-  ),
-  http.post(`${BASE}/api/v1/evaluaciones/:id/finalizar`, () =>
-    HttpResponse.json({ ...MOCK_EVALUACION_DETALLE, idEstado: 3, bloqueada: true })
-  ),
-  http.post(`${BASE}/api/v1/evidencias`, () => HttpResponse.json(MOCK_EVIDENCIA)),
+  http.post(`${BASE}/api/v1/evaluaciones/:id/respuestas`, async ({ request, params }) => {
+    try {
+      const body = (await request.json()) as any;
+      if (body?.respuestas && Array.isArray(body.respuestas)) {
+        for (const r of body.respuestas) {
+          const opcion = MOCK_CATALOGO.opcionesRespuesta.find((o) => o.codigo === r.codigoOpcion);
+          const opcionId = opcion ? opcion.id : '1';
+          const existingIdx = (MOCK_EVALUACION_DETALLE.respuestas as any[]).findIndex(
+            (existente: any) => String(existente.idItemFicha) === String(r.itemId)
+          );
+          const nuevaRespuesta = {
+            id: existingIdx >= 0 ? (MOCK_EVALUACION_DETALLE.respuestas as any[])[existingIdx].id : String(Date.now()),
+            idEvaluacion: params.id as string,
+            idItemFicha: String(r.itemId),
+            idOpcionRespuesta: opcionId,
+            valorAplicado: opcion?.valor ?? '1',
+            excluidoDelCalculo: opcion?.excluyeDelCalculo ?? false,
+            idCriticidad: r.nivelCriticidad ?? null,
+            observacion: r.observacion ?? null,
+          };
+          if (existingIdx >= 0) {
+            (MOCK_EVALUACION_DETALLE.respuestas as any[])[existingIdx] = nuevaRespuesta;
+          } else {
+            (MOCK_EVALUACION_DETALLE.respuestas as any[]).push(nuevaRespuesta);
+          }
+        }
+      }
+    } catch {
+      // Ignorar si no hay cuerpo JSON
+    }
+    return HttpResponse.json({ mensaje: 'Avance guardado.' });
+  }),
+  http.post(`${BASE}/api/v1/evaluaciones/:id/finalizar`, () => {
+    MOCK_EVALUACION_DETALLE.idEstado = 3;
+    MOCK_EVALUACION_DETALLE.bloqueada = true;
+    return HttpResponse.json({ ...MOCK_EVALUACION_DETALLE });
+  }),
+  http.post(`${BASE}/api/v1/evidencias`, async ({ request }) => {
+    try {
+      const formData = await request.formData();
+      const evaluacionId = (formData.get('evaluacionId') as string) ?? '1';
+      const respuestaItemId = (formData.get('respuestaItemId') as string) ?? null;
+      const tipo = (formData.get('tipo') as string) ?? 'FOTO';
+      const archivo = formData.get('archivo') as File;
+      const nuevaEvidencia = {
+        id: String(Date.now()),
+        uuidLocal: String(Date.now()),
+        idEvaluacion: evaluacionId,
+        idRespuestaItem: respuestaItemId,
+        tipo,
+        nombreArchivo: archivo?.name || 'evidencia.png',
+        rutaAlmacenamiento: archivo?.name || 'evidencia.png',
+        tipoMime: archivo?.type || 'image/png',
+        tamanoBytes: String(archivo?.size || 1024),
+        hashSha256: null,
+        latitud: null,
+        longitud: null,
+        comentario: null,
+        fechaCaptura: new Date().toISOString(),
+        sincronizado: true,
+      };
+      if (!MOCK_EVALUACION_DETALLE.evidencias) {
+        (MOCK_EVALUACION_DETALLE as any).evidencias = [];
+      }
+      (MOCK_EVALUACION_DETALLE.evidencias as any[]).push(nuevaEvidencia);
+      return HttpResponse.json(nuevaEvidencia);
+    } catch {
+      return HttpResponse.json(MOCK_EVIDENCIA);
+    }
+  }),
+  http.delete(`${BASE}/api/v1/evidencias/:id`, ({ params }) => {
+    if (MOCK_EVALUACION_DETALLE.evidencias) {
+      MOCK_EVALUACION_DETALLE.evidencias = (MOCK_EVALUACION_DETALLE.evidencias as any[]).filter(
+        (ev: any) => String(ev.id) !== String(params.id)
+      );
+    }
+    return HttpResponse.json({ mensaje: 'Evidencia eliminada correctamente.' });
+  }),
   http.get(`${BASE}/api/v1/motor-riesgo/catalogo`, () => HttpResponse.json(MOCK_CATALOGO_MOTOR_RIESGO)),
   http.post(`${BASE}/api/v1/motor-riesgo/calcular`, () => HttpResponse.json(MOCK_RESULTADO_RIESGO)),
   http.get(`${BASE}/api/v1/empresas`, () => HttpResponse.json([MOCK_EMPRESA])),
@@ -380,9 +452,66 @@ export const handlers = [
   http.post(`${BASE}/api/v1/asignaciones`, () => HttpResponse.json(MOCK_ASIGNACION)),
   http.get(`${BASE}/api/v1/calendario`, () => HttpResponse.json([])),
   http.get(`${BASE}/api/v1/usuarios/por-rol/:codigoRol`, () => HttpResponse.json([MOCK_TECNICO])),
+  http.get(`${BASE}/api/v1/usuarios/registros/pendientes`, () =>
+    HttpResponse.json([
+      {
+        id: '10',
+        nombreCompleto: 'Juan Pérez',
+        correoElectronico: 'juan@empresa.com',
+        fechaCreacion: '2026-03-01T10:00:00.000Z',
+        roles: ['ADMINISTRADOR_EMPRESA'],
+      },
+    ])
+  ),
+  http.patch(`${BASE}/api/v1/usuarios/registros/:id/resolver`, () =>
+    HttpResponse.json({ id: '10', estado: 'APROBADO' })
+  ),
   http.patch(`${BASE}/api/v1/informes/:evaluacionId/revisar`, () =>
     HttpResponse.json({ id: '1', idEstado: 5 })
   ),
+  http.patch(`${BASE}/api/v1/informes/:evaluacionId/revertir-revision`, () =>
+    HttpResponse.json({ id: '1', idEstado: 4 })
+  ),
   http.get(`${BASE}/api/v1/expedientes`, () => HttpResponse.json([MOCK_EXPEDIENTE])),
   http.patch(`${BASE}/api/v1/expedientes/:casoId/cerrar`, () => HttpResponse.json(MOCK_EXPEDIENTE)),
+  http.get(`${BASE}/api/v1/usuarios/todos`, () =>
+    HttpResponse.json([
+      {
+        id: '1',
+        nombreCompleto: 'Admin General',
+        correoElectronico: 'admin@digemaps.gob.do',
+        activo: true,
+        fechaCreacion: '2026-01-01T00:00:00.000Z',
+        roles: ['ADMINISTRADOR'],
+      },
+      {
+        id: '2',
+        nombreCompleto: 'Carlos Técnico',
+        correoElectronico: 'tecnico@digemaps.gob.do',
+        activo: true,
+        fechaCreacion: '2026-01-01T00:00:00.000Z',
+        roles: ['TECNICO'],
+      },
+    ])
+  ),
+  http.patch(`${BASE}/api/v1/usuarios/:id/rol`, () =>
+    HttpResponse.json({ mensaje: 'Rol actualizado exitosamente.' })
+  ),
+  http.patch(`${BASE}/api/v1/usuarios/:id/estado`, () =>
+    HttpResponse.json({ mensaje: 'Estado actualizado exitosamente.' })
+  ),
+  http.get(`${BASE}/api/v1/catalogos/tipos-establecimiento`, () =>
+    HttpResponse.json([
+      { id: '1', nombre: 'Planta de Procesamiento de Alimentos', activo: true },
+      { id: '2', nombre: 'Centro de Almacenamiento y Distribución', activo: true },
+      { id: '3', nombre: 'Laboratorio de Control de Calidad', activo: true },
+    ])
+  ),
+  http.post(`${BASE}/api/v1/catalogos/tipos-establecimiento`, () =>
+    HttpResponse.json({ id: '4', nombre: 'Nuevo Tipo', descripcion: '', activo: true })
+  ),
+  http.patch(`${BASE}/api/v1/catalogos/tipos-establecimiento/:id`, () =>
+    HttpResponse.json({ id: '1', nombre: 'Planta Modificada', descripcion: '', activo: true })
+  ),
 ];
+

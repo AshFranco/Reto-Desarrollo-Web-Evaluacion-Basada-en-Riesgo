@@ -88,3 +88,18 @@ export function useAsignarEvaluador() {
     },
   });
 }
+
+export function useDesasignarEvaluador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (casoId: string) =>
+      apiFetchJson<{ mensaje: string }>(`/api/v1/asignaciones/${casoId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_data, casoId) => {
+      queryClient.invalidateQueries({ queryKey: ['casos'] });
+      queryClient.invalidateQueries({ queryKey: ['casos', casoId] });
+    },
+  });
+}
+

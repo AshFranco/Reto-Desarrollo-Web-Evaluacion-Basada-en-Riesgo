@@ -48,3 +48,20 @@ export function useSubirEvidencia() {
     },
   });
 }
+
+export function useEliminarEvidencia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ evidenciaId, evaluacionId }: { evidenciaId: string; evaluacionId: string }) => {
+      const respuesta = await apiFetch(`/api/v1/evidencias/${evidenciaId}`, { method: 'DELETE' });
+      const cuerpo = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(cuerpo?.message ?? `Error al eliminar la evidencia (${respuesta.status})`);
+      }
+      return cuerpo;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['evaluaciones', variables.evaluacionId] });
+    },
+  });
+}

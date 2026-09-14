@@ -67,7 +67,7 @@ function TablaAsignaciones() {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar tus asignaciones'}</Alert>;
   }
   if (!asignaciones || asignaciones.length === 0) {
-    return <EstadoVacio titulo="No tenés casos asignados todavía." icono={<AssignmentOutlinedIcon fontSize="large" />} />;
+    return <EstadoVacio titulo="No tienes casos asignados todavía." icono={<AssignmentOutlinedIcon fontSize="large" />} />;
   }
 
   return (

@@ -83,6 +83,38 @@ export class AsignacionesService {
   }
 
   /**
+   * Desasigna el evaluador de un caso (cancela la asignación activa y
+   * regresa el estado del caso a Pendiente).
+   */
+  async desasignar(casoId: string) {
+    const caso = await this.prisma.caso.findUnique({ where: { id: BigInt(casoId) } });
+    if (!caso) throw new NotFoundException('Caso no encontrado.');
+    if (caso.estado === 'Cerrado') throw new BadRequestException('No se puede desasignar un caso cerrado.');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.asignacionEvaluador.updateMany({
+        where: { idCaso: BigInt(casoId), estado: 'Asignado' },
+        data: { estado: 'Cancelada' },
+      });
+
+      await tx.caso.update({
+        where: { id: BigInt(casoId) },
+        data: { estado: 'Pendiente' },
+      });
+
+      const estadoProgramada = await tx.estadoEvaluacion.findUnique({ where: { codigo: 'PROGRAMADA' } });
+      if (estadoProgramada) {
+        await tx.evaluacion.deleteMany({
+          where: { idCaso: BigInt(casoId), idEstado: estadoProgramada.id },
+        });
+      }
+
+      return { mensaje: 'Técnico desasignado correctamente.' };
+    });
+  }
+
+
+  /**
    * RF-11 (Calendario)/RF-12 (Ejecución): el Técnico necesita el
    * `evaluacionId` de cada asignación para poder navegar directo a
    * "iniciar" su evaluación desde la lista, sin un paso intermedio.

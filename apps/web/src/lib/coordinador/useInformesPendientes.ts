@@ -63,3 +63,40 @@ export function useRevisarInforme() {
     },
   });
 }
+
+export interface InformeDevuelto {
+  casoId: string;
+  evaluacionId: string;
+  establecimiento: string;
+  empresa: string;
+}
+
+export function useInformesDevueltos() {
+  const { data: casos, isLoading } = useCasosAsignados();
+
+  const devueltos: InformeDevuelto[] = casos.flatMap((c) =>
+    c.evaluaciones
+      .filter((e) => e.idEstado === ID_ESTADO_EVALUACION.DEVUELTA)
+      .map((e) => ({
+        casoId: c.id,
+        evaluacionId: e.id,
+        establecimiento: c.establecimiento.nombre,
+        empresa: c.establecimiento.empresa.razonSocial,
+      }))
+  );
+
+  return { data: devueltos, isLoading };
+}
+
+export function useDeshacerDevolucion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (evaluacionId: string) =>
+      apiFetchJson<{ id: string; mensaje: string }>(`/api/v1/informes/${evaluacionId}/revertir-revision`, {
+        method: 'PATCH',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['casos'] });
+    },
+  });
+}

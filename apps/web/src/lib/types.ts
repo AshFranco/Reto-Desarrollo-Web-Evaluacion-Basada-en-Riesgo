@@ -182,13 +182,30 @@ export interface CasoDetalle {
   prioridad: string | null;
   fechaCreacion: string;
   fechaCierre: string | null;
-  establecimiento: { id: string; nombre: string; empresa: Empresa };
+  origen?: OrigenCaso | null;
+  establecimiento: {
+    id: string;
+    nombre: string;
+    calle?: string | null;
+    empresa: Empresa;
+  };
+  asignaciones?: AsignacionEvaluador[];
   solicitud: SolicitudBpm | null;
   alerta: { id: string; numeroAlerta: string; descripcion: string } | null;
   denuncia: { id: string; tipoDenuncia: string; descripcion: string } | null;
   programacion: { id: string; fechaProgramada: string; frecuenciaAplicada: string } | null;
-  evaluaciones: { id: string; idEstado: number | null; fechaProgramada: string | null }[];
-  expediente: { id: string; estado: string } | null;
+  evaluaciones: {
+    id: string;
+    idEstado: number | null;
+    fechaProgramada: string | null;
+    estado?: { id: number; codigo: string; nombre: string };
+  }[];
+  expediente: {
+    id: string;
+    estado: string;
+    resultadoFinal?: string | null;
+    fechaCierre?: string | null;
+  } | null;
 }
 
 /**
@@ -270,6 +287,7 @@ export interface EvaluacionDetalle {
     orden: number;
   };
   respuestas: RespuestaItemRaw[];
+  evidencias?: Evidencia[];
   ultimaAccionCoordinador: string | null;
 }
 
