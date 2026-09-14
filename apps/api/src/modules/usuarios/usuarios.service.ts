@@ -14,11 +14,24 @@ export class UsuariosService {
   async listarPendientesValidacion() {
     const usuarios = await this.prisma.usuario.findMany({
       where: { estado: 'PENDIENTE_VALIDACION' },
-      select: { id: true, nombreCompleto: true, correoElectronico: true, fechaCreacion: true },
+      select: {
+        id: true,
+        nombreCompleto: true,
+        correoElectronico: true,
+        fechaCreacion: true,
+        roles: { include: { rol: true } },
+      },
       orderBy: { fechaCreacion: 'asc' },
     });
-    return usuarios.map((u) => ({ ...u, id: u.id.toString() }));
+    return usuarios.map((u) => ({
+      id: u.id.toString(),
+      nombreCompleto: u.nombreCompleto,
+      correoElectronico: u.correoElectronico,
+      fechaCreacion: u.fechaCreacion,
+      roles: u.roles.map((r) => r.rol.nombre ?? r.rol.codigo),
+    }));
   }
+
 
   async resolverRegistro(usuarioId: string, dto: ResolverRegistroDto) {
     const usuario = await this.prisma.usuario.findUnique({ where: { id: BigInt(usuarioId) } });
@@ -67,5 +80,93 @@ export class UsuariosService {
       orderBy: { nombreCompleto: 'asc' },
     });
     return usuarios.map((u) => ({ ...u, id: u.id.toString() }));
+  }
+
+  async listarTodos() {
+    const usuarios = await this.prisma.usuario.findMany({
+      include: {
+        roles: { include: { rol: true } },
+        empresa: { select: { razonSocial: true, rnc: true } },
+      },
+      orderBy: { fechaCreacion: 'desc' },
+    });
+
+    return usuarios.map((u) => ({
+      id: u.id.toString(),
+      nombreCompleto: u.nombreCompleto,
+      correoElectronico: u.correoElectronico,
+      telefono: u.telefono,
+      estado: u.estado,
+      roles: u.roles.map((r) => ({
+        codigo: r.rol.codigo,
+        nombre: r.rol.nombre,
+      })),
+      empresa: u.empresa
+        ? {
+            razonSocial: u.empresa.razonSocial,
+            rnc: u.empresa.rnc,
+          }
+        : null,
+      fechaCreacion: u.fechaCreacion,
+    }));
+  }
+
+  async actualizarRol(usuarioId: string, nuevoRolCodigo: string) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: BigInt(usuarioId) },
+      include: { roles: { include: { rol: true } } },
+    });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+
+    // Protección estricta: No permitir revocar el rol de Administrador del Sistema
+    const esAdmin = usuario.roles.some((r) => r.rol.codigo === 'ADMINISTRADOR');
+    if (esAdmin && nuevoRolCodigo !== 'ADMINISTRADOR') {
+      throw new BadRequestException('No se puede revocar el rol del Administrador del Sistema.');
+    }
+
+    const rol = await this.prisma.rol.findUnique({ where: { codigo: nuevoRolCodigo } });
+    if (!rol) throw new BadRequestException(`El rol '${nuevoRolCodigo}' no es válido.`);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.usuarioRol.deleteMany({ where: { idUsuario: BigInt(usuarioId) } });
+      await tx.usuarioRol.create({
+        data: {
+          idUsuario: BigInt(usuarioId),
+          idRol: rol.id,
+        },
+      });
+
+      return { mensaje: `Rol actualizado correctamente a ${rol.nombre}.`, rol: rol.codigo };
+    });
+  }
+
+  async actualizarEstado(usuarioId: string, nuevoEstado: string) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: BigInt(usuarioId) },
+      include: { roles: { include: { rol: true } } },
+    });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+
+    // Protección estricta: No permitir desactivar o bloquear al Administrador del Sistema
+    const esAdmin = usuario.roles.some((r) => r.rol.codigo === 'ADMINISTRADOR');
+    if (esAdmin && (nuevoEstado === 'BLOQUEADO' || nuevoEstado === 'INACTIVO')) {
+      throw new BadRequestException('No se puede desactivar ni bloquear la cuenta del Administrador del Sistema.');
+    }
+
+    const estadosValidos = ['APROBADO', 'INACTIVO', 'BLOQUEADO', 'PENDIENTE_VALIDACION'];
+    if (!estadosValidos.includes(nuevoEstado)) {
+      throw new BadRequestException(`Estado '${nuevoEstado}' no es válido.`);
+    }
+
+    const actualizado = await this.prisma.usuario.update({
+      where: { id: BigInt(usuarioId) },
+      data: { estado: nuevoEstado },
+    });
+
+    return {
+      id: actualizado.id.toString(),
+      estado: actualizado.estado,
+      mensaje: `Estado de cuenta actualizado a ${actualizado.estado}.`,
+    };
   }
 }

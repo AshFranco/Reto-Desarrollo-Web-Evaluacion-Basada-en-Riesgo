@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
+
 import {
   Alert,
   Box,
@@ -13,6 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import DomainOutlinedIcon from '@mui/icons-material/DomainOutlined';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   useEstablecimiento,
   useCrearEstablecimiento,
@@ -36,6 +38,75 @@ const DATOS_VACIOS: DatosEstablecimiento = {
 
 const PASOS = ['Datos generales', 'Datos operativos'];
 
+// Regex de validaciones en cliente ── deben aceptar los mismos valores que el backend.
+const RNC_REGEX = /^[0-9]{9}$|^[0-9]{11}$/;
+const TELEFONO_REGEX = /^[0-9]{10}$/;
+const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ErroresCampo {
+  rnc?: string;
+  telefono?: string;
+  correo?: string;
+  numeroPermisoSanitario?: string;
+  produccionAnual?: string;
+  empleadosMasculino?: string;
+  empleadosFemenino?: string;
+}
+
+function validarCampos(datos: DatosEstablecimiento): ErroresCampo {
+  const errores: ErroresCampo = {};
+
+  if (datos.rnc) {
+    if (datos.rnc.includes('-')) {
+      errores.rnc = 'El RNC no puede contener signos negativos ni guiones.';
+    } else if (!RNC_REGEX.test(datos.rnc)) {
+      errores.rnc = 'El RNC debe contener exactamente 9 u 11 dígitos numéricos.';
+    }
+  }
+
+  if (datos.telefono) {
+    if (datos.telefono.includes('-')) {
+      errores.telefono = 'El teléfono no puede contener signos negativos ni guiones.';
+    } else if (!TELEFONO_REGEX.test(datos.telefono)) {
+      errores.telefono = 'El teléfono debe contener exactamente 10 dígitos numéricos.';
+    }
+  }
+
+  if (datos.correo && !CORREO_REGEX.test(datos.correo)) {
+    errores.correo = 'El correo electrónico no es válido.';
+  }
+
+  if (datos.numeroPermisoSanitario && datos.numeroPermisoSanitario.length > 50) {
+    errores.numeroPermisoSanitario = 'El número de permiso no puede superar los 50 caracteres.';
+  }
+
+  if (datos.produccionAnual !== undefined) {
+    if (datos.produccionAnual < 0) {
+      errores.produccionAnual = 'La producción anual debe ser un valor positivo.';
+    } else if (datos.produccionAnual > 1000000000) {
+      errores.produccionAnual = 'La producción anual no puede superar 1,000,000,000.';
+    }
+  }
+
+  if (datos.empleadosMasculino !== undefined) {
+    if (datos.empleadosMasculino < 0 || !Number.isInteger(datos.empleadosMasculino)) {
+      errores.empleadosMasculino = 'Debe ser un número entero positivo.';
+    } else if (datos.empleadosMasculino > 1000000) {
+      errores.empleadosMasculino = 'El número de empleados no puede superar 1,000,000.';
+    }
+  }
+
+  if (datos.empleadosFemenino !== undefined) {
+    if (datos.empleadosFemenino < 0 || !Number.isInteger(datos.empleadosFemenino)) {
+      errores.empleadosFemenino = 'Debe ser un número entero positivo.';
+    } else if (datos.empleadosFemenino > 1000000) {
+      errores.empleadosFemenino = 'El número de empleadas no puede superar 1,000,000.';
+    }
+  }
+  return errores;
+}
+
+
 export default function FormularioEstablecimiento() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -47,6 +118,7 @@ export default function FormularioEstablecimiento() {
 
   const [paso, setPaso] = useState(0);
   const [datos, setDatos] = useState<DatosEstablecimiento>(DATOS_VACIOS);
+  const [erroresCampo, setErroresCampo] = useState<ErroresCampo>({});
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState(false);
 
@@ -70,12 +142,21 @@ export default function FormularioEstablecimiento() {
 
   const enviando = crear.isPending || editar.isPending;
   const datosBasicosCompletos = datos.nombre.trim() !== '';
+  const hayErroresCampo = Object.keys(erroresCampo).length > 0;
 
   function actualizarCampo<K extends keyof DatosEstablecimiento>(campo: K, valor: DatosEstablecimiento[K]) {
-    setDatos((prev) => ({ ...prev, [campo]: valor }));
+    const nuevosDatos = { ...datos, [campo]: valor };
+    setDatos(nuevosDatos);
+    // Re-validar en tiempo real al escribir
+    setErroresCampo(validarCampos(nuevosDatos));
   }
 
   async function guardar() {
+    const errores = validarCampos(datos);
+    if (Object.keys(errores).length > 0) {
+      setErroresCampo(errores);
+      return;
+    }
     setError(null);
     setExito(false);
     try {
@@ -101,12 +182,19 @@ export default function FormularioEstablecimiento() {
   }
 
   return (
-    <Box sx={{ maxWidth: 640 }}>
+    // mx: 'auto' centra el formulario en pantallas anchas
+    <Box sx={{ maxWidth: 640, mx: 'auto' }}>
       <PageHeader
         etiqueta="Empresa"
         titulo={esEdicion ? 'Editar establecimiento' : 'Nuevo establecimiento'}
         icono={<DomainOutlinedIcon />}
+        accion={
+          <Button variant="outlined" component={RouterLink} to="/empresa" startIcon={<ArrowBackIcon />}>
+            Volver a Mi Empresa
+          </Button>
+        }
       />
+
 
       <Paper variant="outlined" sx={{ padding: { xs: 2.5, md: 4 }, mt: 3 }}>
         <Stepper activeStep={paso} sx={{ mb: 4 }}>
@@ -146,6 +234,8 @@ export default function FormularioEstablecimiento() {
               value={datos.rnc}
               onChange={(e) => actualizarCampo('rnc', e.target.value)}
               disabled={enviando}
+              error={!!erroresCampo.rnc}
+              helperText={erroresCampo.rnc ?? '9 u 11 dígitos numéricos'}
             />
             <TextField
               label="Calle / dirección"
@@ -162,14 +252,19 @@ export default function FormularioEstablecimiento() {
               value={datos.telefono}
               onChange={(e) => actualizarCampo('telefono', e.target.value)}
               disabled={enviando}
+              error={!!erroresCampo.telefono}
+              helperText={erroresCampo.telefono ?? '10 dígitos numéricos'}
+              inputProps={{ maxLength: 10 }}
             />
             <TextField
-              label="Correo"
+              label="Correo electrónico"
               fullWidth
               margin="normal"
               value={datos.correo}
               onChange={(e) => actualizarCampo('correo', e.target.value)}
               disabled={enviando}
+              error={!!erroresCampo.correo}
+              helperText={erroresCampo.correo}
             />
           </Box>
         )}
@@ -183,6 +278,9 @@ export default function FormularioEstablecimiento() {
               value={datos.numeroPermisoSanitario}
               onChange={(e) => actualizarCampo('numeroPermisoSanitario', e.target.value)}
               disabled={enviando}
+              error={!!erroresCampo.numeroPermisoSanitario}
+              helperText={erroresCampo.numeroPermisoSanitario}
+              inputProps={{ maxLength: 50 }}
             />
             <TextField
               label="Producción anual"
@@ -192,6 +290,9 @@ export default function FormularioEstablecimiento() {
               value={datos.produccionAnual ?? ''}
               onChange={(e) => actualizarCampo('produccionAnual', e.target.value ? Number(e.target.value) : undefined)}
               disabled={enviando}
+              error={!!erroresCampo.produccionAnual}
+              helperText={erroresCampo.produccionAnual}
+              inputProps={{ min: 0, max: 1000000000 }}
             />
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
@@ -202,6 +303,9 @@ export default function FormularioEstablecimiento() {
                 value={datos.empleadosMasculino ?? ''}
                 onChange={(e) => actualizarCampo('empleadosMasculino', e.target.value ? Number(e.target.value) : undefined)}
                 disabled={enviando}
+                error={!!erroresCampo.empleadosMasculino}
+                helperText={erroresCampo.empleadosMasculino}
+                inputProps={{ min: 0, max: 1000000, step: 1 }}
               />
               <TextField
                 label="Empleados (mujeres)"
@@ -211,6 +315,9 @@ export default function FormularioEstablecimiento() {
                 value={datos.empleadosFemenino ?? ''}
                 onChange={(e) => actualizarCampo('empleadosFemenino', e.target.value ? Number(e.target.value) : undefined)}
                 disabled={enviando}
+                error={!!erroresCampo.empleadosFemenino}
+                helperText={erroresCampo.empleadosFemenino}
+                inputProps={{ min: 0, max: 1000000, step: 1 }}
               />
             </Box>
             <TextField
@@ -220,21 +327,36 @@ export default function FormularioEstablecimiento() {
               value={datos.mercadoObjetivo}
               onChange={(e) => actualizarCampo('mercadoObjetivo', e.target.value)}
               disabled={enviando}
+              inputProps={{ maxLength: 150 }}
             />
           </Box>
         )}
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 4 }}>
-          <Button disabled={paso === 0 || enviando} onClick={() => setPaso((p) => p - 1)}>
-            Atrás
-          </Button>
+          {paso === 0 ? (
+            <Button onClick={() => navigate('/empresa')}>
+              Cancelar y volver
+            </Button>
+          ) : (
+            <Button disabled={enviando} onClick={() => setPaso((p) => p - 1)}>
+              Atrás
+            </Button>
+          )}
 
           {paso === 0 ? (
-            <Button variant="contained" disabled={!datosBasicosCompletos} onClick={() => setPaso(1)}>
+            <Button
+              variant="contained"
+              disabled={!datosBasicosCompletos || hayErroresCampo}
+              onClick={() => setPaso(1)}
+            >
               Siguiente
             </Button>
           ) : (
-            <Button variant="contained" disabled={enviando || !datosBasicosCompletos} onClick={guardar}>
+            <Button
+              variant="contained"
+              disabled={enviando || !datosBasicosCompletos || hayErroresCampo}
+              onClick={guardar}
+            >
               {enviando ? <CircularProgress size={20} /> : 'Guardar'}
             </Button>
           )}
@@ -243,3 +365,4 @@ export default function FormularioEstablecimiento() {
     </Box>
   );
 }
+

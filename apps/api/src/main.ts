@@ -130,6 +130,15 @@ async function bootstrap() {
       transform: true,
       transformOptions: { enableImplicitConversion: true },
       forbidUnknownValues: true,
+      // exceptionFactory: reúne todos los mensajes de error en un solo string
+      // en español en vez de devolver el array crudo de class-validator en inglés.
+      exceptionFactory: (errors) => {
+        const { BadRequestException } = require('@nestjs/common');
+        const mensajes = errors
+          .flatMap((e) => Object.values(e.constraints ?? {}))
+          .filter(Boolean);
+        return new BadRequestException(mensajes.join(' | '));
+      },
     }),
   );
 
