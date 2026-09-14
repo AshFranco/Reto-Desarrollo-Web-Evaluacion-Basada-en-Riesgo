@@ -1,0 +1,99 @@
+# 04 - Defect & Bug Reports (Bitácora de Defectos)
+**Sistema PWA de Evaluación Basada en Riesgo (EBR/BPM)**  
+**Cliente:** Ministerio de Salud Pública — DIGEMAPS  
+
+---
+
+## 1. Resumen de Defectos por Estado
+
+| Severidad | Abiertos | Resueltos | Mitigados / Documentados | Total |
+|---|---|---|---|---|
+| **Crítica** | 0 | 3 | 1 (MFA) | 4 |
+| **Mayor** | 0 | 3 | 0 | 3 |
+| **Menor** | 0 | 1 | 0 | 1 |
+| **Total** | **0** | **7** | **1** | **8** |
+
+---
+
+## 2. Registro Detallado de Defectos
+
+### DEF-001 (Hallazgo D-01): Fórmula del Factor 6 en Excel devuelve FALSE
+- **Severidad:** Crítica
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en Motor y Semillas
+- **Componente:** `packages/risk-engine` / `apps/api/prisma/seed.ts`
+- **Descripción:** En la hoja oficial de cálculo de frecuencia de DIGEMAPS, el Factor 6 devolvía `FALSE` en lugar del puntaje esperado porque el texto de la celda ("Plan de muestreo en materias primas") no coincidía con ninguna condición del `IF` anidado. Esto provocaba que el factor aportara 0 en lugar de 0.1864, alterando el $RE$ de 1.393 a 1.206.
+- **Resolución:** Se corrigió la normalización en el catálogo de factores (`factores-riesgo.json`) mapeando la opción correctamente al puntaje 2.33.
+
+---
+
+### DEF-002 (Hallazgo D-02): Valores corruptos #N/A en Matriz de Alimentos
+- **Severidad:** Mayor
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en Semillas
+- **Componente:** Catálogo de Alimentos
+- **Descripción:** Las filas 3 a 5 de la matriz original de alimentos contenían fórmulas rotas propagando `#N/A`.
+- **Resolución:** Se depuraron las filas durante el proceso de extracción a `categorias-alimento.json`, eliminando datos basura antes de la importación a PostgreSQL.
+
+---
+
+### DEF-003 (Hallazgo D-03): Subcategorías de Frutas y Hortalizas sin nivel de riesgo
+- **Severidad:** Mayor
+- **Prioridad:** Media
+- **Estado:** ✅ Resuelto con valor por defecto
+- **Componente:** Catálogo de Alimentos
+- **Descripción:** Tres subcategorías (purés para untar, pulpas y preparados, fermentados) carecían de asignación de riesgo en el archivo de la DIGEMAPS, impidiendo el cálculo de $RP$ si una fábrica solo producía esos ítems.
+- **Resolución:** Se asignó nivel de riesgo Medio por defecto y se marcó con bandera `requiere_revision = true` en la tabla `subcategoria_alimento`.
+
+---
+
+### DEF-004 (Hallazgo D-04): Columna de criticidad (C/M/Me) vacía en la Ficha BPM
+- **Severidad:** Crítica
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en Arquitectura
+- **Componente:** Ficha BPM / `EvaluacionesService`
+- **Descripción:** La columna de criticidad estaba vacía en los 45 ítems del Excel, pero la regla de aprobación exigía evaluar `NC_Criticas > 1`.
+- **Resolución:** Se modeló la criticidad a nivel de la respuesta en campo (`respuesta_item.id_criticidad`). Cuando el técnico detecta un Incumplimiento Total (`IT`) o Parcial (`CP`), la aplicación le exige obligatoriamente calificar si el hallazgo es Crítico ($C$), Mayor ($M$) o Menor ($Me$).
+
+---
+
+### DEF-005: Columna de secreto TOTP no contemplada en esquema DBML oficial
+- **Severidad:** Crítica
+- **Prioridad:** Baja (Opcional según SRS)
+- **Estado:** 🟡 Mitigado / Bug Conocido Documentado
+- **Componente:** `AuthService` / Base de Datos
+- **Descripción:** El SRS menciona doble factor (MFA) como opcional, pero el esquema oficial de 51 tablas compartido por la cátedra no incluye la columna para almacenar el secreto TOTP en la tabla `usuario`.
+- **Resolución:** Para evitar fallos silenciosos, `AuthService` detecta si un usuario tiene `dobleFactorActivo = true` y lanza un error descriptivo documentando la limitación del esquema oficial.
+
+---
+
+### DEF-006: Ausencia de rangos de calificación en semilla Prisma inicial
+- **Severidad:** Mayor
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en PR #23
+- **Componente:** `apps/api/prisma/seed.ts`
+- **Descripción:** `rango_calificacion` no se estaba sembrando al migrar a Prisma, lo que causaba que `POST /api/v1/motor-riesgo/calcular` fallara con "Porcentaje fuera de los rangos de calificación".
+- **Resolución:** Se incorporó `seedRangosCalificacion()` en `seed.ts` leyendo los 4 rangos oficiales desde `ficha-bpm.json`.
+
+---
+
+### DEF-007: Fallo de serialización de BigInt en Express/NestJS
+- **Severidad:** Mayor
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en `main.ts`
+- **Componente:** Backend API
+- **Descripción:** PostgreSQL utiliza enteros de 64 bits (`BigInt`) para las claves primarias de 51 tablas. `JSON.stringify()` nativo de Node.js no soporta `BigInt` y lanzaba `TypeError: Do not know how to serialize a BigInt`.
+- **Resolución:** Se implementó un parche global en `apps/api/src/main.ts`:
+  ```typescript
+  (BigInt.prototype as any).toJSON = function () { return this.toString(); };
+  ```
+
+---
+
+### DEF-008: Tabla RefreshToken ausente en el DBML oficial
+- **Severidad:** Crítica (Seguridad)
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en Prisma Schema
+- **Componente:** Base de Datos / `schema.prisma`
+- **Descripción:** El DBML oficial de 51 tablas no incluía una tabla para la persistencia y rotación de tokens de refresco, lo que impedía implementar revocación de sesiones.
+- **Resolución:** Se extendió el esquema Prisma con la tabla `refresh_token` vinculada a `usuario`, con hash SHA-256, expiración y bandera de revocación.
