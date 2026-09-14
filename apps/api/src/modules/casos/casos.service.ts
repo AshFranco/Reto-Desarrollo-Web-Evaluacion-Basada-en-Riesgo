@@ -4,6 +4,15 @@ import { JwtPayload } from '../auth/token.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 
+export interface FiltrosBusquedaCaso {
+  empresaId?: string;
+  solicitudId?: string;
+  evaluacionId?: string;
+  estado?: string;
+  fechaCreacionDesde?: string;
+  fechaCreacionHasta?: string;
+}
+
 @Injectable()
 export class CasosService {
   constructor(private readonly prisma: PrismaService) {}
@@ -19,6 +28,54 @@ export class CasosService {
         establecimiento: { select: { nombre: true, idEmpresa: true } },
         origen: true,
         asignaciones: { where: { estado: 'Asignado' }, include: { evaluador: { select: { nombreCompleto: true } } } },
+      },
+      orderBy: { fechaCreacion: 'desc' },
+    });
+    return casos.map((c) => this.serializar(c));
+  }
+
+  /**
+   * Búsqueda histórica completa (RF de consulta histórica -- Fase 7).
+   * A diferencia de GET /expedientes (solo cubre casos ya CERRADOS con
+   * fecha_cierre), esto busca sobre TODO caso.estado y permite filtrar
+   * por solicitud/evaluación específica, no solo por rango de fechas.
+   *
+   * Mismo scoping por empresa que listar(): roles de empresa solo ven
+   * los suyos, forzado server-side, ignorando cualquier empresaId que
+   * intenten mandar en los filtros.
+   */
+  async buscarHistorico(filtros: FiltrosBusquedaCaso, user: JwtPayload) {
+    const empresaIdEfectivo = ROLES_INTERNOS.includes(user.rol) ? filtros.empresaId : user.empresaId;
+
+    let hastaDate: Date | undefined;
+    if (filtros.fechaCreacionHasta) {
+      hastaDate = new Date(filtros.fechaCreacionHasta);
+      if (filtros.fechaCreacionHasta.length === 10) {
+        hastaDate.setUTCHours(23, 59, 59, 999);
+      }
+    }
+
+    const where: any = {
+      estado: filtros.estado,
+      establecimiento: empresaIdEfectivo ? { idEmpresa: BigInt(empresaIdEfectivo) } : undefined,
+      fechaCreacion: {
+        gte: filtros.fechaCreacionDesde ? new Date(filtros.fechaCreacionDesde) : undefined,
+        lte: hastaDate,
+      },
+    };
+    if (filtros.solicitudId) where.idSolicitud = BigInt(filtros.solicitudId);
+    if (filtros.evaluacionId) {
+      where.evaluaciones = { some: { id: BigInt(filtros.evaluacionId) } };
+    }
+
+    const casos = await this.prisma.caso.findMany({
+      where,
+      include: {
+        establecimiento: { include: { empresa: { select: { id: true, razonSocial: true } } } },
+        origen: true,
+        solicitud: true,
+        evaluaciones: { select: { id: true, idEstado: true, fechaFinalizacion: true } },
+        expediente: true,
       },
       orderBy: { fechaCreacion: 'desc' },
     });

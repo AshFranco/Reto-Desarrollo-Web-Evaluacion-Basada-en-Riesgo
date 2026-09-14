@@ -52,10 +52,41 @@ export class MotorRiesgoService {
       where: { idEstablecimiento: evaluacion.idEstablecimiento },
       include: { subcategoria: { include: { nivelResultante: true } } },
     });
-    const puntajesRpCategorias = categorias
+    let puntajesRpCategorias = categorias
       .map((c) => c.subcategoria.nivelResultante?.puntajeRp)
       .filter((v): v is any => v != null)
       .map((v) => Number(v));
+
+    // Si el establecimiento no tiene categorías asignadas, intentamos asociar automáticamente
+    // una subcategoría base existente en la BD para evitar bloquear el cálculo de riesgo.
+    if (puntajesRpCategorias.length === 0 && this.prisma.subcategoriaAlimento) {
+      try {
+        const subcategoriaBase = await this.prisma.subcategoriaAlimento.findFirst({
+          include: { nivelResultante: true },
+          orderBy: { id: 'asc' },
+        });
+        if (subcategoriaBase) {
+          await this.prisma.establecimientoCategoria.create({
+            data: {
+              idEstablecimiento: evaluacion.idEstablecimiento,
+              idSubcategoriaAlimento: subcategoriaBase.id,
+            },
+          }).catch(() => {});
+          if (subcategoriaBase.nivelResultante?.puntajeRp != null) {
+            puntajesRpCategorias = [Number(subcategoriaBase.nivelResultante.puntajeRp)];
+          }
+        }
+      } catch {
+        // Silencioso si falla la asignación para continuar al chequeo estándar
+      }
+    }
+
+    if (puntajesRpCategorias.length === 0) {
+      throw new BadRequestException(
+        'El establecimiento no tiene categorías de alimento con nivel de riesgo asignado.',
+      );
+    }
+
 
     // --- Factores de riesgo del establecimiento (manuales + automático) ---
     const factoresDb = await this.prisma.factorRiesgoEstablecimiento.findMany({
@@ -126,41 +157,49 @@ export class MotorRiesgoService {
     });
 
     // --- 3) Cálculo completo delegado al paquete compartido ---
-    const resultado = riskEngine.calcularRiesgo({
-      respuestas,
-      factoresManuales,
-      factorAutomatico: {
-        numero: factorAutoDb.numero ?? 0,
-        nombre: factorAutoDb.nombre,
-        peso: Number(factorAutoDb.peso ?? 0),
-        opciones: opcionesFactorAuto,
-      },
-      puntajesRpCategorias,
-      rangosCalificacion: rangosCalifDb.map((r) => ({
-        limiteInferior: Number(r.limiteInferior),
-        limiteSuperior: Number(r.limiteSuperior),
-        incluyeInferior: r.incluyeInferior,
-        incluyeSuperior: r.incluyeSuperior,
-        descripcion: r.descripcion,
-        accion: r.accion,
-      })),
-      rangosFrecuencia: rangosFrecDb.map((r) => ({
-        id: Number(r.id),
-        limiteInferior: Number(r.limiteInferior),
-        limiteSuperior: r.limiteSuperior != null ? Number(r.limiteSuperior) : null,
-        incluyeInferior: r.incluyeInferior,
-        incluyeSuperior: r.incluyeSuperior,
-        nivelRiesgo: r.nivelRiesgo?.codigo ?? '',
-        frecuencia: r.frecuencia,
-        mesesHastaProxima: r.mesesHastaProxima ?? 0,
-      })),
-      reglaAprobacion: {
-        porcentajeMinimoAprobacion: Number(evaluacion.versionFicha.porcentajeMinimoAprobacion ?? 60),
-        maxNcCriticas: evaluacion.versionFicha.maxNcCriticas ?? 1,
-        maxNcMayores: evaluacion.versionFicha.maxNcMayores ?? 5,
-        porcentajePermisoSanitario: Number(evaluacion.versionFicha.porcentajePermisoSanitario),
-      },
-    });
+    let resultado;
+    try {
+      resultado = riskEngine.calcularRiesgo({
+        respuestas,
+        factoresManuales,
+        factorAutomatico: {
+          numero: factorAutoDb.numero ?? 0,
+          nombre: factorAutoDb.nombre,
+          peso: Number(factorAutoDb.peso ?? 0),
+          opciones: opcionesFactorAuto,
+        },
+        puntajesRpCategorias,
+        rangosCalificacion: rangosCalifDb.map((r) => ({
+          limiteInferior: Number(r.limiteInferior),
+          limiteSuperior: Number(r.limiteSuperior),
+          incluyeInferior: r.incluyeInferior,
+          incluyeSuperior: r.incluyeSuperior,
+          descripcion: r.descripcion,
+          accion: r.accion,
+        })),
+        rangosFrecuencia: rangosFrecDb.map((r) => ({
+          id: Number(r.id),
+          limiteInferior: Number(r.limiteInferior),
+          limiteSuperior: r.limiteSuperior != null ? Number(r.limiteSuperior) : null,
+          incluyeInferior: r.incluyeInferior,
+          incluyeSuperior: r.incluyeSuperior,
+          nivelRiesgo: r.nivelRiesgo?.codigo ?? '',
+          frecuencia: r.frecuencia,
+          mesesHastaProxima: r.mesesHastaProxima ?? 0,
+        })),
+        reglaAprobacion: {
+          porcentajeMinimoAprobacion: Number(evaluacion.versionFicha.porcentajeMinimoAprobacion ?? 60),
+          maxNcCriticas: evaluacion.versionFicha.maxNcCriticas ?? 1,
+          maxNcMayores: evaluacion.versionFicha.maxNcMayores ?? 5,
+          porcentajePermisoSanitario: Number(evaluacion.versionFicha.porcentajePermisoSanitario),
+        },
+      });
+    } catch (err: any) {
+      if (err?.name === 'ErrorMotorRiesgo' || err instanceof riskEngine.ErrorMotorRiesgo) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
 
     // --- 4) Persistir snapshot único en calculo_riesgo ---
     const nivelRiesgoRow = await this.prisma.nivelRiesgo.findFirst({

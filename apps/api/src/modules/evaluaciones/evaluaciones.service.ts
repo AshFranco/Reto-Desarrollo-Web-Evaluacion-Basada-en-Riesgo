@@ -43,9 +43,20 @@ export class EvaluacionesService {
         versionFicha: true,
         estado: true,
         respuestas: true,
+        historialEstados: { orderBy: { fechaHora: 'desc' }, take: 1 },
       },
     });
-    return this.serializar(detalle);
+
+    // DEVOLVER y SOLICITAR_CORRECCION comparten el mismo estado (DEVUELTA)
+    // en el catálogo -- la acción real elegida por el Coordinador se
+    // recupera del último registro de historial (ver informes.service.ts).
+    let ultimaAccionCoordinador: string | null = null;
+    const ultimoHistorial = detalle?.historialEstados[0];
+    if (ultimoHistorial?.comentario?.startsWith('[')) {
+      ultimaAccionCoordinador = ultimoHistorial.comentario.slice(1, ultimoHistorial.comentario.indexOf(']'));
+    }
+
+    return { ...this.serializar(detalle), ultimaAccionCoordinador };
   }
 
   async iniciar(evaluacionId: string, tecnicoId: string) {

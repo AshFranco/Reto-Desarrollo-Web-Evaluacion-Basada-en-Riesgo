@@ -36,11 +36,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
           : ((res as any)?.message ?? exception.message);
       code = (res as any)?.code ?? HttpStatus[status];
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-      // Traduce errores de BD a mensajes genéricos: nunca exponer el detalle SQL.
-      status = HttpStatus.CONFLICT;
-      code = 'DATA_CONFLICT';
-      message = 'La operación no pudo completarse por una restricción de datos.';
+      if (exception.code === 'P2020' || (exception as any).message?.includes('out of range')) {
+        status = HttpStatus.BAD_REQUEST;
+        code = 'VALUE_OUT_OF_RANGE';
+        message = 'Uno de los valores numéricos excede el rango máximo permitido por el sistema.';
+      } else {
+        // Traduce errores de BD a mensajes genéricos: nunca exponer el detalle SQL.
+        status = HttpStatus.CONFLICT;
+        code = 'DATA_CONFLICT';
+        message = 'La operación no pudo completarse por una restricción de datos.';
+      }
+    } else if (exception instanceof Prisma.PrismaClientValidationError) {
+      status = HttpStatus.BAD_REQUEST;
+      code = 'VALIDATION_ERROR';
+      message = 'Uno de los campos contiene un formato o valor no compatible con el sistema.';
     }
+
 
     this.logger.error(
       `${request.method} ${request.originalUrl} -> ${status}`,

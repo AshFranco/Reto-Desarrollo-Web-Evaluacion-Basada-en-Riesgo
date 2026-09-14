@@ -1,0 +1,38 @@
+[
+  {
+    "limiteInferior": 0.0,
+    "limiteSuperior": 60.0,
+    "incluyeInferior": true,
+    "incluyeSuperior": true,
+    "descripcion": "Condiciones inaceptables",
+    "accion": "Considerar cierre",
+    "orden": 1
+  },
+  {
+    "limiteInferior": 60.0,
+    "limiteSuperior": 70.0,
+    "incluyeInferior": false,
+    "incluyeSuperior": true,
+    "descripcion": "Condiciones deficientes",
+    "accion": "Urge corregir",
+    "orden": 2
+  },
+  {
+    "limiteInferior": 70.0,
+    "limiteSuperior": 80.0,
+    "incluyeInferior": false,
+    "incluyeSuperior": true,
+    "descripcion": "Condiciones regulares",
+    "accion": "Necesario hacer correcciones",
+    "orden": 3
+  },
+  {
+    "limiteInferior": 80.0,
+    "limiteSuperior": 100.0,
+    "incluyeInferior": false,
+    "incluyeSuperior": true,
+    "descripcion": "Buenas condiciones",
+    "accion": "Hacer algunas correcciones",
+    "orden": 4
+  }
+]

@@ -2,6 +2,8 @@ import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ExpedientesService } from './expedientes.service';
 import { BuscarExpedientesQuery } from './dto/buscar-expedientes.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtPayload } from '../auth/token.service';
 import { RolUsuario } from '../../common/enums';
 
 @Controller({ path: 'expedientes', version: '1' })
@@ -14,8 +16,21 @@ export class ExpedientesController {
     return this.expedientesService.cerrar(casoId);
   }
 
+  /**
+   * Hueco de seguridad reportado y corregido: antes no tenia @Roles ni
+   * scoping forzado por empresa -- un usuario de Empresa o un Tecnico
+   * podian ver expedientes de CUALQUIER empresa, no solo la suya, porque
+   * el filtro empresaId era opcional (lo decidia el cliente, no el server).
+   */
   @Get()
-  buscar(@Query() query: BuscarExpedientesQuery) {
-    return this.expedientesService.buscar(query);
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.TECNICO_EVALUADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+    RolUsuario.USUARIO_DELEGADO,
+  )
+  buscar(@Query() query: BuscarExpedientesQuery, @CurrentUser() user: JwtPayload) {
+    return this.expedientesService.buscar(query, user);
   }
 }

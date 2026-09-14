@@ -5,10 +5,10 @@ beforeEach(async () => { await db.open(); });
 afterEach(async () => { await db.delete(); });
 
 describe('EbrDatabase schema', () => {
-  it('tiene las 8 tablas esperadas', () => {
+  it('tiene las 9 tablas esperadas', () => {
     const tablas = db.tables.map(t => t.name).sort();
     expect(tablas).toEqual([
-      'asignacion', 'catalogo_item', 'catalogo_meta',
+      'asignacion', 'catalogo_item', 'catalogo_meta', 'catalogo_motor',
       'cola_sync', 'evaluacion', 'evidencia', 'respuesta', 'sesion',
     ].sort());
   });
