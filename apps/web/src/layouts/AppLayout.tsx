@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
+  AppBar,
   Avatar,
   Box,
   Divider,
   Drawer,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alpha, useTheme, type Theme } from '@mui/material/styles';
+import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
@@ -53,14 +57,16 @@ const ETIQUETA_ROL: Record<string, string> = {
 };
 
 /**
- * Envuelve cualquier pantalla protegida con una barra lateral fija:
- * logo arriba, navegación según el rol (panel propio + consulta
- * histórica), y una tarjeta de usuario con cerrar sesión abajo. El
- * contenido de cada pantalla se renderiza donde está <Outlet />.
+ * Envuelve cualquier pantalla protegida con barra de navegación:
+ * en escritorio barra lateral fija, y en móvil (360px+) barra superior con
+ * drawer desplegable para garantizar el 100% del ancho útil al contenido.
  */
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [usuario, setUsuario] = useState<UsuarioLocal | null>(null);
 
   useEffect(() => {
@@ -72,6 +78,10 @@ export function AppLayout() {
       cancelado = true;
     };
   }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   async function cerrarSesion() {
     await clearSession();
@@ -86,113 +96,202 @@ export function AppLayout() {
     .join('')
     .toUpperCase();
 
-  return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: ANCHO_BARRA_LATERAL,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: {
-            width: ANCHO_BARRA_LATERAL,
-            boxSizing: 'border-box',
-            borderRight: '1px solid',
-            borderColor: 'divider',
+  const contenidoDrawer = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Toolbar sx={{ px: 3, py: 2.5, gap: 1.5, bgcolor: (t) => alpha(t.palette.primary.main, 0.04) }}>
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: 2,
+            flexShrink: 0,
             display: 'flex',
-            flexDirection: 'column',
-          },
-        }}
-      >
-        <Toolbar sx={{ px: 3, py: 2.5, gap: 1.5, bgcolor: (t) => alpha(t.palette.primary.main, 0.04) }}>
-          <Box
-            sx={{
-              width: 38,
-              height: 38,
-              borderRadius: 2,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <ShieldOutlinedIcon fontSize="small" />
-          </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.2 }}>
-              EBR / BPM
-            </Typography>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>
-              Evaluación basada en riesgo
-            </Typography>
-          </Box>
-        </Toolbar>
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
+            color: 'primary.contrastText',
+          }}
+        >
+          <ShieldOutlinedIcon fontSize="small" />
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.2 }}>
+            EBR / BPM
+          </Typography>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>
+            Evaluación basada en riesgo
+          </Typography>
+        </Box>
+      </Toolbar>
 
-        <List sx={{ flex: 1, px: 1.5, py: 1 }}>
-          {panelPropio && (
-            <ListItemButton
-              component={RouterLink}
-              to={panelPropio.ruta}
-              selected={location.pathname === panelPropio.ruta}
-              sx={sxItemNav}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                <SpaceDashboardOutlinedIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText
-                primary={panelPropio.etiqueta}
-                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-              />
-            </ListItemButton>
-          )}
+      <List sx={{ flex: 1, px: 1.5, py: 1 }}>
+        {panelPropio && (
           <ListItemButton
             component={RouterLink}
-            to="/historico"
-            selected={location.pathname === '/historico'}
+            to={panelPropio.ruta}
+            selected={location.pathname === panelPropio.ruta}
             sx={sxItemNav}
+            onClick={() => setMobileOpen(false)}
           >
             <ListItemIcon sx={{ minWidth: 36 }}>
-              <HistoryOutlinedIcon fontSize="small" />
+              <SpaceDashboardOutlinedIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText
-              primary="Consulta histórica"
+              primary={panelPropio.etiqueta}
               primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
             />
           </ListItemButton>
-        </List>
+        )}
+        <ListItemButton
+          component={RouterLink}
+          to="/historico"
+          selected={location.pathname === '/historico'}
+          sx={sxItemNav}
+          onClick={() => setMobileOpen(false)}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <HistoryOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              usuario?.rol === 'ADMINISTRADOR_EMPRESA' || usuario?.rol === 'USUARIO_DELEGADO'
+                ? 'Histórico de solicitudes'
+                : 'Consulta histórica'
+            }
+            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+          />
+        </ListItemButton>
+      </List>
 
-        <Divider />
+      <Divider />
 
-        <Box sx={{ p: 2 }}>
-          {usuario && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-              <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '0.85rem' }}>
+      <Box sx={{ p: 2 }}>
+        {usuario && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '0.85rem' }}>
+              {iniciales}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={600} noWrap>
+                {usuario.nombreCompleto}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        <ListItemButton
+          onClick={cerrarSesion}
+          sx={{ borderRadius: 2, color: 'text.secondary' }}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <LogoutOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Cerrar sesión" primaryTypographyProps={{ variant: 'body2' }} />
+        </ListItemButton>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: { xs: 'column', md: 'row' } }}>
+      {/* Barra superior solo visible en pantallas móviles (< md) */}
+      {isMobile && (
+        <AppBar
+          position="sticky"
+          elevation={0}
+          sx={{
+            bgcolor: 'background.paper',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            color: 'text.primary',
+          }}
+        >
+          <Toolbar sx={{ px: { xs: 1.5, sm: 2 }, gap: 1.5 }}>
+            <IconButton
+              edge="start"
+              color="inherit"
+              aria-label="abrir menú"
+              onClick={() => setMobileOpen(!mobileOpen)}
+            >
+              <MenuOutlinedIcon />
+            </IconButton>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: 1.5,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
+                color: 'primary.contrastText',
+              }}
+            >
+              <ShieldOutlinedIcon sx={{ fontSize: '1.2rem' }} />
+            </Box>
+            <Typography variant="subtitle1" fontWeight={700} color="primary.main" sx={{ flexGrow: 1, lineHeight: 1.2 }}>
+              EBR / BPM
+            </Typography>
+            {usuario && (
+              <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.75rem' }}>
                 {iniciales}
               </Avatar>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={600} noWrap>
-                  {usuario.nombreCompleto}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
-                </Typography>
-              </Box>
-            </Box>
-          )}
-          <ListItemButton
-            onClick={cerrarSesion}
-            sx={{ borderRadius: 2, color: 'text.secondary' }}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              <LogoutOutlinedIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Cerrar sesión" primaryTypographyProps={{ variant: 'body2' }} />
-          </ListItemButton>
-        </Box>
-      </Drawer>
+            )}
+          </Toolbar>
+        </AppBar>
+      )}
 
-      <Box component="main" sx={{ flex: 1, padding: { xs: 2.5, md: 4 } }}>
+      {/* Drawer móvil (temporary) */}
+      {isMobile ? (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            [`& .MuiDrawer-paper`]: {
+              width: ANCHO_BARRA_LATERAL,
+              boxSizing: 'border-box',
+            },
+          }}
+        >
+          {contenidoDrawer}
+        </Drawer>
+      ) : (
+        /* Drawer escritorio (permanent) */
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            width: ANCHO_BARRA_LATERAL,
+            flexShrink: 0,
+            [`& .MuiDrawer-paper`]: {
+              width: ANCHO_BARRA_LATERAL,
+              boxSizing: 'border-box',
+              borderRight: '1px solid',
+              borderColor: 'divider',
+            },
+          }}
+        >
+          {contenidoDrawer}
+        </Drawer>
+      )}
+
+      {/* Área principal con 100% de ancho útil a 360px */}
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          width: '100%',
+          overflowX: 'hidden',
+          padding: { xs: 1.5, sm: 2.5, md: 4 },
+        }}
+      >
         <Outlet />
       </Box>
     </Box>
