@@ -19,6 +19,14 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { JwtPayload, TokenService } from './token.service';
 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+
+@ApiTags('Autenticación')
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
   constructor(
@@ -29,6 +37,9 @@ export class AuthController {
   @Public()
   @Post('registro')
   @Throttle({ default: { limit: 5, ttl: 3_600_000 } }) // 5 registros/hora por IP
+  @ApiOperation({ summary: 'Registro de nuevo usuario externo' })
+  @ApiResponse({ status: 201, description: 'Usuario registrado exitosamente (pendiente de validación).' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos o documento/correo ya registrado.' })
   async registro(@Body() dto: RegistroUsuarioDto) {
     return this.authService.registrar(dto);
   }
@@ -37,6 +48,9 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 8, ttl: 60_000 } }) // 8 intentos/min por IP (protección de bots/fuerza bruta)
+  @ApiOperation({ summary: 'Inicio de sesión con correo y contraseña' })
+  @ApiResponse({ status: 200, description: 'Autenticación exitosa, retorna access token y datos del usuario.' })
+  @ApiResponse({ status: 401, description: 'Credenciales inválidas o cuenta bloqueada/inactiva.' })
   async login(
     @Body() dto: LoginDto,
     @Req() req: Request,
@@ -57,6 +71,9 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Renovación de access token mediante cookie de refresco' })
+  @ApiResponse({ status: 200, description: 'Nuevo access token emitido exitosamente.' })
+  @ApiResponse({ status: 403, description: 'Cookie de refresco ausente, expirada o revocada.' })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -78,6 +95,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Cierre de sesión y revocación de tokens' })
+  @ApiResponse({ status: 204, description: 'Sesión cerrada y tokens revocados correctamente.' })
   async logout(
     @CurrentUser() user: JwtPayload,
     @Res({ passthrough: true }) res: Response,
