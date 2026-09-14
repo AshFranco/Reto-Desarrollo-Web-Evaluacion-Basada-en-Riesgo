@@ -52,10 +52,41 @@ export class MotorRiesgoService {
       where: { idEstablecimiento: evaluacion.idEstablecimiento },
       include: { subcategoria: { include: { nivelResultante: true } } },
     });
-    const puntajesRpCategorias = categorias
+    let puntajesRpCategorias = categorias
       .map((c) => c.subcategoria.nivelResultante?.puntajeRp)
       .filter((v): v is any => v != null)
       .map((v) => Number(v));
+
+    // Si el establecimiento no tiene categorías asignadas, intentamos asociar automáticamente
+    // una subcategoría base existente en la BD para evitar bloquear el cálculo de riesgo.
+    if (puntajesRpCategorias.length === 0 && this.prisma.subcategoriaAlimento) {
+      try {
+        const subcategoriaBase = await this.prisma.subcategoriaAlimento.findFirst({
+          include: { nivelResultante: true },
+          orderBy: { id: 'asc' },
+        });
+        if (subcategoriaBase) {
+          await this.prisma.establecimientoCategoria.create({
+            data: {
+              idEstablecimiento: evaluacion.idEstablecimiento,
+              idSubcategoriaAlimento: subcategoriaBase.id,
+            },
+          }).catch(() => {});
+          if (subcategoriaBase.nivelResultante?.puntajeRp != null) {
+            puntajesRpCategorias = [Number(subcategoriaBase.nivelResultante.puntajeRp)];
+          }
+        }
+      } catch {
+        // Silencioso si falla la asignación para continuar al chequeo estándar
+      }
+    }
+
+    if (puntajesRpCategorias.length === 0) {
+      throw new BadRequestException(
+        'El establecimiento no tiene categorías de alimento con nivel de riesgo asignado.',
+      );
+    }
+
 
     // --- Factores de riesgo del establecimiento (manuales + automático) ---
     const factoresDb = await this.prisma.factorRiesgoEstablecimiento.findMany({
