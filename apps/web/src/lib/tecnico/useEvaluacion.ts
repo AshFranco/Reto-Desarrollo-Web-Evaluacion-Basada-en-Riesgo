@@ -78,3 +78,20 @@ export function useFinalizarEvaluacion() {
     },
   });
 }
+
+/**
+ * POST /api/v1/evaluaciones/:id/reabrir — desbloquea la evaluación para
+ * permitir volver a editarla (principio de heurística).
+ */
+export function useReabrirEvaluacion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (evaluacionId: string) =>
+      apiFetchJson<EvaluacionDetalle>(`/api/v1/evaluaciones/${evaluacionId}/reabrir`, { method: 'POST' }),
+    onSuccess: (_data, evaluacionId) => {
+      queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+      queryClient.invalidateQueries({ queryKey: ['asignaciones', 'mias'] });
+    },
+  });
+}
+

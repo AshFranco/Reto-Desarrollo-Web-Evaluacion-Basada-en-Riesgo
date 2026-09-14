@@ -85,4 +85,39 @@ export class InformesService {
       return { ...actualizada, id: actualizada.id.toString(), accion: dto.accion };
     });
   }
+
+  async revertirRevision(evaluacionId: string, coordinadorId: string) {
+    const evaluacion = await this.prisma.evaluacion.findUnique({ where: { id: BigInt(evaluacionId) } });
+    if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
+
+    const estadoDevuelta = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: 'DEVUELTA' } });
+    const estadoEnRevision = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: 'EN_REVISION' } });
+
+    if (evaluacion.idEstado !== estadoDevuelta.id) {
+      throw new BadRequestException('Solo se puede revertir una evaluación que esté en estado Devuelta.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.historialEstado.create({
+        data: {
+          idEvaluacion: BigInt(evaluacionId),
+          idEstadoOrigen: estadoDevuelta.id,
+          idEstadoDestino: estadoEnRevision.id,
+          idUsuario: BigInt(coordinadorId),
+          comentario: '[DESHACER_DEVOLUCION] Reversión de devolución a estado En Revisión.',
+        },
+      });
+
+      const actualizada = await tx.evaluacion.update({
+        where: { id: BigInt(evaluacionId) },
+        data: { idEstado: estadoEnRevision.id },
+      });
+
+      return {
+        ...actualizada,
+        id: actualizada.id.toString(),
+        mensaje: 'Devolución revertida exitosamente a En Revisión.',
+      };
+    });
+  }
 }

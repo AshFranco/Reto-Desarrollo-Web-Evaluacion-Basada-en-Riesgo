@@ -31,7 +31,7 @@ export function useCasosCerrables() {
 
   const cerrables: CasoCerrable[] = casos
     .filter(
-      (c) => !c.expediente && c.evaluaciones.some((e) => e.idEstado === ID_ESTADO_EVALUACION.APROBADA)
+      (c) => (!c.expediente || c.expediente.estado !== 'Cerrado') && c.evaluaciones.some((e) => e.idEstado === ID_ESTADO_EVALUACION.APROBADA)
     )
     .map((c) => ({
       casoId: c.id,

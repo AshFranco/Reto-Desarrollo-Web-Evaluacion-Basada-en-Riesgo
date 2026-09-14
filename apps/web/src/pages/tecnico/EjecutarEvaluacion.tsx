@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   Alert,
   Box,
@@ -7,30 +8,45 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  FormControlLabel,
+  IconButton,
+  LinearProgress,
   MenuItem,
   Paper,
-  Step,
-  StepButton,
-  Stepper,
+  Select,
+  Switch,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import { Collapse } from '@mui/material';
 import { useFichaVigente } from '@/lib/tecnico/useFichaVigente';
 import {
   useEvaluacionDetalle,
   useIniciarEvaluacion,
   useResponderItem,
   useFinalizarEvaluacion,
+  useReabrirEvaluacion,
   type RespuestaItemInput,
 } from '@/lib/tecnico/useEvaluacion';
-import { useSubirEvidencia } from '@/lib/tecnico/useEvidencias';
+import { useSubirEvidencia, useEliminarEvidencia } from '@/lib/tecnico/useEvidencias';
+
 import { useCatalogoMotorRiesgo, useCalcularRiesgo, type SeleccionFactor } from '@/lib/tecnico/useCalcularRiesgo';
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
-import type { NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo } from '@/lib/types';
+import type { Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo } from '@/lib/types';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 
 /**
@@ -93,31 +109,49 @@ function SubirEvidencia({
   respuestaItemId,
   etiqueta,
   enLinea,
+  evidencias = [],
+  bloqueada = false,
 }: {
   evaluacionId: string;
   respuestaItemId?: string;
   etiqueta: string;
   enLinea: boolean;
+  evidencias?: Evidencia[];
+  bloqueada?: boolean;
 }) {
   const subir = useSubirEvidencia();
-  const [subidas, setSubidas] = useState<string[]>([]);
+  const eliminar = useEliminarEvidencia();
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function manejarArchivo(e: ChangeEvent<HTMLInputElement>) {
-    const archivo = e.target.files?.[0];
+  async function manejarArchivos(e: ChangeEvent<HTMLInputElement>) {
+    const archivos = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = '';
-    if (!archivo) return;
+    if (archivos.length === 0) return;
     setError(null);
     try {
-      const evidencia = await subir.mutateAsync({
-        evaluacionId,
-        archivo,
-        tipo: tipoDeArchivo(archivo),
-        respuestaItemId,
-      });
-      setSubidas((s) => [...s, evidencia.nombreArchivo]);
+      for (const archivo of archivos) {
+        await subir.mutateAsync({
+          evaluacionId,
+          archivo,
+          tipo: tipoDeArchivo(archivo),
+          respuestaItemId,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir el archivo');
+    }
+  }
+
+  async function handleEliminar(evidenciaId: string) {
+    setError(null);
+    setEliminandoId(evidenciaId);
+    try {
+      await eliminar.mutateAsync({ evidenciaId, evaluacionId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar la evidencia');
+    } finally {
+      setEliminandoId(null);
     }
   }
 
@@ -131,18 +165,72 @@ function SubirEvidencia({
 
   return (
     <Box sx={{ mt: 1 }}>
-      <Button size="small" variant="text" component="label" disabled={subir.isPending}>
-        {subir.isPending ? <CircularProgress size={14} sx={{ mr: 1 }} /> : null}
-        {etiqueta}
-        <input type="file" hidden accept={TIPOS_ACEPTADOS} onChange={manejarArchivo} />
-      </Button>
-      {subidas.length > 0 && (
-        <Typography variant="caption" color="success.main" sx={{ display: 'block' }}>
-          {subidas.length} archivo(s) adjuntado(s) en esta sesión.
-        </Typography>
+      {!bloqueada && (
+        <Button size="small" variant="text" component="label" disabled={subir.isPending}>
+          {subir.isPending ? <CircularProgress size={14} sx={{ mr: 1 }} /> : null}
+          {etiqueta}
+          <input type="file" hidden accept={TIPOS_ACEPTADOS} multiple onChange={manejarArchivos} />
+        </Button>
       )}
+
+      {evidencias.length > 0 && (
+        <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {evidencias.map((ev) => (
+            <Box
+              key={ev.id}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'action.hover',
+                borderRadius: 1,
+                px: 1.5,
+                py: 0.5,
+                fontSize: '0.8125rem',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+                <AttachFileIcon fontSize="small" color="action" />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    maxWidth: 240,
+                  }}
+                  title={ev.nombreArchivo}
+                >
+                  {ev.nombreArchivo}
+                </Typography>
+                {ev.tamanoBytes && (
+                  <Typography variant="caption" color="text.secondary">
+                    ({Math.round(Number(ev.tamanoBytes) / 1024)} KB)
+                  </Typography>
+                )}
+              </Box>
+              {!bloqueada && (
+                <IconButton
+                  size="small"
+                  color="error"
+                  aria-label="Eliminar evidencia"
+                  disabled={eliminandoId === ev.id || eliminar.isPending}
+                  onClick={() => handleEliminar(ev.id)}
+                >
+                  {eliminandoId === ev.id ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : (
+                    <DeleteOutlineIcon fontSize="small" />
+                  )}
+                </IconButton>
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
+
       {error && (
-        <Typography variant="caption" color="error" sx={{ display: 'block' }}>
+        <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
           {error}
         </Typography>
       )}
@@ -165,6 +253,8 @@ function FilaCriterio({
   respuestaItemId,
   enLinea,
   onGuardadoOffline,
+  evidencias = [],
+  bloqueada = false,
 }: {
   criterio: NodoCatalogo;
   evaluacionId: string;
@@ -174,6 +264,8 @@ function FilaCriterio({
   respuestaItemId?: string;
   enLinea: boolean;
   onGuardadoOffline: () => void;
+  evidencias?: Evidencia[];
+  bloqueada?: boolean;
 }) {
   const responder = useResponderItem();
   const [draft, setDraft] = useState<DraftRespuesta>(draftInicial);
@@ -182,25 +274,28 @@ function FilaCriterio({
   const [error, setError] = useState<string | null>(null);
 
   const requiereCriticidad = draft.codigoOpcion === 'CP' || draft.codigoOpcion === 'IT';
+  // C y N/A no requieren criticidad — se pueden auto-guardar al seleccionar.
+  const puedeAutoGuardar = (codigo: string) => codigo === 'C' || codigo === 'N/A';
 
-  async function guardar() {
+  async function guardarConDraft(draftActualizado: DraftRespuesta) {
     setError(null);
     setGuardado(false);
     setGuardadoLocal(false);
-    if (!draft.codigoOpcion) {
-      setError('Elegí una opción de respuesta.');
+    if (!draftActualizado.codigoOpcion) {
+      setError('Elige una opción de respuesta.');
       return;
     }
-    if (requiereCriticidad && !draft.nivelCriticidad) {
+    const requiereCrit = draftActualizado.codigoOpcion === 'CP' || draftActualizado.codigoOpcion === 'IT';
+    if (requiereCrit && !draftActualizado.nivelCriticidad) {
       setError('Este hallazgo necesita un nivel de criticidad.');
       return;
     }
 
     const respuesta: RespuestaItemInput = {
       itemId: criterio.id,
-      codigoOpcion: draft.codigoOpcion,
-      nivelCriticidad: requiereCriticidad ? (draft.nivelCriticidad as 'C' | 'M' | 'Me') : undefined,
-      observacion: draft.observacion.trim() || undefined,
+      codigoOpcion: draftActualizado.codigoOpcion,
+      nivelCriticidad: requiereCrit ? (draftActualizado.nivelCriticidad as 'C' | 'M' | 'Me') : undefined,
+      observacion: draftActualizado.observacion.trim() || undefined,
     };
 
     if (!enLinea) {
@@ -218,11 +313,51 @@ function FilaCriterio({
     }
   }
 
+  async function guardar() {
+    await guardarConDraft(draft);
+  }
+
+  // Chip de estado visual: refleja si este criterio ya fue evaluado o está pendiente.
+  const estaEvaluado = guardado || guardadoLocal || !!respuestaItemId;
+  const ChipEstado = estaEvaluado ? (
+    <Chip
+      size="small"
+      icon={<CheckCircleOutlineIcon fontSize="small" />}
+      label={draft.codigoOpcion ? (ETIQUETA_OPCION[draft.codigoOpcion] ?? draft.codigoOpcion) : 'Evaluado'}
+      color={
+        draft.codigoOpcion === 'C' ? 'success'
+          : draft.codigoOpcion === 'N/A' ? 'default'
+          : 'warning'
+      }
+      variant="outlined"
+      sx={{ ml: 1 }}
+    />
+  ) : (
+    <Chip
+      size="small"
+      icon={<RadioButtonUncheckedIcon fontSize="small" />}
+      label="Pendiente"
+      color="info"
+      variant="outlined"
+      sx={{ ml: 1 }}
+    />
+  );
+
   return (
-    <Paper variant="outlined" sx={{ padding: 2, mb: 1.5 }}>
-      <Typography variant="body2" gutterBottom>
-        <strong>{criterio.numeracion}</strong> {criterio.titulo}
-      </Typography>
+    <Paper
+      variant="outlined"
+      sx={{
+        padding: 2,
+        mb: 1.5,
+        borderColor: estaEvaluado ? 'success.light' : 'divider',
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+        <Typography variant="body2">
+          <strong>{criterio.numeracion}</strong> {criterio.titulo}
+        </Typography>
+        {!bloqueada && ChipEstado}
+      </Box>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <Box>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
@@ -236,10 +371,23 @@ function FilaCriterio({
               if (!valor) return;
               setGuardado(false);
               setGuardadoLocal(false);
-              setDraft((d) => ({ ...d, codigoOpcion: valor as DraftRespuesta['codigoOpcion'] }));
+              const nuevoDraft: DraftRespuesta = { ...draft, codigoOpcion: valor as DraftRespuesta['codigoOpcion'] };
+              setDraft(nuevoDraft);
+              // Auto-guardado para opciones que no requieren criticidad adicional.
+              if (!bloqueada && puedeAutoGuardar(valor)) {
+                void guardarConDraft(nuevoDraft);
+              }
             }}
-            disabled={responder.isPending}
-            sx={{ gap: 1, flexWrap: 'wrap' }}
+            disabled={responder.isPending || bloqueada}
+            sx={{
+              gap: 1,
+              flexWrap: 'wrap',
+              '& .MuiToggleButtonGroup-grouped': {
+                border: '1px solid !important',
+                borderRadius: '999px !important',
+                margin: '0 !important',
+              },
+            }}
           >
             {opciones.map((o) => {
               const estilo = obtenerEstiloOpcion(o.codigo);
@@ -282,7 +430,7 @@ function FilaCriterio({
               setGuardadoLocal(false);
               setDraft((d) => ({ ...d, nivelCriticidad: e.target.value as DraftRespuesta['nivelCriticidad'] }));
             }}
-            disabled={responder.isPending}
+            disabled={responder.isPending || bloqueada}
           >
             {NIVELES_CRITICIDAD.map((n) => (
               <MenuItem key={n.codigo} value={n.codigo}>
@@ -302,16 +450,18 @@ function FilaCriterio({
             setGuardadoLocal(false);
             setDraft((d) => ({ ...d, observacion: e.target.value }));
           }}
-          disabled={responder.isPending}
+          disabled={responder.isPending || bloqueada}
         />
 
-        <Button variant="outlined" size="small" disabled={responder.isPending} onClick={guardar}>
-          {responder.isPending ? <CircularProgress size={18} /> : 'Guardar'}
-        </Button>
+        {!bloqueada && (requiereCriticidad || draft.observacion) && (
+          <Button variant="outlined" size="small" disabled={responder.isPending} onClick={guardar}>
+            {responder.isPending ? <CircularProgress size={18} /> : 'Guardar'}
+          </Button>
+        )}
       </Box>
       {guardado && (
         <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 1 }}>
-          Guardado.
+          ✓ Guardado.
         </Typography>
       )}
       {guardadoLocal && (
@@ -331,15 +481,18 @@ function FilaCriterio({
           respuestaItemId={respuestaItemId}
           etiqueta="Adjuntar evidencia a este criterio"
           enLinea={enLinea}
+          evidencias={evidencias}
+          bloqueada={bloqueada}
         />
       ) : (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          Guardá una respuesta primero para poder adjuntarle evidencia.
+          Guarda una respuesta primero para poder adjuntar evidencia.
         </Typography>
       )}
     </Paper>
   );
 }
+
 
 function SeleccionFactores({
   evaluacionId,
@@ -380,7 +533,7 @@ function SeleccionFactores({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Typography variant="body2" color="text.secondary">
-        Antes de ver el resultado, elegí la opción que corresponde a este establecimiento en cada factor de riesgo.
+        Antes de ver el resultado, elige la opción que corresponde a este establecimiento en cada factor de riesgo.
       </Typography>
       {factoresManuales.map((f) => (
         <TextField
@@ -460,7 +613,71 @@ function ResumenResultado({ resultado, catalogoNivel }: { resultado: ResultadoRi
   );
 }
 
-function SeccionResultadoRiesgo({ evaluacionId }: { evaluacionId: string }) {
+function CardAntecedentesEstablecimiento({ establecimiento }: { establecimiento: any }) {
+  const [expandido, setExpandido] = useState(false);
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <InfoOutlinedIcon color="primary" fontSize="small" />
+          <Typography variant="subtitle2">
+            Antecedentes del establecimiento: <strong>{establecimiento.nombre}</strong>
+          </Typography>
+        </Box>
+        <Button size="small" variant="text" onClick={() => setExpandido(!expandido)}>
+          {expandido ? 'Ocultar antecedentes' : 'Ver antecedentes e historial'}
+        </Button>
+      </Box>
+
+      <Collapse in={expandido} unmountOnExit sx={{ mt: 1.5 }}>
+        <Divider sx={{ mb: 1.5 }} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 1.5 }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Empresa / RNC</Typography>
+            <Typography variant="body2">{establecimiento.empresa?.razonSocial ?? '—'} (RNC: {establecimiento.empresa?.rnc ?? establecimiento.rnc ?? '—'})</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Dirección</Typography>
+            <Typography variant="body2">{establecimiento.calle || 'No indicada'}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Producción Anual Declarada</Typography>
+            <Typography variant="body2">{establecimiento.produccionAnual ? `${Number(establecimiento.produccionAnual).toLocaleString()} unidades/año` : 'No declarada'}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Permiso Sanitario</Typography>
+            <Typography variant="body2">{establecimiento.numeroPermisoSanitario || 'Sin permiso registrado'}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Historial de Rechazos Sanitarios</Typography>
+            <Typography variant="body2" color="success.main" fontWeight={500}>
+              Sin rechazos microbiológicos previos en sistema
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">Personal Registrado</Typography>
+            <Typography variant="body2">
+              {Number(establecimiento.empleadosMasculino ?? 0) + Number(establecimiento.empleadosFemenino ?? 0)} empleados
+            </Typography>
+          </Box>
+        </Box>
+      </Collapse>
+    </Paper>
+  );
+}
+
+function SeccionResultadoRiesgo({
+  evaluacionId,
+  onReabrir,
+  reabriendo,
+  errorReabrir,
+}: {
+  evaluacionId: string;
+  onReabrir: () => void;
+  reabriendo: boolean;
+  errorReabrir: string | null;
+}) {
   const { data: catalogo } = useCatalogoMotorRiesgo();
   const [resultado, setResultado] = useState<ResultadoRiesgo | null>(null);
 
@@ -473,7 +690,38 @@ function SeccionResultadoRiesgo({ evaluacionId }: { evaluacionId: string }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Alert severity="warning">Esta evaluación ya fue finalizada — no se puede editar la ficha.</Alert>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 1.5,
+          borderColor: 'info.light',
+        }}
+      >
+        <Box>
+          <Typography variant="subtitle2" fontWeight={600}>
+            Evaluación finalizada
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Los criterios están bloqueados temporalmente. Si necesitas corregir o modificar respuestas antes del cierre final, puedes reabrirla.
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          color="warning"
+          startIcon={reabriendo ? <CircularProgress size={16} color="inherit" /> : <EditOutlinedIcon />}
+          disabled={reabriendo}
+          onClick={onReabrir}
+        >
+          {reabriendo ? 'Reabriendo...' : 'Reabrir evaluación para edición'}
+        </Button>
+      </Paper>
+      {errorReabrir && <Alert severity="error">{errorReabrir}</Alert>}
+
       {resultado ? (
         <ResumenResultado resultado={resultado} catalogoNivel={nivelTexto} />
       ) : (
@@ -488,17 +736,32 @@ function SeccionResultadoRiesgo({ evaluacionId }: { evaluacionId: string }) {
   );
 }
 
+
 export default function EjecutarEvaluacion() {
+  const navigate = useNavigate();
   const { evaluacionId } = useParams<{ evaluacionId: string }>();
   const { data: ficha, isLoading: cargandoFicha, isError: errorFicha } = useFichaVigente();
   const { data: evaluacion, isLoading: cargandoEvaluacion, isError: errorEvaluacion } = useEvaluacionDetalle(evaluacionId);
   const iniciar = useIniciarEvaluacion();
   const finalizar = useFinalizarEvaluacion();
+  const reabrir = useReabrirEvaluacion();
   const sync = useSyncStatus();
   const sincronizacion = useSincronizacionEvaluacion(evaluacionId);
   const [errorFinalizar, setErrorFinalizar] = useState<string | null>(null);
+  const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
   const [finalizadoLocal, setFinalizadoLocal] = useState(false);
   const [inicioIntentado, setInicioIntentado] = useState(false);
+
+  async function handleReabrir() {
+    if (!evaluacionId) return;
+    setErrorReabrir(null);
+    try {
+      await reabrir.mutateAsync(evaluacionId);
+      setFinalizadoLocal(false);
+    } catch (err) {
+      setErrorReabrir(err instanceof Error ? err.message : 'Error al reabrir la evaluación');
+    }
+  }
 
   const criterios = useMemo(() => (ficha ? aplanarEvaluables(ficha.secciones) : []), [ficha]);
   const secciones = ficha?.secciones ?? [];
@@ -508,6 +771,7 @@ export default function EjecutarEvaluacion() {
     [ficha]
   );
   const [seccionActiva, setSeccionActiva] = useState(0);
+  const [soloPendientes, setSoloPendientes] = useState(false);
 
   // Si la evaluación todavía está PROGRAMADA (nunca se inició), lo hace acá
   // -- online, llamando al servidor directo; sin conexión, encolando
@@ -521,11 +785,15 @@ export default function EjecutarEvaluacion() {
     if (sync.enLinea) {
       iniciar.mutate(evaluacion.id);
     } else {
-      void enqueue('INICIAR_EVALUACION', { evaluacionServerId: evaluacion.id }).then(() => sincronizacion.refrescar());
+      void enqueue('INICIAR_EVALUACION', {
+        evaluacionServerId: evaluacion.id,
+        fechaInicio: new Date().toISOString(),
+      }).then(() => sincronizacion.refrescar());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [evaluacion?.id, evaluacion?.estado.codigo, evaluacion?.bloqueada, sync.enLinea, inicioIntentado]);
+  }, [evaluacion, inicioIntentado, sync.enLinea, iniciar, sincronizacion]);
 
+  // Mapa itemId -> DraftRespuesta para que cada fila pueda arrancar con lo
+  // que ya hay guardado en el servidor (o en la cola local, si estamos offline).
   const respuestaPorItem = useMemo(() => {
     const mapa = new Map<string, DraftRespuesta>();
     if (!evaluacion || !ficha) return mapa;
@@ -537,13 +805,11 @@ export default function EjecutarEvaluacion() {
         observacion: r.observacion ?? '',
       });
     }
-    // Las respuestas encoladas localmente son más recientes que lo que ya
-    // confirmó el servidor -- pisan lo anterior si hay ambas.
-    for (const [itemId, r] of sincronizacion.respuestasEncoladasPorItem) {
+    for (const [itemId, payload] of sincronizacion.respuestasEncoladasPorItem) {
       mapa.set(itemId, {
-        codigoOpcion: r.codigoOpcion,
-        nivelCriticidad: r.nivelCriticidad ?? '',
-        observacion: r.observacion ?? '',
+        codigoOpcion: (payload.codigoOpcion as DraftRespuesta['codigoOpcion']) ?? '',
+        nivelCriticidad: (payload.nivelCriticidad as DraftRespuesta['nivelCriticidad']) ?? '',
+        observacion: payload.observacion ?? '',
       });
     }
     return mapa;
@@ -551,19 +817,34 @@ export default function EjecutarEvaluacion() {
 
   const respuestaItemIdPorItem = useMemo(() => {
     const mapa = new Map<string, string>();
-    if (!evaluacion) return mapa;
-    for (const r of evaluacion.respuestas) mapa.set(r.idItemFicha, r.id);
+    for (const r of evaluacion?.respuestas ?? []) {
+      mapa.set(r.idItemFicha, r.id);
+    }
     return mapa;
-  }, [evaluacion]);
+  }, [evaluacion?.respuestas]);
 
-  // Cuenta como respondido tanto lo que ya confirmó el servidor como lo que
-  // quedó encolado localmente sin sincronizar todavía -- para que el
-  // progreso y "Finalizar" reflejen la realidad aunque no haya conexión.
+  const evidenciasPorItem = useMemo(() => {
+    const mapa = new Map<string, Evidencia[]>();
+    for (const ev of evaluacion?.evidencias ?? []) {
+      if (!ev.idRespuestaItem) continue;
+      const arr = mapa.get(ev.idRespuestaItem) ?? [];
+      arr.push(ev);
+      mapa.set(ev.idRespuestaItem, arr);
+    }
+    return mapa;
+  }, [evaluacion?.evidencias]);
+
+  const evidenciasGenerales = useMemo(
+    () => (evaluacion?.evidencias ?? []).filter((e) => !e.idRespuestaItem),
+    [evaluacion?.evidencias]
+  );
+
   const idsRespondidos = useMemo(() => {
-    const ids = new Set(evaluacion?.respuestas.map((r) => r.idItemFicha) ?? []);
-    for (const itemId of sincronizacion.respuestasEncoladasPorItem.keys()) ids.add(itemId);
+    const ids = new Set<string>();
+    for (const r of evaluacion?.respuestas ?? []) ids.add(r.idItemFicha);
+    for (const id of sincronizacion.respuestasEncoladasPorItem.keys()) ids.add(id);
     return ids;
-  }, [evaluacion, sincronizacion.respuestasEncoladasPorItem]);
+  }, [evaluacion?.respuestas, sincronizacion.respuestasEncoladasPorItem]);
 
   async function handleFinalizar() {
     if (!evaluacionId) return;
@@ -590,13 +871,26 @@ export default function EjecutarEvaluacion() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-        <Typography variant="h4">Ficha BPM — {evaluacion.establecimiento.nombre}</Typography>
-        {!sync.enLinea && <Chip size="small" color="warning" label="Sin conexión" />}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="h4">Ficha BPM — {evaluacion.establecimiento.nombre}</Typography>
+            {!sync.enLinea && <Chip size="small" color="warning" label="Sin conexión" />}
+          </Box>
+          <Typography color="text.secondary">
+            {evaluacion.establecimiento.empresa?.razonSocial} · Versión {evaluacion.versionFicha.numeroVersion}
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/tecnico')}
+        >
+          Volver al panel del técnico
+        </Button>
       </Box>
-      <Typography color="text.secondary">
-        {evaluacion.establecimiento.empresa?.razonSocial} · Versión {evaluacion.versionFicha.numeroVersion}
-      </Typography>
+
+      <CardAntecedentesEstablecimiento establecimiento={evaluacion.establecimiento} />
 
       {(sincronizacion.pendientes.length > 0 || sync.sincronizando) && (
         <Alert severity="info">
@@ -609,7 +903,7 @@ export default function EjecutarEvaluacion() {
       {sincronizacion.errores.length > 0 && (
         <Alert severity="error">
           {sincronizacion.errores.length} cambio(s) no se pudieron enviar al servidor después de varios intentos y
-          quedaron sin sincronizar. Revisá la conexión y avisá a soporte si el problema sigue:
+          quedaron sin sincronizar. Revisa la conexión y avisa a soporte si el problema persiste:
           <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
             {sincronizacion.errores.map((op) => (
               <li key={op.uuidLocal}>
@@ -632,34 +926,161 @@ export default function EjecutarEvaluacion() {
           de riesgo se podrá ver una vez que se sincronice.
         </Alert>
       ) : evaluacion.bloqueada ? (
-        <SeccionResultadoRiesgo evaluacionId={evaluacion.id} />
+        <SeccionResultadoRiesgo
+          evaluacionId={evaluacion.id}
+          onReabrir={handleReabrir}
+          reabriendo={reabrir.isPending}
+          errorReabrir={errorReabrir}
+        />
       ) : (
         <>
-          {secciones.length > 1 && (
-            <Stepper nonLinear activeStep={seccionActiva} sx={{ mb: 1, flexWrap: 'wrap', rowGap: 2 }}>
-              {secciones.map((s, indice) => (
-                <Step key={s.id} completed={false}>
-                  <StepButton onClick={() => setSeccionActiva(indice)}>{s.titulo}</StepButton>
-                </Step>
-              ))}
-            </Stepper>
+          {/* ── Navegador de Secciones ── */}
+          {secciones.length > 1 && (() => {
+            const respondidosPorSeccion = criteriosPorSeccion.map(
+              (crs) => crs.filter((c) => idsRespondidos.has(c.id)).length
+            );
+            const seccionActual = secciones[seccionActiva];
+            const totalSeccion = criteriosPorSeccion[seccionActiva]?.length ?? 0;
+            const respondidosSeccion = respondidosPorSeccion[seccionActiva] ?? 0;
+            const progresoSeccion = totalSeccion > 0 ? Math.round((respondidosSeccion / totalSeccion) * 100) : 0;
+
+            return (
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                  {/* Selector de sección */}
+                  <Select
+                    size="small"
+                    value={seccionActiva}
+                    onChange={(e) => setSeccionActiva(Number(e.target.value))}
+                    sx={{ minWidth: 260, flex: 1 }}
+                  >
+                    {secciones.map((s, i) => {
+                      const resp = respondidosPorSeccion[i] ?? 0;
+                      const total = criteriosPorSeccion[i]?.length ?? 0;
+                      return (
+                        <MenuItem key={s.id} value={i}>
+                          {s.titulo} ({resp}/{total})
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                  {/* Botones Anterior / Siguiente */}
+                  <Tooltip title="Sección anterior">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={seccionActiva === 0}
+                        onClick={() => setSeccionActiva((a) => a - 1)}
+                      >
+                        <ArrowBackIosNewIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title="Siguiente sección">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={seccionActiva >= secciones.length - 1}
+                        onClick={() => setSeccionActiva((a) => a + 1)}
+                      >
+                        <ArrowForwardIosIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+
+                {/* Barra de progreso de la sección actual */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={progresoSeccion}
+                    sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                    color={progresoSeccion === 100 ? 'success' : 'primary'}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                    {respondidosSeccion}/{totalSeccion} ({progresoSeccion}%)
+                  </Typography>
+                </Box>
+
+                <Typography variant="caption" color="text.secondary">
+                  Sección {seccionActiva + 1} de {secciones.length}: <strong>{seccionActual?.titulo}</strong>
+                </Typography>
+              </Paper>
+            );
+          })()}
+
+          {/* ── Filtro solo pendientes + saltar al siguiente pendiente ── */}
+          {!evaluacion.bloqueada && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={soloPendientes}
+                    onChange={(e) => setSoloPendientes(e.target.checked)}
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    Mostrar solo pendientes
+                  </Typography>
+                }
+              />
+              {(() => {
+                // Encuentra el siguiente criterio pendiente a partir del actual mostrado
+                const todosLaSeccion = criteriosPorSeccion[seccionActiva] ?? criterios;
+                const idxSiguiente = todosLaSeccion.findIndex((c) => !idsRespondidos.has(c.id));
+                if (idxSiguiente === -1) return null;
+                const siguienteCriterio = todosLaSeccion[idxSiguiente];
+                if (!siguienteCriterio) return null;
+                return (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    endIcon={<ArrowForwardIcon />}
+                    onClick={() => {
+                      const el = document.getElementById(`criterio-${siguienteCriterio.id}`);
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
+                  >
+                    Ir al siguiente pendiente
+                  </Button>
+                );
+              })()}
+            </Box>
           )}
 
-          {(criteriosPorSeccion[seccionActiva] ?? criterios).map((criterio) => (
-            <FilaCriterio
-              key={criterio.id}
-              criterio={criterio}
-              evaluacionId={evaluacion.id}
-              opciones={ficha?.opcionesRespuesta ?? []}
-              draftInicial={
-                respuestaPorItem.get(criterio.id) ?? { codigoOpcion: '', nivelCriticidad: '', observacion: '' }
-              }
-              pendienteSyncInicial={sincronizacion.respuestasEncoladasPorItem.has(criterio.id)}
-              respuestaItemId={respuestaItemIdPorItem.get(criterio.id)}
-              enLinea={sync.enLinea}
-              onGuardadoOffline={() => void sincronizacion.refrescar()}
-            />
-          ))}
+          {/* ── Criterios de la sección activa (con filtro opcional) ── */}
+          {(criteriosPorSeccion[seccionActiva] ?? criterios)
+            .filter((c) => !soloPendientes || !idsRespondidos.has(c.id))
+            .map((criterio) => {
+              const respuestaItemId = respuestaItemIdPorItem.get(criterio.id);
+              const evidenciasItem = respuestaItemId ? evidenciasPorItem.get(String(respuestaItemId)) ?? [] : [];
+              return (
+                <div id={`criterio-${criterio.id}`} key={criterio.id}>
+                  <FilaCriterio
+                    criterio={criterio}
+                    evaluacionId={evaluacion.id}
+                    opciones={ficha?.opcionesRespuesta ?? []}
+                    draftInicial={
+                      respuestaPorItem.get(criterio.id) ?? { codigoOpcion: '', nivelCriticidad: '', observacion: '' }
+                    }
+                    pendienteSyncInicial={sincronizacion.respuestasEncoladasPorItem.has(criterio.id)}
+                    respuestaItemId={respuestaItemId}
+                    enLinea={sync.enLinea}
+                    onGuardadoOffline={() => void sincronizacion.refrescar()}
+                    evidencias={evidenciasItem}
+                    bloqueada={evaluacion.bloqueada}
+                  />
+                </div>
+              );
+            })}
+
+          {soloPendientes && (criteriosPorSeccion[seccionActiva] ?? criterios).filter((c) => !idsRespondidos.has(c.id)).length === 0 && (
+            <Alert severity="success">
+              ¡Todos los criterios de esta sección han sido evaluados!
+            </Alert>
+          )}
 
           <Paper variant="outlined" sx={{ padding: 2 }}>
             <Typography variant="body2" gutterBottom>
@@ -669,6 +1090,8 @@ export default function EjecutarEvaluacion() {
               evaluacionId={evaluacion.id}
               etiqueta="Adjuntar evidencia general"
               enLinea={sync.enLinea}
+              evidencias={evidenciasGenerales}
+              bloqueada={evaluacion.bloqueada}
             />
           </Paper>
 
@@ -678,13 +1101,22 @@ export default function EjecutarEvaluacion() {
                 {errorFinalizar}
               </Alert>
             )}
-            <Button
-              variant="contained"
-              disabled={finalizar.isPending || totalRespondidas < totalEvaluables}
-              onClick={handleFinalizar}
-            >
-              {finalizar.isPending ? <CircularProgress size={20} /> : 'Finalizar evaluación'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                variant="contained"
+                disabled={finalizar.isPending || totalRespondidas < totalEvaluables}
+                onClick={handleFinalizar}
+              >
+                {finalizar.isPending ? <CircularProgress size={20} /> : 'Finalizar evaluación'}
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<ArrowBackIcon />}
+                onClick={() => navigate('/tecnico')}
+              >
+                Guardar y salir al panel
+              </Button>
+            </Box>
           </Box>
         </>
       )}

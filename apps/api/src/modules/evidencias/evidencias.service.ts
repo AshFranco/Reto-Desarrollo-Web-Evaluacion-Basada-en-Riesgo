@@ -37,4 +37,28 @@ export class EvidenciasService {
     });
     return { ...evidencia, id: evidencia.id.toString(), idEvaluacion: evidencia.idEvaluacion.toString(), tamanoBytes: evidencia.tamanoBytes?.toString() };
   }
+
+  async eliminar(evidenciaId: string, tecnicoId: string) {
+    const evidencia = await this.prisma.evidencia.findUnique({
+      where: { id: BigInt(evidenciaId) },
+      include: { evaluacion: true },
+    });
+    if (!evidencia) throw new NotFoundException('Evidencia no encontrada.');
+    if (evidencia.evaluacion.idEvaluador.toString() !== tecnicoId) {
+      throw new ForbiddenException('Esta evidencia no pertenece a una evaluación asignada a usted.');
+    }
+    if (evidencia.evaluacion.bloqueada) {
+      throw new ForbiddenException('La evaluación está bloqueada; no se pueden eliminar evidencias.');
+    }
+
+    if (evidencia.rutaAlmacenamiento) {
+      await this.storage.eliminar(evidencia.rutaAlmacenamiento);
+    }
+
+    await this.prisma.evidencia.delete({
+      where: { id: evidencia.id },
+    });
+
+    return { mensaje: 'Evidencia eliminada correctamente.' };
+  }
 }

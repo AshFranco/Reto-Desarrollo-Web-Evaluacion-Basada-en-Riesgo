@@ -52,8 +52,8 @@ describe('EjecutarEvaluacion — sin conexión', () => {
     renderPantalla();
     await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
 
+    // "Cumple" (C) se auto-guarda al hacer clic — también offline (encola)
     fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(screen.getByText('Guardado localmente — pendiente de sincronizar.')).toBeInTheDocument());
     expect(llamadaAlServidor).toBe(false);
@@ -105,7 +105,7 @@ describe('EjecutarEvaluacion — sin conexión', () => {
 });
 
 describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)', () => {
-  it('guarda la respuesta contra el servidor normalmente cuando hay conexión', async () => {
+  it('auto-guarda la respuesta contra el servidor al seleccionar "Cumple"', async () => {
     let llamadaAlServidor = false;
     server.use(
       http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => {
@@ -117,10 +117,10 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
     renderPantalla();
     await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
 
+    // "Cumple" (C) se auto-guarda al hacer clic, sin necesidad de pulsar "Guardar"
     fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
-    await waitFor(() => expect(screen.getByText('Guardado.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('✓ Guardado.')).toBeInTheDocument());
     expect(llamadaAlServidor).toBe(true);
   });
 });
