@@ -12,9 +12,11 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Typography,
 } from '@mui/material';
 import SearchOffOutlinedIcon from '@mui/icons-material/SearchOffOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useCasosHistorico } from '@/lib/historico/useCasosHistorico';
 import { useEmpresas } from '@/lib/empresa/useEmpresas';
 import { getSession } from '@/lib/auth/session';
@@ -23,6 +25,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { EstadoVacio } from '@/components/ui/EstadoVacio';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 import { EstadoChip } from '@/components/ui/EstadoChip';
+import { ModalInspeccionCaso } from '@/components/casos/ModalInspeccionCaso';
+
 
 /**
  * Mismo criterio que el backend (casos.service.ts): estos roles ven todo
@@ -56,8 +60,16 @@ export default function ConsultaHistorica() {
 
   const [filtros, setFiltros] = useState<FiltrosCasosHistorico>(FILTROS_VACIOS);
   const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosCasosHistorico>(FILTROS_VACIOS);
+  const [casoAInspeccionar, setCasoAInspeccionar] = useState<string | null>(null);
 
   const { data: casos, isLoading, isError, error } = useCasosHistorico(filtrosAplicados);
+
+
+  const fechasInvertidas = Boolean(
+    filtros.fechaCreacionDesde &&
+      filtros.fechaCreacionHasta &&
+      filtros.fechaCreacionDesde > filtros.fechaCreacionHasta
+  );
 
   function actualizar<K extends keyof FiltrosCasosHistorico>(campo: K, valor: string) {
     setFiltros((f) => ({ ...f, [campo]: (valor || undefined) as FiltrosCasosHistorico[K] }));
@@ -68,7 +80,9 @@ export default function ConsultaHistorica() {
       <PageHeader etiqueta="Historial" titulo="Consulta histórica de casos" icono={<HistoryOutlinedIcon />} />
 
       <Paper variant="outlined" sx={{ padding: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        {/* alignItems: 'flex-start' evita que un helperText en un campo
+            haga saltar los demás inputs hacia arriba. */}
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {esRolInterno && (
             <TextField
               select
@@ -88,14 +102,14 @@ export default function ConsultaHistorica() {
           )}
 
           <TextField
-            label="ID de solicitud"
+            label="Identificación de solicitud"
             size="small"
             value={filtros.solicitudId ?? ''}
             onChange={(e) => actualizar('solicitudId', e.target.value)}
           />
 
           <TextField
-            label="ID de evaluación"
+            label="Identificación de evaluación"
             size="small"
             value={filtros.evaluacionId ?? ''}
             onChange={(e) => actualizar('evaluacionId', e.target.value)}
@@ -124,6 +138,7 @@ export default function ConsultaHistorica() {
             InputLabelProps={{ shrink: true }}
             value={filtros.fechaCreacionDesde ?? ''}
             onChange={(e) => actualizar('fechaCreacionDesde', e.target.value)}
+            error={fechasInvertidas}
           />
 
           <TextField
@@ -133,9 +148,17 @@ export default function ConsultaHistorica() {
             InputLabelProps={{ shrink: true }}
             value={filtros.fechaCreacionHasta ?? ''}
             onChange={(e) => actualizar('fechaCreacionHasta', e.target.value)}
+            error={fechasInvertidas}
           />
 
-          <Button variant="contained" onClick={() => setFiltrosAplicados(filtros)}>
+          <Button
+            variant="contained"
+            disabled={fechasInvertidas}
+            onClick={() => {
+              if (fechasInvertidas) return;
+              setFiltrosAplicados(filtros);
+            }}
+          >
             Buscar
           </Button>
           <Button
@@ -148,6 +171,11 @@ export default function ConsultaHistorica() {
             Limpiar
           </Button>
         </Box>
+        {fechasInvertidas && (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            El rango de fechas es inválido: "Creado desde" no puede ser posterior a "Creado hasta".
+          </Alert>
+        )}
       </Paper>
 
       {isLoading && <EstadoCarga etiqueta="Buscando en el histórico…" />}
@@ -162,29 +190,73 @@ export default function ConsultaHistorica() {
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell>Caso #</TableCell>
                 <TableCell>Empresa</TableCell>
                 <TableCell>Establecimiento</TableCell>
                 <TableCell>Origen</TableCell>
+                <TableCell>Solicitud</TableCell>
+                <TableCell>Evaluación</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell>Fecha de creación</TableCell>
+                <TableCell align="right">Acción</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {casos.map((caso) => (
                 <TableRow key={caso.id}>
+                  <TableCell>
+                    <Typography variant="body2" fontFamily="monospace">
+                      {caso.id}
+                    </Typography>
+                  </TableCell>
                   <TableCell>{caso.establecimiento.empresa.razonSocial}</TableCell>
                   <TableCell>{caso.establecimiento.nombre}</TableCell>
                   <TableCell>{caso.origen?.nombre ?? '—'}</TableCell>
                   <TableCell>
+                    {caso.solicitud?.id ? (
+                      <Typography variant="body2" fontFamily="monospace">
+                        {caso.solicitud.id}
+                      </Typography>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {caso.evaluaciones && caso.evaluaciones.length > 0 ? (
+                      <Typography variant="body2" fontFamily="monospace">
+                        {caso.evaluaciones[0]?.id}
+                      </Typography>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <EstadoChip estado={caso.estado} />
                   </TableCell>
                   <TableCell>{new Date(caso.fechaCreacion).toLocaleDateString()}</TableCell>
+                  <TableCell align="right">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<VisibilityOutlinedIcon />}
+                      onClick={() => setCasoAInspeccionar(caso.id)}
+                    >
+                      Inspeccionar
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
       )}
+
+      <ModalInspeccionCaso
+        casoId={casoAInspeccionar}
+        open={Boolean(casoAInspeccionar)}
+        onClose={() => setCasoAInspeccionar(null)}
+      />
     </Box>
   );
 }
+

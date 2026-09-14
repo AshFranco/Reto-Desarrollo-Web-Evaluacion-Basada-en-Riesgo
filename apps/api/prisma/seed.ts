@@ -1,6 +1,8 @@
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
-import * as path from 'path';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();

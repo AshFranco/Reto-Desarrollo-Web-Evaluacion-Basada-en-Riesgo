@@ -40,6 +40,15 @@ describe('ConsultaHistorica', () => {
     expect(screen.getByText('Solicitud de Empresa')).toBeInTheDocument();
   });
 
+  it('muestra las columnas de identificación en la tabla de resultados', async () => {
+    await iniciarSesionComo('COORDINADOR');
+    renderPantalla();
+
+    await waitFor(() => expect(screen.getByText('Caso #')).toBeInTheDocument());
+    expect(screen.getByText('Solicitud')).toBeInTheDocument();
+    expect(screen.getByText('Evaluación')).toBeInTheDocument();
+  });
+
   it('muestra el selector de empresa para roles internos', async () => {
     await iniciarSesionComo('COORDINADOR');
     renderPantalla();
@@ -80,7 +89,8 @@ describe('ConsultaHistorica', () => {
 
     await waitFor(() => expect(screen.getByText('Alimentos de Prueba SRL')).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText('ID de solicitud'), { target: { value: '5' } });
+    // El label cambió a "Identificación de solicitud" — actualizado para coincidir.
+    fireEvent.change(screen.getByLabelText('Identificación de solicitud'), { target: { value: '5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
 
     await waitFor(() => expect(new URL(urlCapturada).searchParams.get('solicitudId')).toBe('5'));
