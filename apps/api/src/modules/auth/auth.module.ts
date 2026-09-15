@@ -9,6 +9,9 @@ import { LoginThrottleService } from './login-throttle.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AppConfigService } from '../../config/app-config.service';
 
+import { EmailService } from '../../common/services/email.service';
+import { EncryptionService } from '../../common/services/encryption.service';
+
 @Module({
   imports: [
     PassportModule,
@@ -27,7 +30,9 @@ import { AppConfigService } from '../../config/app-config.service';
     TokenService,
     LoginThrottleService,
     JwtStrategy,
+    EmailService,
+    EncryptionService,
   ],
-  exports: [TokenService, PasswordService],
+  exports: [TokenService, PasswordService, EmailService, EncryptionService],
 })
 export class AuthModule {}

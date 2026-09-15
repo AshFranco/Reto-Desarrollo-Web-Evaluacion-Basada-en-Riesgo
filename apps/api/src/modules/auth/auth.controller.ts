@@ -14,6 +14,8 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
+import { RecuperarContrasenaDto } from './dto/recuperar-contrasena.dto';
+import { RestablecerContrasenaDto } from './dto/restablecer-contrasena.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -45,6 +47,27 @@ export class AuthController {
   }
 
   @Public()
+  @Post('recuperar-contrasena')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } }) // 5 solicitudes/min por IP
+  @ApiOperation({ summary: 'Solicitar enlace de recuperación de contraseña por correo' })
+  @ApiResponse({ status: 200, description: 'Notificación procesada y correo enviado si el usuario existe.' })
+  async recuperarContrasena(@Body() dto: RecuperarContrasenaDto) {
+    return this.authService.solicitarRecuperacionContrasena(dto);
+  }
+
+  @Public()
+  @Post('restablecer-contrasena')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } }) // 5 intentos/min por IP
+  @ApiOperation({ summary: 'Restablecer contraseña usando token recibido por correo' })
+  @ApiResponse({ status: 200, description: 'Contraseña restablecida exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Token inválido, expirado o contraseñas no coincidentes.' })
+  async restablecerContrasena(@Body() dto: RestablecerContrasenaDto) {
+    return this.authService.restablecerContrasena(dto);
+  }
+
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 8, ttl: 60_000 } }) // 8 intentos/min por IP (protección de bots/fuerza bruta)
@@ -61,7 +84,7 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
     });
 
-    if ('requiereMfa' in result) return result;
+    if (result.requiereMfa) return result;
 
     this.tokenService.setRefreshCookie(res, result.refreshToken);
     return { accessToken: result.accessToken, usuario: result.usuario };
