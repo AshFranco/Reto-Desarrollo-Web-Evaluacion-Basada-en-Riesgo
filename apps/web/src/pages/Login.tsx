@@ -16,12 +16,14 @@ import {
 import { alpha } from '@mui/material/styles';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import { useQueryClient } from '@tanstack/react-query';
 import { login } from '@/lib/auth/login';
 import { solicitarRecuperacionContrasena } from '@/lib/auth/recuperacion';
 import { rutaPorRol } from '@/routes/rutaPorRol';
 
 export default function Login() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -49,6 +51,7 @@ export default function Login() {
         setMfaRequerido(true);
         return;
       }
+      queryClient.clear();
       navigate(rutaPorRol(data.usuario.rol));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');

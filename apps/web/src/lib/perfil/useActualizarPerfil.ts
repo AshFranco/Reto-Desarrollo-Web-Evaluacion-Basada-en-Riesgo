@@ -31,6 +31,7 @@ export function useActualizarPerfil() {
   return useMutation({
     mutationFn: patchPerfil,
     onSuccess: (nuevoPerfil) => {
+      queryClient.setQueryData(['perfil-usuario', nuevoPerfil.id], nuevoPerfil);
       queryClient.setQueryData(['perfil-usuario'], nuevoPerfil);
       queryClient.invalidateQueries({ queryKey: ['perfil-usuario'] });
     },

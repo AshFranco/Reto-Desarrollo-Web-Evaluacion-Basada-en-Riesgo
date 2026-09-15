@@ -222,4 +222,25 @@ describe('DialogPerfil', () => {
 
     expect(mockActualizarPerfil).toHaveBeenCalledWith({ telefono: '809-555-9999' });
   });
+
+  it('aísla los datos del perfil y no muestra datos cacheados de otro usuario si el id no coincide', () => {
+    // mockPerfil tiene id: '1' y nombre: 'María Mercedes Gómez'
+    renderConProviders(
+      <DialogPerfil
+        open={true}
+        onClose={vi.fn()}
+        rolActivo="ADMINISTRADOR"
+        usuarioSesion={{
+          id: 'usuario-admin-99',
+          nombreCompleto: 'Admin Supremo',
+          rol: 'ADMINISTRADOR',
+          empresaId: null,
+        }}
+      />
+    );
+
+    // Debe mostrar los datos del usuario de la sesión activa, no del perfil cacheado discrepante
+    expect(screen.getByText('Admin Supremo')).toBeInTheDocument();
+    expect(screen.queryByText('María Mercedes Gómez')).not.toBeInTheDocument();
+  });
 });

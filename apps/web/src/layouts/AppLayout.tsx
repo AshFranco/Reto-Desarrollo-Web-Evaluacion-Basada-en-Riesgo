@@ -25,6 +25,7 @@ import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
+import { useQueryClient } from '@tanstack/react-query';
 import { clearSession, getSession } from '@/lib/auth/session';
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useFotoPerfil } from '@/lib/perfil/useFotoPerfil';
@@ -74,6 +75,7 @@ export function AppLayout() {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [usuario, setUsuario] = useState<UsuarioLocal | null>(null);
   const [anchorMenuUsuario, setAnchorMenuUsuario] = useState<null | HTMLElement>(null);
@@ -87,13 +89,14 @@ export function AppLayout() {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
 
   async function cerrarSesion() {
+    queryClient.clear();
     await clearSession();
     navigate('/login', { replace: true });
   }
@@ -106,8 +109,12 @@ export function AppLayout() {
     setAnchorMenuUsuario(null);
   }
 
-  function handleAbrirPerfil() {
+  async function handleAbrirPerfil() {
     cerrarMenuUsuario();
+    const sesion = await getSession();
+    if (sesion?.usuario) {
+      setUsuario(sesion.usuario);
+    }
     setAbrirPerfil(true);
   }
 

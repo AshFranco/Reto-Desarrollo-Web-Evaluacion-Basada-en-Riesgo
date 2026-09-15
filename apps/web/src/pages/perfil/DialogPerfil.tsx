@@ -84,11 +84,15 @@ function TabInformacion({
   rolActivo: string;
   usuarioSesion?: Props['usuarioSesion'];
 }) {
-  const { perfil, cargando, error } = usePerfil();
+  const { perfil, cargando, error } = usePerfil(usuarioSesion?.id);
   const sync = useSyncStatus();
   const actualizarPerfil = useActualizarPerfil();
 
-  const datos = perfil ?? (usuarioSesion ? {
+  // Validación estricta: sólo se usan datos de perfil si coincide con el usuario activo en sesión
+  const perfilCoincide = perfil && (!usuarioSesion || String(perfil.id) === String(usuarioSesion.id));
+  const datosValidos = perfilCoincide ? perfil : null;
+
+  const datos = datosValidos ?? (usuarioSesion ? {
     id: usuarioSesion.id,
     nombreCompleto: usuarioSesion.nombreCompleto,
     correoElectronico: null,
@@ -99,19 +103,19 @@ function TabInformacion({
   } : null);
 
   const esOffline = !sync.enLinea || Boolean(error && datos);
-  const idUsuario = datos?.id ?? usuarioSesion?.id;
+  const idUsuario = datosValidos?.id ?? usuarioSesion?.id;
   const [fotoUrl, actualizarFoto] = useFotoPerfil(idUsuario);
 
   const [telefono, setTelefono] = useState('');
   const [exitoGuardar, setExitoGuardar] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
 
-  // Inicializar teléfono con datos de perfil
+  // Inicializar teléfono con datos de perfil y resetear al cambiar de usuario
   useEffect(() => {
-    if (datos?.telefono !== undefined && datos?.telefono !== null) {
-      setTelefono(datos.telefono);
-    }
-  }, [datos?.telefono]);
+    setTelefono(datos?.telefono ?? '');
+    setExitoGuardar(false);
+    setErrorGuardar(null);
+  }, [datos?.id, datos?.telefono]);
 
   function handleSubirFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -375,10 +379,15 @@ function TabInformacion({
   );
 }
 
-// ── Pestaña 2: Seguridad y acceso ────────────────────────────────────────────
-function TabSeguridad({ rolActivo }: { rolActivo: string }) {
+function TabSeguridad({
+  rolActivo,
+  usuarioSesion,
+}: {
+  rolActivo: string;
+  usuarioSesion?: Props['usuarioSesion'];
+}) {
   const { cambiar, cargando, error, exito, resetExito, reset } = useCambiarContrasena();
-  const { perfil, refetch } = usePerfil();
+  const { perfil, refetch } = usePerfil(usuarioSesion?.id);
   const sync = useSyncStatus();
   const { generarQr, activar, estaActivando, desactivar, estaDesactivando } = use2Fa();
 
@@ -402,7 +411,20 @@ function TabSeguridad({ rolActivo }: { rolActivo: string }) {
   const [mostrarNueva, setMostrarNueva] = useState(false);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
-  // Limpiar formulario al tener éxito
+  // Limpiar formulario al tener éxito o al cambiar de usuario
+  useEffect(() => {
+    setActual('');
+    setNueva('');
+    setConfirmar('');
+    setErrorLocal(null);
+    setDialogoConfigurar2Fa(false);
+    setDialogoDesactivar2Fa(false);
+    setClaveParaDesactivar('');
+    setErrorDesactivarLocal(null);
+    resetExito();
+    reset();
+  }, [usuarioSesion?.id]);
+
   useEffect(() => {
     if (exito) {
       setActual('');
@@ -487,7 +509,8 @@ function TabSeguridad({ rolActivo }: { rolActivo: string }) {
   }
 
   const mensajeError = errorLocal ?? error;
-  const dosPasosActivo = perfil?.dobleFactorActivo ?? false;
+  const perfilCoincide = perfil && (!usuarioSesion || String(perfil.id) === String(usuarioSesion.id));
+  const dosPasosActivo = perfilCoincide ? (perfil.dobleFactorActivo ?? false) : false;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -991,7 +1014,7 @@ export function DialogPerfil({ open, onClose, rolActivo, usuarioSesion }: Props)
 
       <DialogContent sx={{ pt: 3, pb: 4 }}>
         {tab === 0 && <TabInformacion rolActivo={rolActivo} usuarioSesion={usuarioSesion} />}
-        {tab === 1 && <TabSeguridad rolActivo={rolActivo} />}
+        {tab === 1 && <TabSeguridad rolActivo={rolActivo} usuarioSesion={usuarioSesion} />}
       </DialogContent>
     </Dialog>
   );
