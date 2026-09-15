@@ -105,9 +105,25 @@ export class AppConfigService {
   }
 
   get allowedFileMimeTypes(): string[] {
-    return this.require('ALLOWED_FILE_MIME_TYPES')
+    const fromEnv = this.config.get<string>('ALLOWED_FILE_MIME_TYPES') ?? '';
+    const envTypes = fromEnv
       .split(',')
-      .map((m) => m.trim());
+      .map((m) => m.trim())
+      .filter(Boolean);
+    const defaults = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime',
+      'application/geo+json',
+      'application/json',
+      'application/vnd.google-earth.kml+xml',
+      'application/gpx+xml',
+    ];
+    return Array.from(new Set([...envTypes, ...defaults]));
   }
 
   get storageLocalPath(): string {

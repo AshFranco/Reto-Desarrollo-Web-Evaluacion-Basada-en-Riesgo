@@ -20,6 +20,7 @@ import {
   ToggleButtonGroup,
   Tooltip,
   Typography,
+  InputAdornment,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -33,6 +34,11 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import WifiOffOutlinedIcon from '@mui/icons-material/WifiOffOutlined';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import VideocamIcon from '@mui/icons-material/Videocam';
 import { Collapse } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFichaVigente } from '@/lib/tecnico/useFichaVigente';
@@ -89,8 +95,9 @@ function obtenerEstiloOpcion(codigo: string) {
   return ESTILO_OPCION[codigo] ?? ESTILO_OPCION_NEUTRO;
 }
 
-/** Confirmado en vivo (.env ALLOWED_FILE_MIME_TYPES) — el servidor valida por magic bytes igual, esto es solo un filtro de UX. */
-const TIPOS_ACEPTADOS = 'image/jpeg,image/png,image/webp,application/pdf,video/mp4';
+/** Confirmado en vivo (.env ALLOWED_FILE_MIME_TYPES) y ampliado con videos cortos y geolocalización */
+const TIPOS_ACEPTADOS =
+  'image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.geojson,.kml,.gpx,application/geo+json,application/json';
 
 function aplanarEvaluables(nodos: NodoCatalogo[]): NodoCatalogo[] {
   return nodos.flatMap((n) => [...(n.esEvaluable ? [n] : []), ...aplanarEvaluables(n.hijos)]);
@@ -98,16 +105,20 @@ function aplanarEvaluables(nodos: NodoCatalogo[]): NodoCatalogo[] {
 
 function tipoDeArchivo(archivo: File): 'FOTO' | 'VIDEO' | 'DOCUMENTO' {
   if (archivo.type.startsWith('image/')) return 'FOTO';
-  if (archivo.type.startsWith('video/')) return 'VIDEO';
+  const nombre = archivo.name.toLowerCase();
+  if (
+    archivo.type.startsWith('video/') ||
+    nombre.endsWith('.mp4') ||
+    nombre.endsWith('.webm') ||
+    nombre.endsWith('.mov')
+  ) {
+    return 'VIDEO';
+  }
   return 'DOCUMENTO';
 }
 
 /**
- * Adjuntar evidencia offline (guardar el archivo y encolar POST /evidencias
- * como multipart) queda fuera de esta pasada -- solo se conectaron a la
- * cola INICIAR_EVALUACION, RESPUESTAS y FINALIZAR_EVALUACION, que es lo que
- * pidieron. Sin conexión, el botón se deshabilita con un aviso en vez de
- * intentar la subida y fallar.
+ * Adjuntar evidencia (fotos, videos cortos, documentos y geolocalización).
  */
 function SubirEvidencia({
   evaluacionId,
@@ -129,6 +140,78 @@ function SubirEvidencia({
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [coordsGps, setCoordsGps] = useState<{ latitud: number; longitud: number } | null>(null);
+  const [obteniendoGps, setObteniendoGps] = useState(false);
+
+  function handleCapturarGps() {
+    if (!navigator.geolocation) {
+      setError('Tu navegador no soporta geolocalización GPS.');
+      return;
+    }
+    setObteniendoGps(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoordsGps({
+          latitud: pos.coords.latitude,
+          longitud: pos.coords.longitude,
+        });
+        setObteniendoGps(false);
+      },
+      (err) => {
+        setError(`Error al capturar ubicación GPS: ${err.message}`);
+        setObteniendoGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  async function handleGuardarPuntoGps() {
+    if (!coordsGps) return;
+    setError(null);
+    try {
+      const geojsonContent = JSON.stringify(
+        {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [coordsGps.longitud, coordsGps.latitud],
+              },
+              properties: {
+                fecha: new Date().toISOString(),
+                evaluacionId,
+                respuestaItemId,
+                descripcion: 'Punto de geolocalización registrado en campo',
+              },
+            },
+          ],
+        },
+        null,
+        2
+      );
+      const blob = new Blob([geojsonContent], { type: 'application/geo+json' });
+      const archivo = new File(
+        [blob],
+        `geolocalizacion_${Date.now()}.geojson`,
+        { type: 'application/geo+json' }
+      );
+      await subir.mutateAsync({
+        evaluacionId,
+        archivo,
+        tipo: 'DOCUMENTO',
+        respuestaItemId,
+        latitud: coordsGps.latitud,
+        longitud: coordsGps.longitud,
+      });
+      setCoordsGps(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar el archivo de geolocalización');
+    }
+  }
+
   async function manejarArchivos(e: ChangeEvent<HTMLInputElement>) {
     const archivos = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = '';
@@ -141,6 +224,8 @@ function SubirEvidencia({
           archivo,
           tipo: tipoDeArchivo(archivo),
           respuestaItemId,
+          latitud: coordsGps?.latitud,
+          longitud: coordsGps?.longitud,
         });
       }
     } catch (err) {
@@ -171,68 +256,122 @@ function SubirEvidencia({
   return (
     <Box sx={{ mt: 1 }}>
       {!bloqueada && (
-        <Button size="small" variant="text" component="label" disabled={subir.isPending}>
-          {subir.isPending ? <CircularProgress size={14} sx={{ mr: 1 }} /> : null}
-          {etiqueta}
-          <input type="file" hidden accept={TIPOS_ACEPTADOS} multiple onChange={manejarArchivos} />
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+          <Button size="small" variant="text" component="label" disabled={subir.isPending}>
+            {subir.isPending ? <CircularProgress size={14} sx={{ mr: 1 }} /> : null}
+            {etiqueta} (Foto, Video o Archivo)
+            <input type="file" hidden accept={TIPOS_ACEPTADOS} multiple onChange={manejarArchivos} />
+          </Button>
+
+          <Button
+            size="small"
+            variant="text"
+            color={coordsGps ? 'success' : 'inherit'}
+            startIcon={obteniendoGps ? <CircularProgress size={14} /> : <MyLocationIcon fontSize="small" />}
+            onClick={handleCapturarGps}
+            disabled={obteniendoGps || subir.isPending}
+            sx={{ fontSize: '0.75rem' }}
+          >
+            {coordsGps
+              ? `GPS: ${coordsGps.latitud.toFixed(4)}, ${coordsGps.longitud.toFixed(4)}`
+              : 'Capturar GPS'}
+          </Button>
+
+          {coordsGps && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="primary"
+              onClick={handleGuardarPuntoGps}
+              disabled={subir.isPending}
+              sx={{ fontSize: '0.75rem', py: 0.25 }}
+            >
+              Guardar archivo GeoJSON
+            </Button>
+          )}
+        </Box>
       )}
 
       {evidencias.length > 0 && (
         <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          {evidencias.map((ev) => (
-            <Box
-              key={ev.id}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                backgroundColor: 'action.hover',
-                borderRadius: 1,
-                px: 1.5,
-                py: 0.5,
-                fontSize: '0.8125rem',
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
-                <AttachFileIcon fontSize="small" color="action" />
-                <Typography
-                  variant="body2"
-                  sx={{
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    maxWidth: { xs: 180, sm: 320, md: 480 },
-                  }}
-                  title={ev.nombreArchivo}
-                >
-                  {ev.nombreArchivo.includes('-') && ev.nombreArchivo.length > 30 && !ev.nombreArchivo.includes('.')
-                    ? `Archivo adjunto (#${ev.id.slice(-4)})`
-                    : ev.nombreArchivo}
-                </Typography>
-                {ev.tamanoBytes && (
-                  <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                    ({Math.round(Number(ev.tamanoBytes) / 1024)} KB)
+          {evidencias.map((ev) => {
+            const esVideo = ev.tipo === 'VIDEO' || ev.nombreArchivo?.toLowerCase().endsWith('.mp4') || ev.nombreArchivo?.toLowerCase().endsWith('.webm');
+            const esGeo = ev.nombreArchivo?.toLowerCase().endsWith('.geojson') || ev.nombreArchivo?.toLowerCase().endsWith('.kml') || ev.nombreArchivo?.toLowerCase().endsWith('.gpx');
+
+            return (
+              <Box
+                key={ev.id}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: 'action.hover',
+                  borderRadius: 1,
+                  px: 1.5,
+                  py: 0.5,
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden', flexWrap: 'wrap' }}>
+                  {esVideo ? (
+                    <VideocamIcon fontSize="small" color="primary" />
+                  ) : esGeo ? (
+                    <LocationOnIcon fontSize="small" color="secondary" />
+                  ) : (
+                    <AttachFileIcon fontSize="small" color="action" />
+                  )}
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      maxWidth: { xs: 180, sm: 320, md: 480 },
+                    }}
+                    title={ev.nombreArchivo}
+                  >
+                    {ev.nombreArchivo.includes('-') && ev.nombreArchivo.length > 30 && !ev.nombreArchivo.includes('.')
+                      ? `Archivo adjunto (#${ev.id.slice(-4)})`
+                      : ev.nombreArchivo}
                   </Typography>
+                  {ev.tamanoBytes && (
+                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                      ({Math.round(Number(ev.tamanoBytes) / 1024)} KB)
+                    </Typography>
+                  )}
+                  {ev.latitud && ev.longitud && (
+                    <Chip
+                      icon={<LocationOnIcon style={{ fontSize: 13 }} />}
+                      label={`Lat ${Number(ev.latitud).toFixed(4)}, Lng ${Number(ev.longitud).toFixed(4)}`}
+                      size="small"
+                      variant="outlined"
+                      component="a"
+                      href={`https://www.google.com/maps?q=${ev.latitud},${ev.longitud}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      clickable
+                      sx={{ height: 20, fontSize: '0.6875rem' }}
+                    />
+                  )}
+                </Box>
+                {!bloqueada && (
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Eliminar evidencia"
+                    disabled={eliminandoId === ev.id || eliminar.isPending}
+                    onClick={() => handleEliminar(ev.id)}
+                  >
+                    {eliminandoId === ev.id ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <DeleteOutlineIcon fontSize="small" />
+                    )}
+                  </IconButton>
                 )}
               </Box>
-              {!bloqueada && (
-                <IconButton
-                  size="small"
-                  color="error"
-                  aria-label="Eliminar evidencia"
-                  disabled={eliminandoId === ev.id || eliminar.isPending}
-                  onClick={() => handleEliminar(ev.id)}
-                >
-                  {eliminandoId === ev.id ? (
-                    <CircularProgress size={16} color="inherit" />
-                  ) : (
-                    <DeleteOutlineIcon fontSize="small" />
-                  )}
-                </IconButton>
-              )}
-            </Box>
-          ))}
+            );
+          })}
         </Box>
       )}
 
@@ -868,6 +1007,21 @@ export default function EjecutarEvaluacion() {
   );
   const [seccionActiva, setSeccionActiva] = useState(0);
   const [soloPendientes, setSoloPendientes] = useState(false);
+  const [busquedaCriterio, setBusquedaCriterio] = useState('');
+
+  const criteriosFiltrados = useMemo(() => {
+    const q = busquedaCriterio
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    if (!q) return null;
+    return criterios.filter((c) => {
+      const cod = (c.numeracion ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const desc = (c.titulo ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      return cod.includes(q) || desc.includes(q);
+    });
+  }, [criterios, busquedaCriterio]);
 
   // Si la evaluación todavía está PROGRAMADA (nunca se inició), lo hace acá
   // -- online, llamando al servidor directo; sin conexión, encolando
@@ -1191,8 +1345,48 @@ export default function EjecutarEvaluacion() {
               </Box>
             </Paper>
           )}
-          {/* ── Navegador de Secciones ── */}
-          {secciones.length > 1 && (() => {
+          {/* ── Buscador Directo de Criterios (RF-13 / Octavo Chequeo) ── */}
+          <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Buscar criterio por código o texto (ej: 1.1 a, higiene, plagas, agua)..."
+              value={busquedaCriterio}
+              onChange={(e) => setBusquedaCriterio(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: busquedaCriterio ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setBusquedaCriterio('')}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+            {criteriosFiltrados !== null && (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {criteriosFiltrados.length} criterio(s) encontrado(s) para "<strong>{busquedaCriterio}</strong>"
+                </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setBusquedaCriterio('')}
+                  sx={{ fontSize: '0.75rem', py: 0 }}
+                >
+                  Limpiar búsqueda y volver a secciones
+                </Button>
+              </Box>
+            )}
+          </Paper>
+
+          {/* ── Navegador de Secciones (cuando no hay búsqueda activa) ── */}
+          {criteriosFiltrados === null && secciones.length > 1 && (() => {
             const respondidosPorSeccion = criteriosPorSeccion.map(
               (crs) => crs.filter((c) => idsRespondidos.has(c.id)).length
             );
@@ -1284,11 +1478,13 @@ export default function EjecutarEvaluacion() {
                 }
               />
               {(() => {
-                // Encuentra el siguiente criterio pendiente a partir del actual mostrado
-                const todosLaSeccion = criteriosPorSeccion[seccionActiva] ?? criterios;
-                const idxSiguiente = todosLaSeccion.findIndex((c) => !idsRespondidos.has(c.id));
+                const listaCriteriosActual =
+                  criteriosFiltrados !== null
+                    ? criteriosFiltrados
+                    : (criteriosPorSeccion[seccionActiva] ?? criterios);
+                const idxSiguiente = listaCriteriosActual.findIndex((c) => !idsRespondidos.has(c.id));
                 if (idxSiguiente === -1) return null;
-                const siguienteCriterio = todosLaSeccion[idxSiguiente];
+                const siguienteCriterio = listaCriteriosActual[idxSiguiente];
                 if (!siguienteCriterio) return null;
                 return (
                   <Button
@@ -1307,31 +1503,40 @@ export default function EjecutarEvaluacion() {
             </Box>
           )}
 
-          {/* ── Criterios de la sección activa (con filtro opcional) ── */}
-          {(criteriosPorSeccion[seccionActiva] ?? criterios)
-            .filter((c) => !soloPendientes || !idsRespondidos.has(c.id))
-            .map((criterio) => {
-              const respuestaItemId = respuestaItemIdPorItem.get(criterio.id);
-              const evidenciasItem = respuestaItemId ? evidenciasPorItem.get(String(respuestaItemId)) ?? [] : [];
-              return (
-                <div id={`criterio-${criterio.id}`} key={criterio.id}>
-                  <FilaCriterio
-                    criterio={criterio}
-                    evaluacionId={evaluacion.id}
-                    opciones={ficha?.opcionesRespuesta ?? []}
-                    draftInicial={
-                      respuestaPorItem.get(criterio.id) ?? { codigoOpcion: '', nivelCriticidad: '', observacion: '' }
-                    }
-                    pendienteSyncInicial={sincronizacion.respuestasEncoladasPorItem.has(criterio.id)}
-                    respuestaItemId={respuestaItemId}
-                    enLinea={sync.enLinea}
-                    onGuardadoOffline={() => void sincronizacion.refrescar()}
-                    evidencias={evidenciasItem}
-                    bloqueada={evaluacion.bloqueada}
-                  />
-                </div>
-              );
-            })}
+          {/* ── Lista de Criterios (de la búsqueda o de la sección activa) ── */}
+          {criteriosFiltrados !== null && criteriosFiltrados.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              No se encontraron criterios que coincidan con "<strong>{busquedaCriterio}</strong>". Intenta con otro término o limpia el buscador.
+            </Alert>
+          ) : (
+            (criteriosFiltrados !== null
+              ? criteriosFiltrados
+              : (criteriosPorSeccion[seccionActiva] ?? criterios)
+            )
+              .filter((c) => !soloPendientes || !idsRespondidos.has(c.id))
+              .map((criterio) => {
+                const respuestaItemId = respuestaItemIdPorItem.get(criterio.id);
+                const evidenciasItem = respuestaItemId ? evidenciasPorItem.get(String(respuestaItemId)) ?? [] : [];
+                return (
+                  <div id={`criterio-${criterio.id}`} key={criterio.id}>
+                    <FilaCriterio
+                      criterio={criterio}
+                      evaluacionId={evaluacion.id}
+                      opciones={ficha?.opcionesRespuesta ?? []}
+                      draftInicial={
+                        respuestaPorItem.get(criterio.id) ?? { codigoOpcion: '', nivelCriticidad: '', observacion: '' }
+                      }
+                      pendienteSyncInicial={sincronizacion.respuestasEncoladasPorItem.has(criterio.id)}
+                      respuestaItemId={respuestaItemId}
+                      enLinea={sync.enLinea}
+                      onGuardadoOffline={() => void sincronizacion.refrescar()}
+                      evidencias={evidenciasItem}
+                      bloqueada={evaluacion.bloqueada}
+                    />
+                  </div>
+                );
+              })
+          )}
 
           {soloPendientes && (criteriosPorSeccion[seccionActiva] ?? criterios).filter((c) => !idsRespondidos.has(c.id)).length === 0 && (
             <Alert severity="success">
