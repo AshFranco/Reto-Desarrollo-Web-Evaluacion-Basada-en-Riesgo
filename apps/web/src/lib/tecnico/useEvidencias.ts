@@ -12,6 +12,8 @@ export interface SubirEvidenciaInput {
    * evaluación en general en vez de a un criterio puntual.
    */
   respuestaItemId?: string;
+  latitud?: number;
+  longitud?: number;
 }
 
 /**
@@ -29,11 +31,13 @@ export interface SubirEvidenciaInput {
 export function useSubirEvidencia() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ evaluacionId, archivo, tipo, respuestaItemId }: SubirEvidenciaInput) => {
+    mutationFn: async ({ evaluacionId, archivo, tipo, respuestaItemId, latitud, longitud }: SubirEvidenciaInput) => {
       const formData = new FormData();
       formData.append('evaluacionId', evaluacionId);
       formData.append('tipo', tipo);
       if (respuestaItemId) formData.append('respuestaItemId', respuestaItemId);
+      if (latitud !== undefined && latitud !== null) formData.append('latitud', String(latitud));
+      if (longitud !== undefined && longitud !== null) formData.append('longitud', String(longitud));
       formData.append('archivo', archivo);
 
       const respuesta = await apiFetch('/api/v1/evidencias', { method: 'POST', body: formData });

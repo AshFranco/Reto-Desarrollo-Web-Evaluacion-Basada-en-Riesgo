@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Divider,
   IconButton,
   MenuItem,
   Paper,
@@ -24,6 +25,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -273,25 +276,131 @@ function DetalleCaso({ casoId }: { casoId: string }) {
 }
 
 
-function FilaCaso({ caso }: { caso: CasoResumen }) {
+function TarjetaCaso({
+  caso,
+  onInspeccionar,
+  onReabrir,
+}: {
+  caso: CasoResumen;
+  onInspeccionar: (id: string) => void;
+  onReabrir: (caso: CasoResumen) => void;
+}) {
   const [abierto, setAbierto] = useState(false);
   const evaluadorAsignado = caso.asignaciones[0]?.evaluador?.nombreCompleto ?? null;
-  const estaCerrado = caso.estado === 'Cerrado';
+  const estaCerrado = caso.estado?.toLowerCase() === 'cerrado';
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+        <Box sx={{ flex: 1, minWidth: 200 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            {caso.establecimiento.nombre}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Origen: <strong>{caso.origen?.nombre ?? '—'}</strong>
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+          <Chip
+            label={caso.prioridad ?? 'NORMAL'}
+            size="small"
+            variant="outlined"
+            color={
+              caso.prioridad === 'URGENTE' || caso.prioridad === 'ALTA'
+                ? 'error'
+                : caso.prioridad === 'BAJA'
+                ? 'info'
+                : 'default'
+            }
+          />
+          <EstadoChip estado={caso.estado} />
+        </Box>
+      </Box>
+
+      <Box sx={{ p: 1.25, bgcolor: 'action.hover', borderRadius: 1 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+          Técnico evaluador:
+        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+          <Typography variant="body2" fontWeight={500}>
+            {evaluadorAsignado ?? (estaCerrado ? 'Sin asignar (cerrado)' : 'Sin técnico asignado')}
+          </Typography>
+          {!estaCerrado && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="primary"
+              onClick={() => setAbierto((prev) => !prev)}
+              sx={{ fontSize: '0.75rem', py: 0.25 }}
+            >
+              {evaluadorAsignado ? 'Gestionar técnico' : 'Asignar técnico'}
+            </Button>
+          )}
+        </Box>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap', pt: 0.5 }}>
+        {estaCerrado && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="primary"
+            startIcon={<LockOpenOutlinedIcon />}
+            onClick={() => onReabrir(caso)}
+          >
+            Reabrir caso
+          </Button>
+        )}
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<VisibilityOutlinedIcon />}
+          onClick={() => onInspeccionar(caso.id)}
+        >
+          Inspeccionar
+        </Button>
+        <IconButton size="small" onClick={() => setAbierto(!abierto)}>
+          {abierto ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+        </IconButton>
+      </Box>
+
+      <Collapse in={abierto} unmountOnExit>
+        <Divider sx={{ my: 1 }} />
+        <DetalleCaso casoId={caso.id} />
+      </Collapse>
+    </Paper>
+  );
+}
+
+function FilaCaso({
+  caso,
+  onInspeccionar,
+  onReabrir,
+}: {
+  caso: CasoResumen;
+  onInspeccionar: (id: string) => void;
+  onReabrir: (caso: CasoResumen) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const evaluadorAsignado = caso.asignaciones[0]?.evaluador?.nombreCompleto ?? null;
+  const estaCerrado = caso.estado?.toLowerCase() === 'cerrado';
 
   return (
     <>
-      <TableRow>
-        <TableCell>
+      <TableRow hover>
+        <TableCell width={40}>
           <IconButton size="small" onClick={() => setAbierto(!abierto)}>
             {abierto ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell>{caso.origen?.nombre ?? '—'}</TableCell>
-        <TableCell>{caso.establecimiento.nombre}</TableCell>
-        <TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{caso.origen?.nombre ?? '—'}</TableCell>
+        <TableCell sx={{ minWidth: 200 }}>
+          <Typography variant="body2" fontWeight={600}>{caso.establecimiento.nombre}</Typography>
+        </TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
           <EstadoChip estado={caso.estado} />
         </TableCell>
-        <TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
           <Chip
             label={caso.prioridad ?? 'NORMAL'}
             size="small"
@@ -305,9 +414,18 @@ function FilaCaso({ caso }: { caso: CasoResumen }) {
             }
           />
         </TableCell>
-        <TableCell>
+        <TableCell sx={{ minWidth: 200 }}>
           {evaluadorAsignado ? (
-            <Typography variant="body2">{evaluadorAsignado}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+              <Typography variant="body2">{evaluadorAsignado}</Typography>
+              {!estaCerrado && (
+                <Tooltip title="Cambiar o desvincular técnico">
+                  <IconButton size="small" onClick={() => setAbierto(true)} color="primary">
+                    <EditOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
           ) : estaCerrado ? (
             <Typography variant="body2" color="text.secondary">
               Sin asignar
@@ -324,9 +442,32 @@ function FilaCaso({ caso }: { caso: CasoResumen }) {
             </Button>
           )}
         </TableCell>
+        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<VisibilityOutlinedIcon />}
+              onClick={() => onInspeccionar(caso.id)}
+            >
+              Inspeccionar
+            </Button>
+            {estaCerrado && (
+              <Button
+                size="small"
+                variant="outlined"
+                color="primary"
+                startIcon={<LockOpenOutlinedIcon />}
+                onClick={() => onReabrir(caso)}
+              >
+                Reabrir
+              </Button>
+            )}
+          </Box>
+        </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell colSpan={6} sx={{ paddingTop: 0, paddingBottom: 0 }}>
+        <TableCell colSpan={7} sx={{ paddingTop: 0, paddingBottom: 0 }}>
           <Collapse in={abierto} unmountOnExit>
             <DetalleCaso casoId={caso.id} />
           </Collapse>
@@ -336,10 +477,27 @@ function FilaCaso({ caso }: { caso: CasoResumen }) {
   );
 }
 
-
 function TablaCasos() {
   const { data: casos, isLoading, isError, error } = useCasos();
+  const reabrir = useReabrirExpediente();
   const [filtroActivos, setFiltroActivos] = useState(true);
+  const [casoAInspeccionar, setCasoAInspeccionar] = useState<string | null>(null);
+  const [casoAReabrir, setCasoAReabrir] = useState<CasoResumen | null>(null);
+  const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
+
+  const theme = useTheme();
+  const esMovil = useMediaQuery(theme.breakpoints.down('md'));
+
+  async function handleConfirmarReabrir() {
+    if (!casoAReabrir) return;
+    setErrorReabrir(null);
+    try {
+      await reabrir.mutateAsync(casoAReabrir.id);
+      setCasoAReabrir(null);
+    } catch (err) {
+      setErrorReabrir(err instanceof Error ? err.message : 'Error al reabrir el caso');
+    }
+  }
 
   if (isLoading) return <EstadoCarga />;
   if (isError) {
@@ -349,12 +507,12 @@ function TablaCasos() {
     return <EstadoVacio titulo="No hay casos registrados." icono={<FolderOutlinedIcon fontSize="large" />} />;
   }
 
-  const casosActivos = casos.filter((c) => c.estado !== 'Cerrado');
+  const casosActivos = casos.filter((c) => c.estado?.toLowerCase() !== 'cerrado');
   const casosAMostrar = filtroActivos ? casosActivos : casos;
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
         <Chip
           label={`Casos activos (${casosActivos.length})`}
           color={filtroActivos ? 'primary' : 'default'}
@@ -373,25 +531,82 @@ function TablaCasos() {
         />
       </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell />
-              <TableCell>Origen</TableCell>
-              <TableCell>Establecimiento</TableCell>
-              <TableCell>Estado</TableCell>
-              <TableCell>Prioridad</TableCell>
-              <TableCell>Evaluador</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {casosAMostrar.map((caso) => (
-              <FilaCaso key={caso.id} caso={caso} />
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {esMovil ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {casosAMostrar.map((caso) => (
+            <TarjetaCaso
+              key={caso.id}
+              caso={caso}
+              onInspeccionar={(id) => setCasoAInspeccionar(id)}
+              onReabrir={(c) => {
+                setErrorReabrir(null);
+                setCasoAReabrir(c);
+              }}
+            />
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} variant="outlined" sx={{ width: '100%', overflowX: 'auto', borderRadius: 2 }}>
+          <Table size="small" sx={{ minWidth: 800 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell width={40} />
+                <TableCell>Origen</TableCell>
+                <TableCell>Establecimiento</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell>Prioridad</TableCell>
+                <TableCell>Evaluador</TableCell>
+                <TableCell align="right">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {casosAMostrar.map((caso) => (
+                <FilaCaso
+                  key={caso.id}
+                  caso={caso}
+                  onInspeccionar={(id) => setCasoAInspeccionar(id)}
+                  onReabrir={(c) => {
+                    setErrorReabrir(null);
+                    setCasoAReabrir(c);
+                  }}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      <ModalInspeccionCaso
+        casoId={casoAInspeccionar}
+        open={Boolean(casoAInspeccionar)}
+        onClose={() => setCasoAInspeccionar(null)}
+      />
+
+      <Dialog open={Boolean(casoAReabrir)} onClose={() => setCasoAReabrir(null)}>
+        <DialogTitle>Confirmar reapertura del caso</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que deseas reabrir el caso <strong>#{casoAReabrir?.id}</strong> ({casoAReabrir?.establecimiento?.nombre})?
+            El expediente y caso pasarán a estado activo para permitir una nueva asignación y gestión.
+          </DialogContentText>
+          {errorReabrir && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {errorReabrir}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCasoAReabrir(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={reabrir.isPending}
+            onClick={handleConfirmarReabrir}
+          >
+            {reabrir.isPending ? <CircularProgress size={16} color="inherit" /> : 'Confirmar reapertura'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

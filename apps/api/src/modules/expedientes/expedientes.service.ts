@@ -63,7 +63,9 @@ export class ExpedientesService {
     });
     if (!caso) throw new NotFoundException('Caso no encontrado.');
 
-    if (caso.expediente?.estado !== 'Cerrado' && caso.estado !== 'Cerrado') {
+    const estaCerradoExpediente = caso.expediente?.estado?.toLowerCase() === 'cerrado';
+    const estaCerradoCaso = caso.estado?.toLowerCase() === 'cerrado';
+    if (!estaCerradoExpediente && !estaCerradoCaso) {
       throw new BadRequestException('El expediente no se encuentra cerrado; no puede reabrirse.');
     }
 
@@ -74,9 +76,14 @@ export class ExpedientesService {
     const estadoAprobada = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: 'APROBADA' } });
 
     return this.prisma.$transaction(async (tx) => {
-      const expediente = await tx.expediente.update({
+      const expediente = await tx.expediente.upsert({
         where: { idCaso: BigInt(casoId) },
-        data: {
+        create: {
+          idCaso: BigInt(casoId),
+          estado: 'Abierto',
+          fechaCierre: null,
+        },
+        update: {
           estado: 'Abierto',
           fechaCierre: null,
         },

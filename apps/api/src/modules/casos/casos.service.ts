@@ -91,6 +91,9 @@ export class CasosService {
   async actualizarPrioridad(id: string, prioridad: string) {
     const caso = await this.prisma.caso.findUnique({ where: { id: BigInt(id) } });
     if (!caso) throw new NotFoundException('Caso no encontrado.');
+    if (caso.estado === 'Cerrado' || caso.estado === 'CERRADO') {
+      throw new BadRequestException('No se puede modificar la prioridad de un caso cerrado.');
+    }
     const actualizado = await this.prisma.caso.update({
       where: { id: BigInt(id) },
       data: { prioridad: prioridad.toUpperCase() },
