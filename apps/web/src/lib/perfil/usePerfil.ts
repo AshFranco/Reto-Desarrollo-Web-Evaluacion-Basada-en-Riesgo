@@ -2,25 +2,33 @@ import { useQuery } from '@tanstack/react-query';
 import { getSession } from '@/lib/auth/session';
 import type { PerfilUsuario } from '@/lib/types';
 
-async function fetchPerfil(): Promise<PerfilUsuario> {
+async function fetchPerfil(usuarioIdEsperado?: string | null): Promise<PerfilUsuario> {
   const sesion = await getSession();
+  if (usuarioIdEsperado && sesion?.usuario?.id && String(sesion.usuario.id) !== String(usuarioIdEsperado)) {
+    throw new Error('Discrepancia de sesión detectada.');
+  }
   const res = await fetch('/api/v1/usuarios/perfil', {
     headers: { Authorization: `Bearer ${sesion?.accessToken ?? ''}` },
   });
   if (!res.ok) throw new Error('Error al cargar el perfil.');
-  return res.json() as Promise<PerfilUsuario>;
+  const data = (await res.json()) as PerfilUsuario;
+  if (usuarioIdEsperado && data?.id && String(data.id) !== String(usuarioIdEsperado)) {
+    throw new Error('Discrepancia de perfil detectada.');
+  }
+  return data;
 }
 
 /**
  * Hook para obtener los datos del perfil del usuario autenticado.
- * Usa React Query con staleTime de 5 minutos para evitar peticiones
- * innecesarias al abrir el modal repetidamente.
+ * Aísla la clave de caché por usuarioId para evitar que al cambiar de cuenta
+ * se muestren los datos del usuario anterior. staleTime se fija en 0 para
+ * garantizar que siempre consulte el perfil fresco.
  */
-export function usePerfil() {
+export function usePerfil(usuarioId?: string | null) {
   const { data, isLoading, error, refetch } = useQuery<PerfilUsuario, Error>({
-    queryKey: ['perfil-usuario'],
-    queryFn: fetchPerfil,
-    staleTime: 1000 * 60 * 5,
+    queryKey: usuarioId ? ['perfil-usuario', usuarioId] : ['perfil-usuario'],
+    queryFn: () => fetchPerfil(usuarioId),
+    staleTime: 0,
   });
 
   return { perfil: data ?? null, cargando: isLoading, error, refetch };
