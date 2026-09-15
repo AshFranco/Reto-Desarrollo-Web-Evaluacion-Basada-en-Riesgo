@@ -59,11 +59,11 @@
 
 ### DEF-005: Columna de secreto TOTP no contemplada en esquema DBML oficial
 - **Severidad:** Crítica
-- **Prioridad:** Baja (Opcional según SRS)
-- **Estado:** 🟡 Mitigado / Bug Conocido Documentado
-- **Componente:** `AuthService` / Base de Datos
-- **Descripción:** El SRS menciona doble factor (MFA) como opcional, pero el esquema oficial de 51 tablas compartido por la cátedra no incluye la columna para almacenar el secreto TOTP en la tabla `usuario`.
-- **Resolución:** Para evitar fallos silenciosos, `AuthService` detecta si un usuario tiene `dobleFactorActivo = true` y lanza un error descriptivo documentando la limitación del esquema oficial.
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto
+- **Componente:** `AuthService` / `UsuariosService` / `Login.tsx` / `Perfil`
+- **Descripción:** El SRS menciona doble factor (MFA/2FA) para roles administrativos y operativos, pero el esquema oficial de 51 tablas compartido por la cátedra no incluía la columna para almacenar el secreto TOTP en la tabla `usuario`. Anteriormente se lanzaba una excepción no capturada que causaba un HTTP 500 al iniciar sesión si el usuario tenía `dobleFactorActivo = true`.
+- **Resolución:** Se extendió el esquema Prisma y PostgreSQL con la columna `secreto_totp` (al igual que `refresh_token`), habilitando el flujo completo de autenticación de dos factores conforme a RFC 6238 (TOTP con Google Authenticator/Authy). Incluye generación segura de claves secretas en base32, emisión de códigos QR, verificación con ventana de tiempo de deriva, y recuperación de contraseña real vía SMTP/Nodemailer.
 
 ---
 
