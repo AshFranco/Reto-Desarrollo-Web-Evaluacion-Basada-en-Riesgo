@@ -198,4 +198,33 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
     await waitFor(() => expect(screen.queryByText('Confirmar eliminación de archivo')).not.toBeInTheDocument());
     expect(screen.getByText('ff8b6ae7-81f6-4238-9627-c9e2e965a5e0.png')).toBeInTheDocument();
   });
+
+  it('cada criterio respondido tiene su propio modal para adjuntar evidencia y localización geográfica', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id', () => {
+        return HttpResponse.json({
+          ...MOCK_EVALUACION_DETALLE,
+          respuestas: [{ id: '99', idItemFicha: '2', codigoOpcion: 'C' }],
+        });
+      })
+    );
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
+
+    // El criterio tiene su propio botón "Adjuntar evidencia"
+    const btnEvidenciaCriterio = screen.getByRole('button', { name: 'Adjuntar evidencia' });
+    expect(btnEvidenciaCriterio).toBeInTheDocument();
+
+    // Al hacer clic, abre el modal propio del criterio con opciones de archivos y GPS
+    fireEvent.click(btnEvidenciaCriterio);
+
+    await waitFor(() =>
+      expect(screen.getByText(/Adjuntar Evidencia —.*Ítem evaluable/i)).toBeInTheDocument()
+    );
+    expect(screen.getByText('Subir Fotografías, Videos o Documentos')).toBeInTheDocument();
+    expect(screen.getByText('Capturar Geolocalización GPS en Campo')).toBeInTheDocument();
+    expect(screen.getByText(/Registra la ubicación geográfica específica de este criterio o hallazgo en formato GeoJSON/i)).toBeInTheDocument();
+  });
 });
+

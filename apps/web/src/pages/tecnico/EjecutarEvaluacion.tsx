@@ -132,7 +132,10 @@ function SubirEvidencia({
   enLinea,
   evidencias = [],
   bloqueada = false,
-  permitirGps = false,
+  permitirGps = true,
+  tituloModal,
+  descripcionModal,
+  descripcionGps,
 }: {
   evaluacionId: string;
   respuestaItemId?: string;
@@ -141,6 +144,9 @@ function SubirEvidencia({
   evidencias?: Evidencia[];
   bloqueada?: boolean;
   permitirGps?: boolean;
+  tituloModal?: string;
+  descripcionModal?: string;
+  descripcionGps?: string;
 }) {
   const subir = useSubirEvidencia();
   const eliminar = useEliminarEvidencia();
@@ -193,7 +199,9 @@ function SubirEvidencia({
                 fecha: new Date().toISOString(),
                 evaluacionId,
                 respuestaItemId,
-                descripcion: 'Punto de geolocalización registrado en campo',
+                descripcion: respuestaItemId
+                  ? 'Punto de geolocalización registrado en criterio de evaluación'
+                  : 'Punto de geolocalización registrado en campo',
               },
             },
           ],
@@ -204,7 +212,9 @@ function SubirEvidencia({
       const blob = new Blob([geojsonContent], { type: 'application/geo+json' });
       const archivo = new File(
         [blob],
-        `geolocalizacion_${Date.now()}.geojson`,
+        respuestaItemId
+          ? `criterio_${respuestaItemId}_gps_${Date.now()}.geojson`
+          : `geolocalizacion_${Date.now()}.geojson`,
         { type: 'application/geo+json' }
       );
       await subir.mutateAsync({
@@ -302,16 +312,16 @@ function SubirEvidencia({
           onClose={() => setDialogoAbierto(false)}
           maxWidth="sm"
           fullWidth
-          aria-labelledby="dialog-evidencia-general-titulo"
+          aria-labelledby={`dialog-evidencia-${respuestaItemId || 'general'}-titulo`}
         >
           <DialogTitle
-            id="dialog-evidencia-general-titulo"
+            id={`dialog-evidencia-${respuestaItemId || 'general'}-titulo`}
             sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <AttachFileIcon color="primary" />
               <Typography variant="h6" component="span" sx={{ fontSize: '1.05rem', fontWeight: 600 }}>
-                Adjuntar Evidencia General
+                {tituloModal || (respuestaItemId ? 'Adjuntar Evidencia al Criterio' : 'Adjuntar Evidencia General')}
               </Typography>
             </Box>
             <IconButton
@@ -325,7 +335,10 @@ function SubirEvidencia({
 
           <DialogContent dividers sx={{ p: 2.5 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Selecciona el tipo de evidencia general que deseas adjuntar a esta evaluación:
+              {descripcionModal ||
+                (respuestaItemId
+                  ? 'Selecciona el tipo de evidencia o geolocalización que deseas adjuntar a este criterio:'
+                  : 'Selecciona el tipo de evidencia general que deseas adjuntar a esta evaluación:')}
             </Typography>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -366,7 +379,10 @@ function SubirEvidencia({
                   Capturar Geolocalización GPS en Campo
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                  Registra la ubicación geográfica del establecimiento inspeccionado en formato GeoJSON.
+                  {descripcionGps ||
+                    (respuestaItemId
+                      ? 'Registra la ubicación geográfica específica de este criterio o hallazgo en formato GeoJSON.'
+                      : 'Registra la ubicación geográfica del establecimiento inspeccionado en formato GeoJSON.')}
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -814,11 +830,14 @@ function FilaCriterio({
           enLinea={enLinea}
           evidencias={evidencias}
           bloqueada={bloqueada}
-          permitirGps={false}
+          permitirGps={true}
+          tituloModal={`Adjuntar Evidencia — ${criterio.numeracion ? criterio.numeracion + ' ' : ''}${criterio.titulo}`.trim()}
+          descripcionModal="Selecciona el archivo o captura la geolocalización GPS correspondiente a este criterio:"
+          descripcionGps="Registra la ubicación geográfica específica de este criterio o hallazgo en formato GeoJSON."
         />
       ) : (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          Guarda una respuesta primero para poder adjuntar evidencia.
+          Guarda una respuesta primero para poder adjuntar evidencia y localización geográfica.
         </Typography>
       )}
     </Paper>
@@ -1741,6 +1760,9 @@ export default function EjecutarEvaluacion() {
               evidencias={evidenciasGenerales}
               bloqueada={evaluacion.bloqueada}
               permitirGps={true}
+              tituloModal="Adjuntar Evidencia General"
+              descripcionModal="Selecciona el tipo de evidencia general que deseas adjuntar a esta evaluación:"
+              descripcionGps="Registra la ubicación geográfica del establecimiento inspeccionado en formato GeoJSON."
             />
           </Paper>
 
