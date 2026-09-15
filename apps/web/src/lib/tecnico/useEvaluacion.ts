@@ -1,13 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetchJson } from '@/lib/http/client';
-import type { EvaluacionDetalle } from '@/lib/types';
+import { db } from '@/lib/db';
+import type { EvaluacionDetalle, AsignacionMia } from '@/lib/types';
 
-/** GET /api/v1/evaluaciones/:id — detalle completo, incluye respuestas ya guardadas. */
+async function fetchEvaluacionDetalle(evaluacionId: string): Promise<EvaluacionDetalle> {
+  const claveStorage = `evaluacion_detalle_${evaluacionId}`;
+  try {
+    const remota = await apiFetchJson<EvaluacionDetalle>(`/api/v1/evaluaciones/${evaluacionId}`);
+    try {
+      localStorage.setItem(claveStorage, JSON.stringify(remota));
+    } catch {
+      // Ignorar quota exceeded
+    }
+    return remota;
+  } catch (err) {
+    try {
+      const guardada = localStorage.getItem(claveStorage);
+      if (guardada) {
+        return JSON.parse(guardada) as EvaluacionDetalle;
+      }
+    } catch {
+      // Ignorar parse error
+    }
+    throw err;
+  }
+}
+
+/** GET /api/v1/evaluaciones/:id — detalle completo, incluye respuestas ya guardadas y respaldo offline. */
 export function useEvaluacionDetalle(evaluacionId: string | undefined) {
   return useQuery({
     queryKey: ['evaluaciones', evaluacionId],
-    queryFn: () => apiFetchJson<EvaluacionDetalle>(`/api/v1/evaluaciones/${evaluacionId}`),
+    queryFn: () => (evaluacionId ? fetchEvaluacionDetalle(evaluacionId) : Promise.reject(new Error('ID no provisto'))),
     enabled: !!evaluacionId,
+    networkMode: 'offlineFirst',
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -26,6 +52,12 @@ export function useIniciarEvaluacion() {
       apiFetchJson<EvaluacionDetalle>(`/api/v1/evaluaciones/${evaluacionId}/iniciar`, { method: 'POST' }),
     onSuccess: (_data, evaluacionId) => {
       queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+      queryClient.setQueryData<AsignacionMia[]>(['asignaciones', 'mias'], (prev) =>
+        prev?.map((a) => (a.evaluacionId === evaluacionId ? { ...a, evaluacionEstado: 'EN_CURSO' } : a))
+      );
+      void db.asignacion.toCollection().modify((a) => {
+        if (a.evaluacionId === evaluacionId) a.evaluacionEstado = 'EN_CURSO';
+      }).catch(() => {});
     },
   });
 }
@@ -74,6 +106,12 @@ export function useFinalizarEvaluacion() {
       apiFetchJson<EvaluacionDetalle>(`/api/v1/evaluaciones/${evaluacionId}/finalizar`, { method: 'POST' }),
     onSuccess: (_data, evaluacionId) => {
       queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+      queryClient.setQueryData<AsignacionMia[]>(['asignaciones', 'mias'], (prev) =>
+        prev?.map((a) => (a.evaluacionId === evaluacionId ? { ...a, evaluacionEstado: 'FINALIZADA' } : a))
+      );
+      void db.asignacion.toCollection().modify((a) => {
+        if (a.evaluacionId === evaluacionId) a.evaluacionEstado = 'FINALIZADA';
+      }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['asignaciones', 'mias'] });
     },
   });
@@ -90,6 +128,12 @@ export function useReabrirEvaluacion() {
       apiFetchJson<EvaluacionDetalle>(`/api/v1/evaluaciones/${evaluacionId}/reabrir`, { method: 'POST' }),
     onSuccess: (_data, evaluacionId) => {
       queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+      queryClient.setQueryData<AsignacionMia[]>(['asignaciones', 'mias'], (prev) =>
+        prev?.map((a) => (a.evaluacionId === evaluacionId ? { ...a, evaluacionEstado: 'EN_CURSO' } : a))
+      );
+      void db.asignacion.toCollection().modify((a) => {
+        if (a.evaluacionId === evaluacionId) a.evaluacionEstado = 'EN_CURSO';
+      }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['asignaciones', 'mias'] });
     },
   });

@@ -56,4 +56,18 @@ describe('useEvaluacionesAsignadas', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('Error interno');
   });
+
+  it('recupera las asignaciones desde IndexedDB cuando la red falla (modo offline)', async () => {
+    await db.asignacion.put(MOCK_ASIGNACION_MIA);
+
+    server.use(
+      http.get('http://localhost:3000/api/v1/asignaciones/mias', () => HttpResponse.error())
+    );
+
+    const { result } = renderHook(() => useEvaluacionesAsignadas(), { wrapper: crearWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toHaveLength(1);
+    expect(result.current.data?.[0]?.id).toBe(MOCK_ASIGNACION_MIA.id);
+  });
 });

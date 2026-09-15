@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { UsuarioLocal, OpcionRespuestaLocal } from '@/lib/types';
+import type { UsuarioLocal, OpcionRespuestaLocal, AsignacionMia } from '@/lib/types';
 import type { EntradaCalculo } from '@ebr/risk-engine';
 
 export interface SesionLocal {
@@ -68,16 +68,7 @@ export interface OperacionPendiente {
   errorMsg?: string;
 }
 
-export interface AsignacionLocal {
-  id: string;
-  casoId: string;
-  idEvaluador: string;
-  estado: string;
-  fechaAsignacion: string;
-  establecimientoNombre: string;
-  establecimientoCalle: string;
-  sincronizadoEn: number;
-}
+export type AsignacionLocal = AsignacionMia;
 
 export interface CatalogoMotorLocal {
   id: 1;

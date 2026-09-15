@@ -1,6 +1,7 @@
 import { saveSession } from './session';
 import { descargarCatalogo } from '@/lib/catalogo/loader';
 import { descargarCatalogoMotor } from '@/lib/catalogo/loaderMotor';
+import { fetchAsignacionesMias } from '@/lib/tecnico/useEvaluacionesAsignadas';
 import type { LoginResult } from '@/lib/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -50,10 +51,15 @@ export async function login(
   // descarga para los roles que el backend realmente autoriza a verlo
   // (@Roles en motor-riesgo.controller.ts) -- para Empresa/Usuario
   // delegado, descargarCatalogoMotor() siempre daba 403.
-  const descargas = [descargarCatalogo()];
+  // Para el técnico evaluador, se precargan también sus asignaciones en IndexedDB.
+  const descargas: Promise<unknown>[] = [descargarCatalogo()];
   if (ROLES_CON_ACCESO_AL_MOTOR.includes(data.usuario.rol)) {
     descargas.push(descargarCatalogoMotor());
+  }
+  if (data.usuario.rol === 'TECNICO_EVALUADOR') {
+    descargas.push(fetchAsignacionesMias().catch(() => []));
   }
   await Promise.all(descargas);
   return data;
 }
+

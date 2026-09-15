@@ -22,6 +22,7 @@ import ConsultaHistorica from '@/pages/historico/ConsultaHistorica';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      networkMode: 'offlineFirst',
       staleTime: 1000 * 60 * 5,
       retry: (failureCount, error) => {
         if (error instanceof Error && error.message.includes('429')) return false;
