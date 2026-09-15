@@ -50,7 +50,8 @@ import { useCatalogoMotorRiesgo, useCalcularRiesgo, type SeleccionFactor } from 
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
-import type { EvaluacionDetalle, Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo } from '@/lib/types';
+import { db } from '@/lib/db';
+import type { EvaluacionDetalle, Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo, AsignacionMia } from '@/lib/types';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 
 /**
@@ -883,9 +884,21 @@ export default function EjecutarEvaluacion() {
       void enqueue('INICIAR_EVALUACION', {
         evaluacionServerId: evaluacion.id,
         fechaInicio: new Date().toISOString(),
-      }).then(() => sincronizacion.refrescar());
+      }).then(async () => {
+        try {
+          await db.asignacion.toCollection().modify((a) => {
+            if (a.evaluacionId === evaluacion.id) {
+              a.evaluacionEstado = 'EN_CURSO';
+            }
+          });
+        } catch {}
+        queryClient.setQueryData<AsignacionMia[]>(['asignaciones', 'mias'], (prev) =>
+          prev?.map((a) => (a.evaluacionId === evaluacion.id ? { ...a, evaluacionEstado: 'EN_CURSO' } : a))
+        );
+        void sincronizacion.refrescar();
+      });
     }
-  }, [evaluacion, inicioIntentado, sync.enLinea, iniciar, sincronizacion]);
+  }, [evaluacion, inicioIntentado, sync.enLinea, iniciar, sincronizacion, queryClient]);
 
   // Mapa itemId -> DraftRespuesta para que cada fila pueda arrancar con lo
   // que ya hay guardado en el servidor (o en la cola local, si estamos offline).
@@ -947,6 +960,16 @@ export default function EjecutarEvaluacion() {
     if (!sync.enLinea) {
       await enqueue('FINALIZAR_EVALUACION', { evaluacionServerId: evaluacionId, observacionesFinales: undefined });
       setFinalizadoLocal(true);
+      try {
+        await db.asignacion.toCollection().modify((a) => {
+          if (a.evaluacionId === evaluacionId) {
+            a.evaluacionEstado = 'FINALIZADA';
+          }
+        });
+      } catch {}
+      queryClient.setQueryData<AsignacionMia[]>(['asignaciones', 'mias'], (prev) =>
+        prev?.map((a) => (a.evaluacionId === evaluacionId ? { ...a, evaluacionEstado: 'FINALIZADA' } : a))
+      );
       await sincronizacion.refrescar();
       return;
     }

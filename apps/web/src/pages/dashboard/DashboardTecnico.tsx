@@ -109,13 +109,23 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
 
 function TablaAsignaciones() {
   const { data: asignaciones, isLoading, isError, error } = useEvaluacionesAsignadas();
+  const sync = useSyncStatus();
 
   if (isLoading) return <EstadoCarga etiqueta="Cargando tus asignaciones…" />;
   if (isError) {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar tus asignaciones'}</Alert>;
   }
   if (!asignaciones || asignaciones.length === 0) {
-    return <EstadoVacio titulo="No tienes casos asignados todavía." icono={<AssignmentOutlinedIcon fontSize="large" />} />;
+    return (
+      <EstadoVacio
+        titulo={
+          !sync.enLinea
+            ? 'No hay casos asignados guardados en este dispositivo. Conéctate a internet para sincronizar.'
+            : 'No tienes casos asignados todavía.'
+        }
+        icono={<AssignmentOutlinedIcon fontSize="large" />}
+      />
+    );
   }
 
   return (
@@ -185,9 +195,17 @@ function ResumenAsignaciones() {
 
 
 export default function DashboardTecnico() {
+  const sync = useSyncStatus();
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <PageHeader etiqueta="Técnico evaluador" titulo="Panel de técnico evaluador" icono={<AssignmentOutlinedIcon />} />
+
+      {!sync.enLinea && (
+        <Alert severity="info">
+          Modo sin conexión: visualizando los casos asignados guardados en tu dispositivo. Puedes continuar con las evaluaciones descargadas.
+        </Alert>
+      )}
 
       <ResumenAsignaciones />
 
