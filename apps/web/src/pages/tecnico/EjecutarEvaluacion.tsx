@@ -147,6 +147,7 @@ function SubirEvidencia({
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
+  const [evidenciaParaEliminar, setEvidenciaParaEliminar] = useState<Evidencia | null>(null);
 
   const [coordsGps, setCoordsGps] = useState<{ latitud: number; longitud: number } | null>(null);
   const [obteniendoGps, setObteniendoGps] = useState(false);
@@ -494,7 +495,7 @@ function SubirEvidencia({
                     color="error"
                     aria-label="Eliminar evidencia"
                     disabled={eliminandoId === ev.id || eliminar.isPending}
-                    onClick={() => handleEliminar(ev.id)}
+                    onClick={() => setEvidenciaParaEliminar(ev)}
                   >
                     {eliminandoId === ev.id ? (
                       <CircularProgress size={16} color="inherit" />
@@ -508,6 +509,56 @@ function SubirEvidencia({
           })}
         </Box>
       )}
+
+      {/* Diálogo de advertencia antes de eliminar archivo */}
+      <Dialog
+        open={Boolean(evidenciaParaEliminar)}
+        onClose={() => setEvidenciaParaEliminar(null)}
+        maxWidth="xs"
+        fullWidth
+        aria-labelledby="dialog-confirmar-eliminar-titulo"
+      >
+        <DialogTitle id="dialog-confirmar-eliminar-titulo" sx={{ fontWeight: 600 }}>
+          Confirmar eliminación de archivo
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            ¿Estás seguro de que deseas eliminar este archivo adjunto? Esta acción no se puede deshacer.
+          </Typography>
+          {evidenciaParaEliminar?.nombreArchivo && (
+            <Paper variant="outlined" sx={{ p: 1, mt: 1.5, backgroundColor: 'action.hover' }}>
+              <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, wordBreak: 'break-all' }}>
+                {evidenciaParaEliminar.nombreArchivo}
+              </Typography>
+            </Paper>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+          <Button
+            onClick={() => setEvidenciaParaEliminar(null)}
+            color="inherit"
+            disabled={eliminar.isPending}
+            size="small"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            size="small"
+            disabled={eliminar.isPending}
+            startIcon={eliminar.isPending ? <CircularProgress size={14} color="inherit" /> : <DeleteOutlineIcon fontSize="small" />}
+            onClick={async () => {
+              if (evidenciaParaEliminar) {
+                await handleEliminar(evidenciaParaEliminar.id);
+                setEvidenciaParaEliminar(null);
+              }
+            }}
+          >
+            {eliminar.isPending ? 'Eliminando...' : 'Eliminar archivo'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {error && (
         <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
@@ -765,22 +816,9 @@ function FilaCriterio({
           bloqueada={bloqueada}
           permitirGps={false}
         />
-      ) : draft.codigoOpcion ? (
-        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Button
-            size="small"
-            variant="text"
-            startIcon={responder.isPending ? <CircularProgress size={14} /> : <AttachFileIcon fontSize="small" />}
-            disabled={responder.isPending || bloqueada}
-            onClick={guardar}
-            sx={{ textTransform: 'none', fontSize: '0.8125rem' }}
-          >
-            {responder.isPending ? 'Guardando respuesta...' : 'Guardar y adjuntar evidencia'}
-          </Button>
-        </Box>
       ) : (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          Selecciona una respuesta primero para poder adjuntar evidencia.
+          Guarda una respuesta primero para poder adjuntar evidencia.
         </Typography>
       )}
     </Paper>
@@ -1256,20 +1294,6 @@ export default function EjecutarEvaluacion() {
     return ids;
   }, [evaluacion?.respuestas, sincronizacion.respuestasEncoladasPorItem]);
 
-  // Snapshot de los IDs ocultos cuando se activa el filtro o cambia la sección.
-  // Evita que los criterios recién evaluados o guardados desaparezcan instantáneamente,
-  // permitiendo al técnico adjuntar evidencias y revisar su respuesta con tranquilidad.
-  const [idsOcultosPorFiltro, setIdsOcultosPorFiltro] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (soloPendientes) {
-      setIdsOcultosPorFiltro(new Set(idsRespondidos));
-    } else {
-      setIdsOcultosPorFiltro(new Set());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soloPendientes, seccionActiva]);
-
   async function handleFinalizar() {
     if (!evaluacionId) return;
     setErrorFinalizar(null);
@@ -1639,17 +1663,6 @@ export default function EjecutarEvaluacion() {
                   </Typography>
                 }
               />
-              {soloPendientes && idsRespondidos.size > idsOcultosPorFiltro.size && (
-                <Button
-                  size="small"
-                  variant="text"
-                  color="primary"
-                  onClick={() => setIdsOcultosPorFiltro(new Set(idsRespondidos))}
-                  sx={{ textTransform: 'none', fontSize: '0.8125rem' }}
-                >
-                  Ocultar recién evaluados ({idsRespondidos.size - idsOcultosPorFiltro.size})
-                </Button>
-              )}
               {(() => {
                 const listaCriteriosActual =
                   criteriosFiltrados !== null
@@ -1686,7 +1699,7 @@ export default function EjecutarEvaluacion() {
               ? criteriosFiltrados
               : (criteriosPorSeccion[seccionActiva] ?? criterios)
             )
-              .filter((c) => !soloPendientes || !idsOcultosPorFiltro.has(c.id))
+              .filter((c) => !soloPendientes || !idsRespondidos.has(c.id))
               .map((criterio) => {
                 const respuestaItemId = respuestaItemIdPorItem.get(criterio.id);
                 const evidenciasItem = respuestaItemId ? evidenciasPorItem.get(String(respuestaItemId)) ?? [] : [];
