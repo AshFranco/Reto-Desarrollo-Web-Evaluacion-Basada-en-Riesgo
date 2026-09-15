@@ -51,6 +51,50 @@ export class ExpedientesService {
     });
   }
 
+  async reabrir(casoId: string) {
+    const caso = await this.prisma.caso.findUnique({
+      where: { id: BigInt(casoId) },
+      include: {
+        evaluaciones: {
+          include: { estado: true },
+        },
+        expediente: true,
+      },
+    });
+    if (!caso) throw new NotFoundException('Caso no encontrado.');
+
+    if (caso.expediente?.estado !== 'Cerrado' && caso.estado !== 'Cerrado') {
+      throw new BadRequestException('El expediente no se encuentra cerrado; no puede reabrirse.');
+    }
+
+    const estadoCerrada = await this.prisma.estadoEvaluacion.findUnique({ where: { codigo: 'CERRADA' } });
+    const evaluacionCerrada = caso.evaluaciones.find(
+      (e) => (estadoCerrada && e.idEstado === estadoCerrada.id) || e.estado?.codigo === 'CERRADA'
+    );
+    const estadoAprobada = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: 'APROBADA' } });
+
+    return this.prisma.$transaction(async (tx) => {
+      const expediente = await tx.expediente.update({
+        where: { idCaso: BigInt(casoId) },
+        data: {
+          estado: 'Abierto',
+          fechaCierre: null,
+        },
+      });
+
+      await tx.caso.update({ where: { id: BigInt(casoId) }, data: { estado: 'Asignado' } });
+
+      if (evaluacionCerrada) {
+        await tx.evaluacion.update({
+          where: { id: evaluacionCerrada.id },
+          data: { idEstado: estadoAprobada.id },
+        });
+      }
+
+      return { ...expediente, id: expediente.id.toString(), idCaso: expediente.idCaso.toString() };
+    });
+  }
+
   /**
    * Roles internos (Admin/Coordinador/Tecnico) pueden ver todo, y filtrar
    * opcionalmente por empresa con el query param. Roles de empresa SOLO

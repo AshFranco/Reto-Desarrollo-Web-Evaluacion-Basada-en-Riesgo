@@ -45,6 +45,22 @@ export function useCasoDetalle(id: string | null) {
   });
 }
 
+export function useActualizarPrioridadCaso() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ casoId, prioridad }: { casoId: string; prioridad: string }) =>
+      apiFetchJson<CasoDetalle>(`/api/v1/casos/${casoId}/prioridad`, {
+        method: 'PATCH',
+        body: JSON.stringify({ prioridad }),
+      }),
+    onSuccess: (_data, { casoId }) => {
+      queryClient.invalidateQueries({ queryKey: ['casos', casoId] });
+      queryClient.invalidateQueries({ queryKey: ['casos'] });
+      queryClient.invalidateQueries({ queryKey: ['casos-historico'] });
+    },
+  });
+}
+
 /**
  * Casos "Asignado" con su detalle completo (evaluaciones + expediente).
  * No existe un endpoint que liste evaluaciones o expedientes pendientes de
@@ -63,11 +79,16 @@ export function useCasosAsignados() {
     queries: asignados.map((c) => ({
       queryKey: ['casos', c.id],
       queryFn: () => apiFetchJson<CasoDetalle>(`/api/v1/casos/${c.id}`),
+      staleTime: 30_000,
+      retry: (failureCount: number, error: unknown) => {
+        if (error instanceof Error && error.message.includes('429')) return false;
+        return failureCount < 2;
+      },
     })),
   });
 
   return {
-    isLoading: cargandoCasos || detalles.some((d) => d.isLoading),
+    isLoading: cargandoCasos || (asignados.length > 0 && detalles.some((d) => d.isLoading && !d.data)),
     data: detalles.map((d) => d.data).filter((d): d is CasoDetalle => !!d),
   };
 }

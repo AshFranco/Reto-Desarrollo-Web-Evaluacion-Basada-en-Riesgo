@@ -38,7 +38,7 @@ import { HealthController } from './health.controller';
     ConfigModule.forRoot({
       isGlobal: true,
       validate, // aborta el arranque si el .env es inválido
-      envFilePath: '.env',
+      envFilePath: ['.env', 'apps/api/.env'],
     }),
 
     AppConfigModule,
@@ -48,7 +48,7 @@ import { HealthController } from './health.controller';
       {
         name: 'default',
         ttl: 60_000,
-        limit: 100, // 100 peticiones/min por IP a nivel global
+        limit: 500, // 500 peticiones/min por IP a nivel global para soportar SPA sin falsos positivos 429
       },
     ]),
 

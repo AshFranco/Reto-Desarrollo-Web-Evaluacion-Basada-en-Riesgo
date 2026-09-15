@@ -17,12 +17,14 @@ import {
   TableHead,
   TableRow,
   Typography,
+  MenuItem,
+  Select,
 } from '@mui/material';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
-import { useCasoDetalle } from '@/lib/coordinador/useCasos';
+import { useCasoDetalle, useActualizarPrioridadCaso } from '@/lib/coordinador/useCasos';
 import { EstadoChip } from '@/components/ui/EstadoChip';
 
 interface ModalInspeccionCasoProps {
@@ -33,6 +35,7 @@ interface ModalInspeccionCasoProps {
 
 export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCasoProps) {
   const { data: caso, isLoading, isError, error } = useCasoDetalle(open ? casoId : null);
+  const actualizarPrioridad = useActualizarPrioridadCaso();
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -64,9 +67,28 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
                   <Typography variant="subtitle1" fontWeight={700}>
                     Caso #{caso.id}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Origen: <strong>{caso.origen?.nombre ?? 'No especificado'}</strong> · Prioridad: <strong>{caso.prioridad ?? 'NORMAL'}</strong>
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Origen: <strong>{caso.origen?.nombre ?? 'No especificado'}</strong>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">· Prioridad:</Typography>
+                    <Select
+                      size="small"
+                      value={caso.prioridad ?? 'NORMAL'}
+                      onChange={(e) => actualizarPrioridad.mutate({ casoId: caso.id, prioridad: e.target.value })}
+                      disabled={actualizarPrioridad.isPending}
+                      sx={{
+                        fontSize: '0.75rem',
+                        height: 24,
+                        '& .MuiSelect-select': { py: 0.25, px: 1 },
+                      }}
+                    >
+                      <MenuItem value="BAJA">Baja</MenuItem>
+                      <MenuItem value="NORMAL">Normal</MenuItem>
+                      <MenuItem value="ALTA">Alta</MenuItem>
+                      <MenuItem value="URGENTE">Urgente</MenuItem>
+                    </Select>
+                  </Box>
                 </Box>
                 <EstadoChip estado={caso.estado} />
               </Box>

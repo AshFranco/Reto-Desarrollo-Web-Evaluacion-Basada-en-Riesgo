@@ -6,8 +6,31 @@ export interface UsuarioLocal {
 }
 
 export interface LoginResponse {
+  requiereMfa?: false;
   accessToken: string;
   usuario: UsuarioLocal;
+}
+
+export interface LoginMfaRequerido {
+  requiereMfa: true;
+  mensaje: string;
+  codigoDemo?: string;
+}
+
+export type LoginResult = LoginResponse | LoginMfaRequerido;
+
+/**
+ * Forma de GET /api/v1/usuarios/perfil — devuelve los datos
+ * completos del usuario autenticado para la pantalla de Mi Perfil.
+ */
+export interface PerfilUsuario {
+  id: string;
+  nombreCompleto: string;
+  correoElectronico: string;
+  telefono: string | null;
+  roles: string[];
+  idEmpresa: string | null;
+  dobleFactorActivo: boolean;
 }
 
 /**
@@ -142,6 +165,7 @@ export interface AsignacionMia {
   fechaAsignacion: string;
   estado: string;
   evaluacionId: string | null;
+  evaluacionEstado?: string | null;
   caso: {
     id: string;
     idEstablecimiento: string;
@@ -289,6 +313,8 @@ export interface EvaluacionDetalle {
   respuestas: RespuestaItemRaw[];
   evidencias?: Evidencia[];
   ultimaAccionCoordinador: string | null;
+  caso?: { id: string; estado: string } | null;
+  calculoRiesgo?: ResultadoRiesgo | null;
 }
 
 /**

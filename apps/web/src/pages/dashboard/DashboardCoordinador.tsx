@@ -35,6 +35,7 @@ import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import UndoOutlinedIcon from '@mui/icons-material/UndoOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import { useCasos, useCasoDetalle, useAsignarEvaluador, useDesasignarEvaluador } from '@/lib/coordinador/useCasos';
 import { useTecnicos } from '@/lib/coordinador/useTecnicos';
 import { ModalInspeccionCaso } from '@/components/casos/ModalInspeccionCaso';
@@ -53,9 +54,10 @@ import {
   useExpedientes,
   useCasosCerrables,
   useCerrarExpediente,
+  useReabrirExpediente,
   type CasoCerrable,
 } from '@/lib/coordinador/useExpedientes';
-import type { CasoResumen } from '@/lib/types';
+import type { CasoResumen, Expediente } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { EstadoVacio } from '@/components/ui/EstadoVacio';
@@ -289,7 +291,20 @@ function FilaCaso({ caso }: { caso: CasoResumen }) {
         <TableCell>
           <EstadoChip estado={caso.estado} />
         </TableCell>
-        <TableCell>{caso.prioridad ?? 'NORMAL'}</TableCell>
+        <TableCell>
+          <Chip
+            label={caso.prioridad ?? 'NORMAL'}
+            size="small"
+            variant="outlined"
+            color={
+              caso.prioridad === 'URGENTE' || caso.prioridad === 'ALTA'
+                ? 'error'
+                : caso.prioridad === 'BAJA'
+                ? 'info'
+                : 'default'
+            }
+          />
+        </TableCell>
         <TableCell>
           {evaluadorAsignado ? (
             <Typography variant="body2">{evaluadorAsignado}</Typography>
@@ -324,6 +339,7 @@ function FilaCaso({ caso }: { caso: CasoResumen }) {
 
 function TablaCasos() {
   const { data: casos, isLoading, isError, error } = useCasos();
+  const [filtroActivos, setFiltroActivos] = useState(true);
 
   if (isLoading) return <EstadoCarga />;
   if (isError) {
@@ -333,28 +349,53 @@ function TablaCasos() {
     return <EstadoVacio titulo="No hay casos registrados." icono={<FolderOutlinedIcon fontSize="large" />} />;
   }
 
+  const casosActivos = casos.filter((c) => c.estado !== 'Cerrado');
+  const casosAMostrar = filtroActivos ? casosActivos : casos;
+
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell />
-            <TableCell>Origen</TableCell>
-            <TableCell>Establecimiento</TableCell>
-            <TableCell>Estado</TableCell>
-            <TableCell>Prioridad</TableCell>
-            <TableCell>Evaluador</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {casos.map((caso) => (
-            <FilaCaso key={caso.id} caso={caso} />
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Box>
+      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center' }}>
+        <Chip
+          label={`Casos activos (${casosActivos.length})`}
+          color={filtroActivos ? 'primary' : 'default'}
+          variant={filtroActivos ? 'filled' : 'outlined'}
+          onClick={() => setFiltroActivos(true)}
+          size="small"
+          clickable
+        />
+        <Chip
+          label={`Todos los casos (${casos.length})`}
+          color={!filtroActivos ? 'primary' : 'default'}
+          variant={!filtroActivos ? 'filled' : 'outlined'}
+          onClick={() => setFiltroActivos(false)}
+          size="small"
+          clickable
+        />
+      </Box>
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell />
+              <TableCell>Origen</TableCell>
+              <TableCell>Establecimiento</TableCell>
+              <TableCell>Estado</TableCell>
+              <TableCell>Prioridad</TableCell>
+              <TableCell>Evaluador</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {casosAMostrar.map((caso) => (
+              <FilaCaso key={caso.id} caso={caso} />
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }
+
 
 function Calendario() {
   const { data: tecnicos, isLoading: cargandoTecnicos } = useTecnicos();
@@ -588,7 +629,7 @@ function FilaInformeDevuelto({
   async function handleDeshacer() {
     setError(null);
     try {
-      await deshacer.mutateAsync(informe.evaluacionId);
+      await deshacer.mutateAsync({ evaluacionId: informe.evaluacionId, casoId: informe.casoId });
       setConfirmarDeshacer(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al revertir la devolución');
@@ -782,7 +823,21 @@ function SeccionExpedientesPendientes() {
 
 function TablaExpedientesCerrados() {
   const { data: expedientes, isLoading, isError, error } = useExpedientes();
+  const reabrir = useReabrirExpediente();
   const [casoAInspeccionar, setCasoAInspeccionar] = useState<string | null>(null);
+  const [expedienteAReabrir, setExpedienteAReabrir] = useState<Expediente | null>(null);
+  const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
+
+  async function handleConfirmarReabrir() {
+    if (!expedienteAReabrir) return;
+    setErrorReabrir(null);
+    try {
+      await reabrir.mutateAsync(expedienteAReabrir.caso.id);
+      setExpedienteAReabrir(null);
+    } catch (err) {
+      setErrorReabrir(err instanceof Error ? err.message : 'Error al reabrir el expediente');
+    }
+  }
 
   if (isLoading) return <EstadoCarga />;
   if (isError) {
@@ -802,7 +857,7 @@ function TablaExpedientesCerrados() {
               <TableCell>Establecimiento</TableCell>
               <TableCell>Fecha de cierre</TableCell>
               <TableCell>Resultado final</TableCell>
-              <TableCell align="right">Acción</TableCell>
+              <TableCell align="right">Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -813,14 +868,29 @@ function TablaExpedientesCerrados() {
                 <TableCell>{exp.fechaCierre ? new Date(exp.fechaCierre).toLocaleDateString() : '—'}</TableCell>
                 <TableCell>{exp.resultadoFinal ?? 'No calculado'}</TableCell>
                 <TableCell align="right">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<VisibilityOutlinedIcon />}
-                    onClick={() => setCasoAInspeccionar(exp.caso.id)}
-                  >
-                    Inspeccionar
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<VisibilityOutlinedIcon />}
+                      onClick={() => setCasoAInspeccionar(exp.caso.id)}
+                    >
+                      Inspeccionar
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<LockOpenOutlinedIcon />}
+                      onClick={() => {
+                        setErrorReabrir(null);
+                        setExpedienteAReabrir(exp);
+                      }}
+                    >
+                      Reabrir caso
+                    </Button>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
@@ -833,6 +903,32 @@ function TablaExpedientesCerrados() {
         open={Boolean(casoAInspeccionar)}
         onClose={() => setCasoAInspeccionar(null)}
       />
+
+      <Dialog open={Boolean(expedienteAReabrir)} onClose={() => setExpedienteAReabrir(null)}>
+        <DialogTitle>Confirmar reapertura del caso</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que deseas reabrir el caso del establecimiento <strong>{expedienteAReabrir?.caso.establecimiento.nombre}</strong> ({expedienteAReabrir?.caso.establecimiento.empresa?.razonSocial ?? 'Sin empresa'})?
+            El expediente pasará a estado activo y la evaluación podrá ser consultada y gestionada nuevamente por el equipo técnico y de coordinación.
+          </DialogContentText>
+          {errorReabrir && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {errorReabrir}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExpedienteAReabrir(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={reabrir.isPending}
+            onClick={handleConfirmarReabrir}
+          >
+            {reabrir.isPending ? <CircularProgress size={16} color="inherit" /> : 'Confirmar reapertura'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
@@ -843,10 +939,19 @@ function ResumenCoordinador() {
   const { data: pendientes } = useInformesPendientes();
   const { data: devueltos } = useInformesDevueltos();
   const { data: cerrables } = useCasosCerrables();
+  const { data: expedientes } = useExpedientes();
+
+  const casosActivos = casos?.filter((c) => c.estado !== 'Cerrado').length ?? 0;
+  const totalExpedientesCerrados = expedientes?.length ?? 0;
 
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-      <StatCard icono={<FolderOutlinedIcon />} valor={casos?.length ?? 0} etiqueta="Casos totales" color="#2A6DB0" />
+      <StatCard
+        icono={<FolderOutlinedIcon />}
+        valor={casosActivos}
+        etiqueta="Casos activos"
+        color="#2A6DB0"
+      />
       <StatCard
         icono={<AssignmentTurnedInOutlinedIcon />}
         valor={pendientes.length}
@@ -859,7 +964,18 @@ function ResumenCoordinador() {
         etiqueta="Informes en corrección"
         color="#475569"
       />
-      <StatCard icono={<TaskAltOutlinedIcon />} valor={cerrables.length} etiqueta="Expedientes por cerrar" color="#2E7D32" />
+      <StatCard
+        icono={<TaskAltOutlinedIcon />}
+        valor={cerrables.length}
+        etiqueta="Expedientes por cerrar"
+        color="#2E7D32"
+      />
+      <StatCard
+        icono={<TaskAltOutlinedIcon />}
+        valor={totalExpedientesCerrados}
+        etiqueta="Expedientes cerrados"
+        color="#546E7A"
+      />
     </Box>
   );
 }
@@ -871,12 +987,8 @@ export default function DashboardCoordinador() {
         etiqueta="Coordinador"
         titulo="Panel de coordinador"
         icono={<FolderOutlinedIcon />}
-        accion={
-          <Button variant="outlined" component={RouterLink} to="/historico">
-            Consulta histórica
-          </Button>
-        }
       />
+
 
       <ResumenCoordinador />
 

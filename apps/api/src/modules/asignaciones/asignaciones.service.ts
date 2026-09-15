@@ -131,15 +131,28 @@ export class AsignacionesService {
     const idsCaso = asignaciones.map((a) => a.idCaso);
     const evaluaciones = await this.prisma.evaluacion.findMany({
       where: { idCaso: { in: idsCaso } },
-      select: { id: true, idCaso: true },
+      select: {
+        id: true,
+        idCaso: true,
+        estado: { select: { codigo: true } },
+      },
     });
-    const evaluacionPorCaso = new Map(evaluaciones.map((e) => [e.idCaso.toString(), e.id.toString()]));
+    const evaluacionPorCaso = new Map(
+      evaluaciones.map((e) => [
+        e.idCaso.toString(),
+        { id: e.id.toString(), estadoCodigo: e.estado?.codigo ?? null },
+      ]),
+    );
 
-    return asignaciones.map((a) => ({
-      ...a,
-      id: a.id.toString(),
-      idCaso: a.idCaso.toString(),
-      evaluacionId: evaluacionPorCaso.get(a.idCaso.toString()) ?? null,
-    }));
+    return asignaciones.map((a) => {
+      const ev = evaluacionPorCaso.get(a.idCaso.toString());
+      return {
+        ...a,
+        id: a.id.toString(),
+        idCaso: a.idCaso.toString(),
+        evaluacionId: ev ? ev.id : null,
+        evaluacionEstado: ev ? ev.estadoCodigo : null,
+      };
+    });
   }
 }

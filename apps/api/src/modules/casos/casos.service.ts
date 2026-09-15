@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
 
@@ -86,6 +86,26 @@ export class CasosService {
       orderBy: { fechaCreacion: 'desc' },
     });
     return casos.map((c) => this.serializar(c));
+  }
+
+  async actualizarPrioridad(id: string, prioridad: string) {
+    const caso = await this.prisma.caso.findUnique({ where: { id: BigInt(id) } });
+    if (!caso) throw new NotFoundException('Caso no encontrado.');
+    const actualizado = await this.prisma.caso.update({
+      where: { id: BigInt(id) },
+      data: { prioridad: prioridad.toUpperCase() },
+      include: {
+        establecimiento: { include: { empresa: true } },
+        solicitud: true,
+        alerta: true,
+        denuncia: true,
+        programacion: true,
+        evaluaciones: true,
+        asignaciones: { where: { estado: 'Asignado' }, include: { evaluador: true } },
+        expediente: true,
+      },
+    });
+    return this.serializar(actualizado);
   }
 
   async obtener(id: string) {

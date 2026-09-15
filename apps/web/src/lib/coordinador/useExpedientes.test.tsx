@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { server } from '@/mocks/node';
 import { MOCK_CASO_RESUMEN, MOCK_CASO_DETALLE, MOCK_EXPEDIENTE } from '@/mocks/handlers';
 import { db } from '@/lib/db';
-import { useExpedientes, useCasosCerrables, useCerrarExpediente } from './useExpedientes';
+import { useExpedientes, useCasosCerrables, useCerrarExpediente, useReabrirExpediente } from './useExpedientes';
 
 beforeEach(() => db.open());
 afterEach(() => db.delete());
@@ -114,3 +114,24 @@ describe('useCerrarExpediente', () => {
     );
   });
 });
+
+describe('useReabrirExpediente', () => {
+  it('llama a PATCH /expedientes/:casoId/reabrir y devuelve el expediente reabierto', async () => {
+    let urlLlamada = '';
+    const mockReabierto = { ...MOCK_EXPEDIENTE, estado: 'Abierto', fechaCierre: null };
+    server.use(
+      http.patch('http://localhost:3000/api/v1/expedientes/:casoId/reabrir', ({ request }) => {
+        urlLlamada = request.url;
+        return HttpResponse.json(mockReabierto);
+      })
+    );
+
+    const { result } = renderHook(() => useReabrirExpediente(), { wrapper: crearWrapper() });
+    result.current.mutate('1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(urlLlamada).toContain('/expedientes/1/reabrir');
+    expect(result.current.data).toEqual(mockReabierto);
+  });
+});
+
