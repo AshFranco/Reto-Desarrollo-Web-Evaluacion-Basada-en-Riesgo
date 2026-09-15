@@ -23,6 +23,12 @@ export class StorageService {
       'image/webp': '.webp',
       'application/pdf': '.pdf',
       'video/mp4': '.mp4',
+      'video/webm': '.webm',
+      'video/quicktime': '.mov',
+      'application/geo+json': '.geojson',
+      'application/json': '.json',
+      'application/vnd.google-earth.kml+xml': '.kml',
+      'application/gpx+xml': '.gpx',
     };
     return mapa[mime] ?? '';
   }

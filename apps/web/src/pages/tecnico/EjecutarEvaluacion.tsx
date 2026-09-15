@@ -259,7 +259,7 @@ function SubirEvidencia({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
           <Button size="small" variant="text" component="label" disabled={subir.isPending}>
             {subir.isPending ? <CircularProgress size={14} sx={{ mr: 1 }} /> : null}
-            {etiqueta} (Foto, Video o Archivo)
+            {etiqueta}
             <input type="file" hidden accept={TIPOS_ACEPTADOS} multiple onChange={manejarArchivos} />
           </Button>
 
