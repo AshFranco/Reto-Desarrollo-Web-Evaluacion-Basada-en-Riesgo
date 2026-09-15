@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
@@ -7,9 +7,13 @@ import { server } from '@/mocks/node';
 import { db } from '@/lib/db';
 import EjecutarEvaluacion from './EjecutarEvaluacion';
 
-beforeEach(() => db.open());
-afterEach(() => {
-  db.delete();
+beforeEach(async () => {
+  await db.open();
+  await db.cola_sync.clear().catch(() => {});
+});
+afterEach(async () => {
+  await db.cola_sync.clear().catch(() => {});
+  await db.delete().catch(() => {});
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
 
@@ -37,6 +41,7 @@ describe('EjecutarEvaluacion — sin conexión', () => {
     renderPantalla();
 
     await waitFor(() => expect(screen.getByText('Sin conexión')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
   });
 
   it('al guardar una respuesta sin conexión, la encola en vez de llamar al servidor', async () => {
@@ -122,5 +127,53 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
 
     await waitFor(() => expect(screen.getByText('✓ Guardado.')).toBeInTheDocument());
     expect(llamadaAlServidor).toBe(true);
+  });
+
+  it('al activar "Mostrar solo pendientes" y guardar una respuesta, el criterio permanece visible en pantalla permitiendo adjuntar evidencia', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => {
+        return HttpResponse.json({ mensaje: 'Avance guardado.' });
+      })
+    );
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
+
+    // Activa el switch "Mostrar solo pendientes"
+    const switchPendientes = screen.getByLabelText('Mostrar solo pendientes');
+    fireEvent.click(switchPendientes);
+
+    // Responde el ítem
+    fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
+
+    // Verifica que se guardó
+    await waitFor(() => expect(screen.getByText('✓ Guardado.')).toBeInTheDocument());
+
+    // CRÍTICO: El criterio NO desaparece de la vista, permitiendo al técnico adjuntar evidencias
+    const tarjetaCriterio = screen.getByText('Ítem evaluable').closest('.MuiPaper-root') as HTMLElement;
+    expect(tarjetaCriterio).toBeInTheDocument();
+    expect(
+      within(tarjetaCriterio).getByRole('button', { name: /Adjuntar evidencia|Guardar y adjuntar evidencia/i })
+    ).toBeInTheDocument();
+  });
+
+  it('en evidencia general, muestra un solo botón principal y abre el modal integrado con opciones de archivos y GPS', async () => {
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Evidencia general de la evaluación (no ligada a un criterio puntual)')).toBeInTheDocument());
+
+    // Fuera del modal no debe haber botones de GPS dispersos en la pantalla
+    expect(screen.queryByText('Capturar GPS')).not.toBeInTheDocument();
+
+    // El botón unificado de evidencia general está presente
+    const btnEvidenciaGeneral = screen.getByRole('button', { name: 'Adjuntar evidencia general' });
+    expect(btnEvidenciaGeneral).toBeInTheDocument();
+
+    // Al hacer clic, abre el modal integrado
+    fireEvent.click(btnEvidenciaGeneral);
+
+    await waitFor(() => expect(screen.getByText('Adjuntar Evidencia General')).toBeInTheDocument());
+    expect(screen.getByText('Subir Fotografías, Videos o Documentos')).toBeInTheDocument();
+    expect(screen.getByText('Capturar Geolocalización GPS en Campo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Capturar ubicación GPS' })).toBeInTheDocument();
   });
 });

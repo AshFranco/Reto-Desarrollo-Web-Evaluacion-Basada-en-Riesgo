@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
@@ -21,6 +21,10 @@ import {
   Tooltip,
   Typography,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -36,6 +40,7 @@ import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import WifiOffOutlinedIcon from '@mui/icons-material/WifiOffOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import CloseIcon from '@mui/icons-material/Close';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import VideocamIcon from '@mui/icons-material/Videocam';
@@ -127,6 +132,7 @@ function SubirEvidencia({
   enLinea,
   evidencias = [],
   bloqueada = false,
+  permitirGps = false,
 }: {
   evaluacionId: string;
   respuestaItemId?: string;
@@ -134,11 +140,13 @@ function SubirEvidencia({
   enLinea: boolean;
   evidencias?: Evidencia[];
   bloqueada?: boolean;
+  permitirGps?: boolean;
 }) {
   const subir = useSubirEvidencia();
   const eliminar = useEliminarEvidencia();
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dialogoAbierto, setDialogoAbierto] = useState(false);
 
   const [coordsGps, setCoordsGps] = useState<{ latitud: number; longitud: number } | null>(null);
   const [obteniendoGps, setObteniendoGps] = useState(false);
@@ -257,39 +265,165 @@ function SubirEvidencia({
     <Box sx={{ mt: 1 }}>
       {!bloqueada && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
-          <Button size="small" variant="text" component="label" disabled={subir.isPending}>
-            {subir.isPending ? <CircularProgress size={14} sx={{ mr: 1 }} /> : null}
-            {etiqueta}
-            <input type="file" hidden accept={TIPOS_ACEPTADOS} multiple onChange={manejarArchivos} />
-          </Button>
-
-          <Button
-            size="small"
-            variant="text"
-            color={coordsGps ? 'success' : 'inherit'}
-            startIcon={obteniendoGps ? <CircularProgress size={14} /> : <MyLocationIcon fontSize="small" />}
-            onClick={handleCapturarGps}
-            disabled={obteniendoGps || subir.isPending}
-            sx={{ fontSize: '0.75rem' }}
-          >
-            {coordsGps
-              ? `GPS: ${coordsGps.latitud.toFixed(4)}, ${coordsGps.longitud.toFixed(4)}`
-              : 'Capturar GPS'}
-          </Button>
-
-          {coordsGps && (
+          {permitirGps ? (
             <Button
               size="small"
               variant="outlined"
-              color="primary"
-              onClick={handleGuardarPuntoGps}
+              startIcon={subir.isPending ? <CircularProgress size={14} /> : <AttachFileIcon fontSize="small" />}
+              onClick={() => {
+                setError(null);
+                setDialogoAbierto(true);
+              }}
               disabled={subir.isPending}
-              sx={{ fontSize: '0.75rem', py: 0.25 }}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
             >
-              Guardar archivo GeoJSON
+              {etiqueta}
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              variant="text"
+              component="label"
+              disabled={subir.isPending}
+              startIcon={subir.isPending ? <CircularProgress size={14} /> : <AttachFileIcon fontSize="small" />}
+              sx={{ textTransform: 'none' }}
+            >
+              {etiqueta}
+              <input type="file" hidden accept={TIPOS_ACEPTADOS} multiple onChange={manejarArchivos} />
             </Button>
           )}
         </Box>
+      )}
+
+      {permitirGps && (
+        <Dialog
+          open={dialogoAbierto}
+          onClose={() => setDialogoAbierto(false)}
+          maxWidth="sm"
+          fullWidth
+          aria-labelledby="dialog-evidencia-general-titulo"
+        >
+          <DialogTitle
+            id="dialog-evidencia-general-titulo"
+            sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AttachFileIcon color="primary" />
+              <Typography variant="h6" component="span" sx={{ fontSize: '1.05rem', fontWeight: 600 }}>
+                Adjuntar Evidencia General
+              </Typography>
+            </Box>
+            <IconButton
+              aria-label="Cerrar modal"
+              onClick={() => setDialogoAbierto(false)}
+              size="small"
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent dividers sx={{ p: 2.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Selecciona el tipo de evidencia general que deseas adjuntar a esta evaluación:
+            </Typography>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Opción 1: Archivo o fotografía */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AttachFileIcon fontSize="small" color="primary" />
+                  Subir Fotografías, Videos o Documentos
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                  Formatos permitidos: imágenes JPG/PNG/WebP, videos MP4/WebM y documentos PDF (máx. 15 MB).
+                </Typography>
+                <Button
+                  variant="contained"
+                  component="label"
+                  size="small"
+                  disabled={subir.isPending}
+                  startIcon={subir.isPending ? <CircularProgress size={14} color="inherit" /> : <AttachFileIcon />}
+                >
+                  {subir.isPending ? 'Subiendo archivo...' : 'Seleccionar archivos desde el dispositivo'}
+                  <input
+                    type="file"
+                    hidden
+                    accept={TIPOS_ACEPTADOS}
+                    multiple
+                    onChange={async (e) => {
+                      await manejarArchivos(e);
+                      setDialogoAbierto(false);
+                    }}
+                  />
+                </Button>
+              </Paper>
+
+              {/* Opción 2: Geolocalización GPS */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocationOnIcon fontSize="small" color="primary" />
+                  Capturar Geolocalización GPS en Campo
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                  Registra la ubicación geográfica del establecimiento inspeccionado en formato GeoJSON.
+                </Typography>
+
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color={coordsGps ? 'success' : 'primary'}
+                    startIcon={obteniendoGps ? <CircularProgress size={14} /> : <MyLocationIcon fontSize="small" />}
+                    onClick={handleCapturarGps}
+                    disabled={obteniendoGps || subir.isPending}
+                  >
+                    {obteniendoGps ? 'Obteniendo GPS...' : coordsGps ? 'Recapturar GPS' : 'Capturar ubicación GPS'}
+                  </Button>
+
+                  {coordsGps && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      startIcon={subir.isPending ? <CircularProgress size={14} color="inherit" /> : <LocationOnIcon fontSize="small" />}
+                      onClick={async () => {
+                        await handleGuardarPuntoGps();
+                        setDialogoAbierto(false);
+                      }}
+                      disabled={subir.isPending}
+                    >
+                      Guardar archivo GeoJSON
+                    </Button>
+                  )}
+                </Box>
+
+                {coordsGps && (
+                  <Alert severity="success" sx={{ mt: 1.5, py: 0.5 }}>
+                    Coordenadas GPS obtenidas: <strong>{coordsGps.latitud.toFixed(6)}, {coordsGps.longitud.toFixed(6)}</strong>
+                  </Alert>
+                )}
+              </Paper>
+            </Box>
+
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+            <Button onClick={() => setDialogoAbierto(false)} color="inherit" size="small">
+              Cerrar
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {!permitirGps && error && (
+        <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+          {error}
+        </Typography>
       )}
 
       {evidencias.length > 0 && (
@@ -625,14 +759,28 @@ function FilaCriterio({
         <SubirEvidencia
           evaluacionId={evaluacionId}
           respuestaItemId={respuestaItemId}
-          etiqueta="Adjuntar evidencia a este criterio"
+          etiqueta="Adjuntar evidencia"
           enLinea={enLinea}
           evidencias={evidencias}
           bloqueada={bloqueada}
+          permitirGps={false}
         />
+      ) : draft.codigoOpcion ? (
+        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={responder.isPending ? <CircularProgress size={14} /> : <AttachFileIcon fontSize="small" />}
+            disabled={responder.isPending || bloqueada}
+            onClick={guardar}
+            sx={{ textTransform: 'none', fontSize: '0.8125rem' }}
+          >
+            {responder.isPending ? 'Guardando respuesta...' : 'Guardar y adjuntar evidencia'}
+          </Button>
+        </Box>
       ) : (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          Guarda una respuesta primero para poder adjuntar evidencia.
+          Selecciona una respuesta primero para poder adjuntar evidencia.
         </Typography>
       )}
     </Paper>
@@ -947,7 +1095,7 @@ export default function EjecutarEvaluacion() {
   const [errorFinalizar, setErrorFinalizar] = useState<string | null>(null);
   const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
   const [finalizadoLocal, setFinalizadoLocal] = useState(false);
-  const [inicioIntentado, setInicioIntentado] = useState(false);
+  const inicioIntentadoRef = useRef(false);
   const [verFichaEnBloqueada, setVerFichaEnBloqueada] = useState(false);
 
   const casoCerrado = evaluacion?.caso?.estado === 'Cerrado' || evaluacion?.estado.codigo === 'CERRADA';
@@ -1029,9 +1177,9 @@ export default function EjecutarEvaluacion() {
   // (PR #11), que nunca encolaba esto y dejaba fechaInicio en null para
   // siempre. Se intenta una sola vez por visita a la pantalla.
   useEffect(() => {
-    if (!evaluacion || evaluacion.bloqueada || inicioIntentado) return;
+    if (!evaluacion || evaluacion.bloqueada || inicioIntentadoRef.current) return;
     if (evaluacion.estado.codigo !== 'PROGRAMADA') return;
-    setInicioIntentado(true);
+    inicioIntentadoRef.current = true;
     if (sync.enLinea) {
       iniciar.mutate(evaluacion.id);
     } else {
@@ -1050,9 +1198,9 @@ export default function EjecutarEvaluacion() {
           prev?.map((a) => (a.evaluacionId === evaluacion.id ? { ...a, evaluacionEstado: 'EN_CURSO' } : a))
         );
         void sincronizacion.refrescar();
-      });
+      }).catch(() => {});
     }
-  }, [evaluacion, inicioIntentado, sync.enLinea, iniciar, sincronizacion, queryClient]);
+  }, [evaluacion, sync.enLinea, iniciar, sincronizacion, queryClient]);
 
   // Mapa itemId -> DraftRespuesta para que cada fila pueda arrancar con lo
   // que ya hay guardado en el servidor (o en la cola local, si estamos offline).
@@ -1107,6 +1255,20 @@ export default function EjecutarEvaluacion() {
     for (const id of sincronizacion.respuestasEncoladasPorItem.keys()) ids.add(id);
     return ids;
   }, [evaluacion?.respuestas, sincronizacion.respuestasEncoladasPorItem]);
+
+  // Snapshot de los IDs ocultos cuando se activa el filtro o cambia la sección.
+  // Evita que los criterios recién evaluados o guardados desaparezcan instantáneamente,
+  // permitiendo al técnico adjuntar evidencias y revisar su respuesta con tranquilidad.
+  const [idsOcultosPorFiltro, setIdsOcultosPorFiltro] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (soloPendientes) {
+      setIdsOcultosPorFiltro(new Set(idsRespondidos));
+    } else {
+      setIdsOcultosPorFiltro(new Set());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soloPendientes, seccionActiva]);
 
   async function handleFinalizar() {
     if (!evaluacionId) return;
@@ -1477,6 +1639,17 @@ export default function EjecutarEvaluacion() {
                   </Typography>
                 }
               />
+              {soloPendientes && idsRespondidos.size > idsOcultosPorFiltro.size && (
+                <Button
+                  size="small"
+                  variant="text"
+                  color="primary"
+                  onClick={() => setIdsOcultosPorFiltro(new Set(idsRespondidos))}
+                  sx={{ textTransform: 'none', fontSize: '0.8125rem' }}
+                >
+                  Ocultar recién evaluados ({idsRespondidos.size - idsOcultosPorFiltro.size})
+                </Button>
+              )}
               {(() => {
                 const listaCriteriosActual =
                   criteriosFiltrados !== null
@@ -1513,7 +1686,7 @@ export default function EjecutarEvaluacion() {
               ? criteriosFiltrados
               : (criteriosPorSeccion[seccionActiva] ?? criterios)
             )
-              .filter((c) => !soloPendientes || !idsRespondidos.has(c.id))
+              .filter((c) => !soloPendientes || !idsOcultosPorFiltro.has(c.id))
               .map((criterio) => {
                 const respuestaItemId = respuestaItemIdPorItem.get(criterio.id);
                 const evidenciasItem = respuestaItemId ? evidenciasPorItem.get(String(respuestaItemId)) ?? [] : [];
@@ -1554,6 +1727,7 @@ export default function EjecutarEvaluacion() {
               enLinea={sync.enLinea}
               evidencias={evidenciasGenerales}
               bloqueada={evaluacion.bloqueada}
+              permitirGps={true}
             />
           </Paper>
 
