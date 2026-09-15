@@ -4,6 +4,7 @@ import { TokenService } from '../src/modules/auth/token.service';
 import { LoginThrottleService } from '../src/modules/auth/login-throttle.service';
 import { PasswordService } from '../src/modules/auth/password.service';
 import { RegistroUsuarioDto, RolRegistrable } from '../src/modules/auth/dto/registro-usuario.dto';
+import { authenticator } from 'otplib';
 
 describe('Auth & Token Services', () => {
   let authService: AuthService;
@@ -11,11 +12,15 @@ describe('Auth & Token Services', () => {
   let prismaMock: any;
   let passwordServiceMock: any;
   let loginThrottleMock: any;
+  let emailServiceMock: any;
+  let encryptionServiceMock: any;
   let jwtServiceMock: any;
   let configMock: any;
 
   beforeEach(() => {
     prismaMock = {
+      $queryRaw: jest.fn(),
+      $executeRaw: jest.fn(),
       empresa: { findUnique: jest.fn() },
       rol: { findUnique: jest.fn() },
       usuario: {
@@ -44,20 +49,40 @@ describe('Auth & Token Services', () => {
       registrarLoginExitoso: jest.fn().mockResolvedValue(undefined),
     };
 
+    emailServiceMock = {
+      enviarCorreo: jest.fn().mockResolvedValue({ ok: true, previewUrl: 'https://ethereal.email/test' }),
+      enviarRecuperacionContrasena: jest.fn().mockResolvedValue({ ok: true, previewUrl: 'https://ethereal.email/test' }),
+    };
+
+    encryptionServiceMock = {
+      encrypt: jest.fn().mockImplementation((v: string) => `cifrado.${v}`),
+      decrypt: jest.fn().mockImplementation((v: string) => v.replace('cifrado.', '')),
+    };
+
     jwtServiceMock = {
       sign: jest.fn().mockReturnValue('mocked.jwt.access_token'),
+      verify: jest.fn(),
     };
 
     configMock = {
       jwtAccessSecret: 'test-secret',
       jwtAccessExpiresIn: '15m',
       cookieDomain: 'localhost',
+      frontendUrl: 'http://localhost:5173',
       loginMaxAttempts: 5,
       loginLockMinutes: 15,
     };
 
     tokenService = new TokenService(jwtServiceMock, configMock as any, prismaMock);
-    authService = new AuthService(prismaMock, passwordServiceMock, tokenService, loginThrottleMock);
+    authService = new AuthService(
+      prismaMock,
+      passwordServiceMock,
+      tokenService,
+      loginThrottleMock,
+      emailServiceMock,
+      encryptionServiceMock,
+      configMock as any,
+    );
   });
 
   describe('TokenService', () => {
@@ -224,9 +249,10 @@ describe('Auth & Token Services', () => {
       expect(loginThrottleMock.registrarIntentoFallido).toHaveBeenCalledWith(5n);
     });
 
-    it('lanza error explícito de bug conocido si tiene MFA activo', async () => {
+    it('retorna requiereMfa si tiene dobleFactorActivo y no se envía codigoMfa', async () => {
       prismaMock.usuario.findUnique.mockResolvedValue({
         id: 5n,
+        correoElectronico: 'test@empresa.com',
         estado: 'APROBADO',
         contrasenaHash: 'hash',
         dobleFactorActivo: true,
@@ -234,7 +260,49 @@ describe('Auth & Token Services', () => {
       });
       passwordServiceMock.verify.mockResolvedValue(true);
 
-      await expect(authService.login(dtoLogin, {})).rejects.toThrow('MFA activo pero no implementable');
+      const res = await authService.login(dtoLogin, {});
+      expect(res).toHaveProperty('requiereMfa', true);
+      expect(res).toHaveProperty('mensaje');
+    });
+
+    it('permite login con dobleFactorActivo si se envía codigoMfa TOTP válido (RFC 6238)', async () => {
+      const secreto = authenticator.generateSecret();
+      const codigoTotpValido = authenticator.generate(secreto);
+
+      prismaMock.usuario.findUnique.mockResolvedValue({
+        id: 5n,
+        correoElectronico: 'test@empresa.com',
+        estado: 'APROBADO',
+        contrasenaHash: 'hash',
+        nombreCompleto: 'Tecnico Pruebas',
+        dobleFactorActivo: true,
+        idEmpresa: null,
+        roles: [{ rol: { codigo: 'TECNICO_EVALUADOR' } }],
+      });
+      prismaMock.$queryRaw.mockResolvedValue([{ secreto_totp: `cifrado.${secreto}` }]);
+      passwordServiceMock.verify.mockResolvedValue(true);
+
+      const res = await authService.login({ ...dtoLogin, codigoMfa: codigoTotpValido }, { userAgent: 'Jest' });
+      expect(res).toHaveProperty('accessToken');
+    });
+
+    it('falla con UnauthorizedException si se envía codigoMfa incorrecto', async () => {
+      const secreto = authenticator.generateSecret();
+
+      prismaMock.usuario.findUnique.mockResolvedValue({
+        id: 5n,
+        correoElectronico: 'test@empresa.com',
+        estado: 'APROBADO',
+        contrasenaHash: 'hash',
+        dobleFactorActivo: true,
+        roles: [{ rol: { codigo: 'TECNICO_EVALUADOR' } }],
+      });
+      prismaMock.$queryRaw.mockResolvedValue([{ secreto_totp: `cifrado.${secreto}` }]);
+      passwordServiceMock.verify.mockResolvedValue(true);
+
+      await expect(authService.login({ ...dtoLogin, codigoMfa: '000000' }, {})).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('login exitoso genera tokens y resetea throttle', async () => {
@@ -250,9 +318,71 @@ describe('Auth & Token Services', () => {
       passwordServiceMock.verify.mockResolvedValue(true);
 
       const res = await authService.login(dtoLogin, { userAgent: 'Jest' });
-      expect(res.accessToken).toBe('mocked.jwt.access_token');
-      expect(res.usuario.rol).toBe('TECNICO_EVALUADOR');
+      expect('accessToken' in res).toBe(true);
+      if ('accessToken' in res) {
+        expect(res.accessToken).toBe('mocked.jwt.access_token');
+        expect(res.usuario.rol).toBe('TECNICO_EVALUADOR');
+      }
       expect(loginThrottleMock.registrarLoginExitoso).toHaveBeenCalledWith(5n);
+    });
+  });
+
+  describe('AuthService - Recuperación de Contraseña (RF-01)', () => {
+    it('solicitarRecuperacionContrasena despacha correo con enlace de restablecimiento', async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue({
+        id: 10n,
+        correoElectronico: 'usuario@digemaps.gob.do',
+        nombreCompleto: 'Usuario Prueba',
+        contrasenaHash: '$argon2id$v=19$m=65536,t=3,p=4$abcde12345',
+        estado: 'APROBADO',
+      });
+
+      const res = await authService.solicitarRecuperacionContrasena({ correo: 'usuario@digemaps.gob.do' });
+      expect(res.ok).toBe(true);
+      expect(emailServiceMock.enviarRecuperacionContrasena).toHaveBeenCalledWith(
+        'usuario@digemaps.gob.do',
+        'Usuario Prueba',
+        expect.stringContaining('/restablecer-contrasena?token='),
+      );
+    });
+
+    it('solicitarRecuperacionContrasena no revela si el usuario no existe', async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue(null);
+
+      const res = await authService.solicitarRecuperacionContrasena({ correo: 'inexistente@digemaps.gob.do' });
+      expect(res.ok).toBe(true);
+      expect(emailServiceMock.enviarRecuperacionContrasena).not.toHaveBeenCalled();
+    });
+
+    it('restablecerContrasena valida token, actualiza hash y revoca sesiones', async () => {
+      jwtServiceMock.verify = jest.fn().mockReturnValue({
+        sub: '10',
+        pwh: 'abcde12345',
+        purpose: 'pwd_reset',
+      });
+
+      prismaMock.usuario.findUnique.mockResolvedValue({
+        id: 10n,
+        contrasenaHash: '$argon2id$v=19$m=65536,t=3,p=4$abcde12345',
+        estado: 'APROBADO',
+      });
+      passwordServiceMock.verify.mockResolvedValue(false); // nueva contraseña es distinta
+
+      const res = await authService.restablecerContrasena({
+        token: 'token-valido',
+        contrasenaNueva: 'NuevaClave2026!',
+        confirmacion: 'NuevaClave2026!',
+      });
+
+      expect(res.ok).toBe(true);
+      expect(prismaMock.usuario.update).toHaveBeenCalledWith({
+        where: { id: 10n },
+        data: { contrasenaHash: '$argon2id$hashed_password' },
+      });
+      expect(prismaMock.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { idUsuario: 10n },
+        data: { revocado: true },
+      });
     });
   });
 
