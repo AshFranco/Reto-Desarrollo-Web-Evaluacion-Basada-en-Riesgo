@@ -41,9 +41,10 @@ interface ModalInspeccionCasoProps {
   casoId: string | null;
   open: boolean;
   onClose: () => void;
+  soloLectura?: boolean;
 }
 
-export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCasoProps) {
+export function ModalInspeccionCaso({ casoId, open, onClose, soloLectura = false }: ModalInspeccionCasoProps) {
   const { data: caso, isLoading, isError, error } = useCasoDetalle(open ? casoId : null);
   const actualizarPrioridad = useActualizarPrioridadCaso();
   const reabrir = useReabrirExpediente();
@@ -62,6 +63,7 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
   const estaCerrado = Boolean(
     caso?.estado?.toLowerCase() === 'cerrado' || caso?.expediente?.estado?.toLowerCase() === 'cerrado'
   );
+  const puedeModificar = !soloLectura && !estaCerrado;
 
   async function handleReabrir() {
     if (!caso) return;
@@ -103,9 +105,24 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <VisibilityOutlinedIcon color="primary" />
-        Inspección Detallada del Caso {casoId ? `#${casoId}` : ''}
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <VisibilityOutlinedIcon color="primary" />
+          Inspección Detallada del Caso {casoId ? `#${casoId}` : ''}
+        </Box>
+        {soloLectura && (
+          <Chip
+            label="Modo solo lectura"
+            size="small"
+            variant="outlined"
+            sx={{
+              bgcolor: 'rgba(71, 85, 105, 0.08)',
+              borderColor: 'rgba(71, 85, 105, 0.25)',
+              color: 'text.secondary',
+              fontWeight: 600,
+            }}
+          />
+        )}
       </DialogTitle>
 
       <DialogContent dividers>
@@ -136,8 +153,8 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
                       Origen: <strong>{caso.origen?.nombre ?? 'No especificado'}</strong>
                     </Typography>
                     <Typography variant="caption" color="text.secondary">· Prioridad:</Typography>
-                    {estaCerrado ? (
-                      <Tooltip title="La prioridad no puede modificarse en casos cerrados">
+                    {!puedeModificar ? (
+                      <Tooltip title={soloLectura ? 'Modo solo lectura' : 'La prioridad no puede modificarse en casos cerrados'}>
                         <span>
                           <Chip
                             label={caso.prioridad ?? 'NORMAL'}
@@ -203,7 +220,7 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
                       </Alert>
                     )}
 
-                    {!estaCerrado && (
+                    {puedeModificar && (
                       <Box sx={{ mt: 1 }}>
                         {!editandoTecnico ? (
                           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -368,7 +385,7 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
 
       <DialogActions sx={{ px: 3, py: 2, display: 'flex', flexDirection: { xs: 'column-reverse', sm: 'row' }, justifyContent: 'space-between', gap: 1 }}>
         <Box sx={{ width: { xs: '100%', sm: 'auto' } }}>
-          {estaCerrado && (
+          {!soloLectura && estaCerrado && (
             <Button
               variant="outlined"
               color="primary"
