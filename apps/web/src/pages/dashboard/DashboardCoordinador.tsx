@@ -547,7 +547,7 @@ function TablaCasos() {
         </Box>
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ width: '100%', overflowX: 'auto', borderRadius: 2 }}>
-          <Table size="small" sx={{ minWidth: 800 }}>
+          <Table size="small">
             <TableHead>
               <TableRow>
                 <TableCell width={40} />
@@ -616,6 +616,8 @@ function Calendario() {
   const { data: tecnicos, isLoading: cargandoTecnicos } = useTecnicos();
   const [evaluadorId, setEvaluadorId] = useState('');
   const { data: eventos, isLoading, isError, error } = useCalendario(evaluadorId || undefined);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
     <Box>
@@ -647,24 +649,39 @@ function Calendario() {
         <Typography color="text.secondary">Este técnico no tiene evaluaciones programadas.</Typography>
       )}
       {evaluadorId && eventos && eventos.length > 0 && (
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Establecimiento</TableCell>
-                <TableCell>Fecha programada</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {eventos.map((ev) => (
-                <TableRow key={ev.id}>
-                  <TableCell>{ev.establecimiento.nombre}</TableCell>
-                  <TableCell>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha'}</TableCell>
+        isMobile ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {eventos.map((ev) => (
+              <Paper key={ev.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  {ev.establecimiento.nombre}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  Fecha programada: <strong>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha asignada'}</strong>
+                </Typography>
+              </Paper>
+            ))}
+          </Box>
+        ) : (
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Establecimiento</TableCell>
+                  <TableCell>Fecha programada</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {eventos.map((ev) => (
+                  <TableRow key={ev.id}>
+                    <TableCell>{ev.establecimiento.nombre}</TableCell>
+                    <TableCell>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )
       )}
     </Box>
   );
@@ -803,15 +820,162 @@ function FilaInformePendiente({ informe }: { informe: InformePendiente }) {
   );
 }
 
+function TarjetaInformePendiente({ informe }: { informe: InformePendiente }) {
+  const revisar = useRevisarInforme();
+  const [observaciones, setObservaciones] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
+  const [accionModal, setAccionModal] = useState<AccionRevision | null>(null);
+
+  async function ejecutar(accion: AccionRevision) {
+    setError(null);
+    setExito(null);
+    setAccionModal(null);
+    try {
+      await revisar.mutateAsync({
+        evaluacionId: informe.evaluacionId,
+        accion,
+        observaciones: observaciones.trim() || undefined,
+      });
+      setExito(
+        accion === 'APROBAR'
+          ? 'Informe aprobado exitosamente. Listo para cierre de expediente.'
+          : 'Informe devuelto al técnico. Disponible en la sección "Informes devueltos / en corrección".'
+      );
+      setObservaciones('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al revisar el informe');
+    }
+  }
+
+  return (
+    <>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        <Box>
+          <Typography variant="subtitle2" fontWeight={700}>
+            {informe.establecimiento}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {informe.empresa}
+          </Typography>
+        </Box>
+
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="Observaciones (opcional)"
+          value={observaciones}
+          onChange={(e) => setObservaciones(e.target.value)}
+          disabled={revisar.isPending}
+        />
+        {error && (
+          <Typography variant="caption" color="error">
+            {error}
+          </Typography>
+        )}
+        {exito && (
+          <Typography variant="caption" color="success.main">
+            {exito}
+          </Typography>
+        )}
+
+        <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Button
+            fullWidth
+            size="small"
+            variant="contained"
+            color="primary"
+            disabled={revisar.isPending}
+            onClick={() => setAccionModal('APROBAR')}
+          >
+            Aprobar informe
+          </Button>
+          <Button
+            fullWidth
+            size="small"
+            variant="outlined"
+            disabled={revisar.isPending}
+            onClick={() => setAccionModal('DEVOLVER')}
+            sx={{
+              borderColor: 'rgba(15, 23, 42, 0.20)',
+              color: 'text.primary',
+              '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+            }}
+          >
+            Devolver para corrección
+          </Button>
+        </Box>
+      </Paper>
+
+      <Dialog open={Boolean(accionModal)} onClose={() => setAccionModal(null)}>
+        <DialogTitle>
+          {accionModal === 'APROBAR'
+            ? 'Confirmar aprobación de informe'
+            : 'Confirmar devolución al técnico evaluador'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {accionModal === 'APROBAR' ? (
+              <>
+                ¿Confirmas la aprobación del informe de evaluación para <strong>{informe.establecimiento}</strong> ({informe.empresa})?
+                Una vez aprobado, el caso se habilitará en la bandeja de <strong>Expedientes pendientes de cierre</strong>.
+              </>
+            ) : (
+              <>
+                ¿Confirmas la devolución del informe de <strong>{informe.establecimiento}</strong> al técnico evaluador?
+                {observaciones.trim() ? (
+                  <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
+                    <Typography variant="caption"><strong>Observaciones registradas:</strong> {observaciones}</Typography>
+                  </Box>
+                ) : (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    (Puedes incluir observaciones antes de confirmar para guiar al técnico en las correcciones requeridas).
+                  </Typography>
+                )}
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAccionModal(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color={accionModal === 'APROBAR' ? 'primary' : 'inherit'}
+            disabled={revisar.isPending}
+            onClick={() => accionModal && ejecutar(accionModal)}
+            sx={accionModal !== 'APROBAR' ? { bgcolor: '#334155', color: '#fff', '&:hover': { bgcolor: '#1E293B' } } : undefined}
+          >
+            {revisar.isPending ? (
+              <CircularProgress size={16} color="inherit" />
+            ) : accionModal === 'APROBAR' ? (
+              'Aprobar informe'
+            ) : (
+              'Confirmar devolución'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
 function SeccionInformesPendientes() {
   const { data: pendientes, isLoading } = useInformesPendientes();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   if (isLoading) return <EstadoCarga />;
   if (pendientes.length === 0) {
     return <EstadoVacio titulo="No hay informes pendientes de revisión." icono={<AssignmentTurnedInOutlinedIcon fontSize="large" />} />;
   }
 
-  return (
+  return isMobile ? (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {pendientes.map((p) => (
+        <TarjetaInformePendiente key={p.evaluacionId} informe={p} />
+      ))}
+    </Box>
+  ) : (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
@@ -912,8 +1076,96 @@ function FilaInformeDevuelto({
   );
 }
 
+function TarjetaInformeDevuelto({
+  informe,
+}: {
+  informe: InformeDevuelto;
+}) {
+  const deshacer = useDeshacerDevolucion();
+  const [confirmarDeshacer, setConfirmarDeshacer] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDeshacer() {
+    setError(null);
+    try {
+      await deshacer.mutateAsync({ evaluacionId: informe.evaluacionId, casoId: informe.casoId });
+      setConfirmarDeshacer(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al revertir la devolución');
+    }
+  }
+
+  return (
+    <>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              {informe.establecimiento}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              {informe.empresa}
+            </Typography>
+          </Box>
+          <Chip
+            label="En corrección"
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: 'rgba(15, 23, 42, 0.16)',
+              color: 'text.secondary',
+              fontWeight: 600,
+              bgcolor: 'rgba(15, 23, 42, 0.02)',
+            }}
+          />
+        </Box>
+        {error && (
+          <Typography variant="caption" color="error">
+            {error}
+          </Typography>
+        )}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="info"
+            startIcon={deshacer.isPending ? <CircularProgress size={16} /> : <UndoOutlinedIcon />}
+            disabled={deshacer.isPending}
+            onClick={() => setConfirmarDeshacer(true)}
+          >
+            Deshacer devolución
+          </Button>
+        </Box>
+      </Paper>
+
+      <Dialog open={confirmarDeshacer} onClose={() => setConfirmarDeshacer(false)}>
+        <DialogTitle>Deshacer devolución de informe</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Deseas revertir la devolución del informe del establecimiento <strong>{informe.establecimiento}</strong>?
+            El informe volverá inmediatamente a la bandeja de <strong>Informes pendientes de revisión</strong>.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmarDeshacer(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="info"
+            disabled={deshacer.isPending}
+            onClick={handleDeshacer}
+          >
+            {deshacer.isPending ? <CircularProgress size={16} color="inherit" /> : 'Revertir a En Revisión'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
 function SeccionInformesDevueltos() {
   const { data: devueltos, isLoading } = useInformesDevueltos();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   if (isLoading) return <EstadoCarga />;
   if (devueltos.length === 0) {
@@ -925,7 +1177,13 @@ function SeccionInformesDevueltos() {
     );
   }
 
-  return (
+  return isMobile ? (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {devueltos.map((d) => (
+        <TarjetaInformeDevuelto key={d.evaluacionId} informe={d} />
+      ))}
+    </Box>
+  ) : (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
@@ -943,6 +1201,73 @@ function SeccionInformesDevueltos() {
         </TableBody>
       </Table>
     </TableContainer>
+  );
+}
+
+function TarjetaCasoCerrable({ caso }: { caso: CasoCerrable }) {
+  const cerrar = useCerrarExpediente();
+  const [confirmarCierre, setConfirmarCierre] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ejecutar() {
+    setError(null);
+    try {
+      await cerrar.mutateAsync(caso.casoId);
+      setConfirmarCierre(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cerrar el expediente');
+    }
+  }
+
+  return (
+    <>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        <Box>
+          <Typography variant="subtitle2" fontWeight={700}>
+            {caso.establecimiento}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {caso.empresa}
+          </Typography>
+        </Box>
+        {error && (
+          <Typography variant="caption" color="error">
+            {error}
+          </Typography>
+        )}
+        <Button
+          size="small"
+          variant="contained"
+          color="success"
+          fullWidth
+          disabled={cerrar.isPending}
+          onClick={() => setConfirmarCierre(true)}
+        >
+          Cerrar expediente
+        </Button>
+      </Paper>
+
+      <Dialog open={confirmarCierre} onClose={() => setConfirmarCierre(false)}>
+        <DialogTitle>Confirmar cierre definitivo de expediente</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que deseas cerrar el expediente del caso para <strong>{caso.establecimiento}</strong> ({caso.empresa})?
+            Esta acción concluirá el proceso de evaluación y registrará el caso como <strong>Cerrado</strong> en el histórico institucional.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmarCierre(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={cerrar.isPending}
+            onClick={ejecutar}
+          >
+            {cerrar.isPending ? <CircularProgress size={16} color="inherit" /> : 'Confirmar cierre'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
@@ -1010,13 +1335,21 @@ function FilaCasoCerrable({ caso }: { caso: CasoCerrable }) {
 
 function SeccionExpedientesPendientes() {
   const { data: cerrables, isLoading } = useCasosCerrables();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   if (isLoading) return <EstadoCarga />;
   if (cerrables.length === 0) {
     return <EstadoVacio titulo="No hay expedientes pendientes de cierre." icono={<TaskAltOutlinedIcon fontSize="large" />} />;
   }
 
-  return (
+  return isMobile ? (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {cerrables.map((c) => (
+        <TarjetaCasoCerrable key={c.casoId} caso={c} />
+      ))}
+    </Box>
+  ) : (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
@@ -1036,12 +1369,75 @@ function SeccionExpedientesPendientes() {
   );
 }
 
+function TarjetaExpedienteCerrado({
+  expediente,
+  onInspeccionar,
+  onReabrir,
+}: {
+  expediente: Expediente;
+  onInspeccionar: (casoId: string) => void;
+  onReabrir: (exp: Expediente) => void;
+}) {
+  const esAprobada = expediente.resultadoFinal?.toLowerCase().includes('aprueba');
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            {expediente.caso.establecimiento.nombre}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            {expediente.caso.establecimiento.empresa?.razonSocial ?? '—'}
+          </Typography>
+        </Box>
+        <Chip
+          size="small"
+          label={expediente.resultadoFinal ?? 'No calculado'}
+          color={esAprobada ? 'success' : 'default'}
+          variant="outlined"
+          sx={{ fontWeight: 600, maxWidth: '50%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+        />
+      </Box>
+
+      <Typography variant="caption" color="text.secondary">
+        Cerrado el: <strong>{expediente.fechaCierre ? new Date(expediente.fechaCierre).toLocaleDateString() : '—'}</strong>
+      </Typography>
+
+      <Divider />
+
+      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        <Button
+          size="small"
+          variant="outlined"
+          color="primary"
+          startIcon={<VisibilityOutlinedIcon />}
+          onClick={() => onInspeccionar(expediente.caso.id)}
+        >
+          Inspeccionar
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          color="primary"
+          startIcon={<LockOpenOutlinedIcon />}
+          onClick={() => onReabrir(expediente)}
+        >
+          Reabrir caso
+        </Button>
+      </Box>
+    </Paper>
+  );
+}
+
 function TablaExpedientesCerrados() {
   const { data: expedientes, isLoading, isError, error } = useExpedientes();
   const reabrir = useReabrirExpediente();
   const [casoAInspeccionar, setCasoAInspeccionar] = useState<string | null>(null);
   const [expedienteAReabrir, setExpedienteAReabrir] = useState<Expediente | null>(null);
   const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   async function handleConfirmarReabrir() {
     if (!expedienteAReabrir) return;
@@ -1064,54 +1460,77 @@ function TablaExpedientesCerrados() {
 
   return (
     <>
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Empresa</TableCell>
-              <TableCell>Establecimiento</TableCell>
-              <TableCell>Fecha de cierre</TableCell>
-              <TableCell>Resultado final</TableCell>
-              <TableCell align="right">Acciones</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {expedientes.map((exp) => (
-              <TableRow key={exp.id}>
-                <TableCell>{exp.caso.establecimiento.empresa?.razonSocial ?? '—'}</TableCell>
-                <TableCell>{exp.caso.establecimiento.nombre}</TableCell>
-                <TableCell>{exp.fechaCierre ? new Date(exp.fechaCierre).toLocaleDateString() : '—'}</TableCell>
-                <TableCell>{exp.resultadoFinal ?? 'No calculado'}</TableCell>
-                <TableCell align="right">
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<VisibilityOutlinedIcon />}
-                      onClick={() => setCasoAInspeccionar(exp.caso.id)}
-                    >
-                      Inspeccionar
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<LockOpenOutlinedIcon />}
-                      onClick={() => {
-                        setErrorReabrir(null);
-                        setExpedienteAReabrir(exp);
-                      }}
-                    >
-                      Reabrir caso
-                    </Button>
-                  </Box>
-                </TableCell>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {expedientes.map((exp) => (
+            <TarjetaExpedienteCerrado
+              key={exp.id}
+              expediente={exp}
+              onInspeccionar={(id) => setCasoAInspeccionar(id)}
+              onReabrir={(e) => {
+                setErrorReabrir(null);
+                setExpedienteAReabrir(e);
+              }}
+            />
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} variant="outlined" sx={{ width: '100%', overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Empresa</TableCell>
+                <TableCell>Establecimiento</TableCell>
+                <TableCell>Fecha de cierre</TableCell>
+                <TableCell>Resultado final</TableCell>
+                <TableCell align="right">Acciones</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {expedientes.map((exp) => (
+                <TableRow key={exp.id} hover>
+                  <TableCell>{exp.caso.establecimiento.empresa?.razonSocial ?? '—'}</TableCell>
+                  <TableCell sx={{ fontWeight: 500 }}>{exp.caso.establecimiento.nombre}</TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{exp.fechaCierre ? new Date(exp.fechaCierre).toLocaleDateString() : '—'}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={exp.resultadoFinal ?? 'No calculado'}
+                      color={exp.resultadoFinal?.toLowerCase().includes('aprueba') ? 'success' : 'default'}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<VisibilityOutlinedIcon />}
+                        onClick={() => setCasoAInspeccionar(exp.caso.id)}
+                      >
+                        Inspeccionar
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<LockOpenOutlinedIcon />}
+                        onClick={() => {
+                          setErrorReabrir(null);
+                          setExpedienteAReabrir(exp);
+                        }}
+                      >
+                        Reabrir caso
+                      </Button>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <ModalInspeccionCaso
         casoId={casoAInspeccionar}
@@ -1148,7 +1567,6 @@ function TablaExpedientesCerrados() {
   );
 }
 
-
 function ResumenCoordinador() {
   const { data: casos } = useCasos();
   const { data: pendientes } = useInformesPendientes();
@@ -1160,7 +1578,13 @@ function ResumenCoordinador() {
   const totalExpedientesCerrados = expedientes?.length ?? 0;
 
   return (
-    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', xl: 'repeat(5, 1fr)' },
+        gap: 2,
+      }}
+    >
       <StatCard
         icono={<FolderOutlinedIcon />}
         valor={casosActivos}

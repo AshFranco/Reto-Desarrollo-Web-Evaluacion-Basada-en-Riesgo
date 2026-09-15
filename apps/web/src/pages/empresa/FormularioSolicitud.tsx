@@ -233,39 +233,43 @@ export default function FormularioSolicitud() {
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 4 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column-reverse', sm: 'row' }, justifyContent: 'space-between', gap: 2, mt: 4 }}>
           {paso === 0 ? (
-            <Button onClick={() => navigate('/empresa')}>
+            <Button fullWidth onClick={() => navigate('/empresa')} sx={{ width: { xs: '100%', sm: 'auto' } }}>
               Cancelar y volver
             </Button>
           ) : (
-            <Button disabled={enviando} onClick={() => setPaso((p) => p - 1)}>
+            <Button disabled={enviando} onClick={() => setPaso((p) => p - 1)} sx={{ width: { xs: '100%', sm: 'auto' } }}>
               Atrás
             </Button>
           )}
 
           {paso < PASOS.length - 1 ? (
-
             <Button
               variant="contained"
               disabled={paso === 0 && !camposBasicosCompletos}
               onClick={() => setPaso((p) => p + 1)}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Siguiente
             </Button>
           ) : (
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, width: { xs: '100%', sm: 'auto' } }}>
               <Button
                 variant="outlined"
+                fullWidth
                 disabled={enviando || !camposBasicosCompletos}
                 onClick={() => guardar(false)}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               >
                 {enviando ? <CircularProgress size={20} /> : 'Guardar borrador'}
               </Button>
               <Button
                 variant="contained"
+                fullWidth
                 disabled={enviando || !camposBasicosCompletos || !establecimientoId}
                 onClick={() => guardar(true)}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               >
                 {enviando ? <CircularProgress size={20} /> : 'Enviar directamente'}
               </Button>

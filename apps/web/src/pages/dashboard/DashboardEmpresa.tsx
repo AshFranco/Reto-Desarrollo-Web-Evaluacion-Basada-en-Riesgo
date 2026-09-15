@@ -16,7 +16,9 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import DomainOutlinedIcon from '@mui/icons-material/DomainOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useSesion } from '@/lib/auth/useSesion';
@@ -320,7 +322,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
   return (
     <Card>
       <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2 }}>
           <Box>
             <Typography variant="h6">{empresa.razonSocial}</Typography>
             <Typography color="text.secondary">RNC: {empresa.rnc}</Typography>
@@ -330,7 +332,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
             {empresa.correo && <Typography color="text.secondary">Correo: {empresa.correo}</Typography>}
           </Box>
           {puedeEditar && (
-            <Button variant="outlined" size="small" onClick={empezarEdicion}>
+            <Button variant="outlined" size="small" onClick={empezarEdicion} sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}>
               Editar
             </Button>
           )}
@@ -341,6 +343,8 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
 }
 
 function ListaSolicitudes() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { data: solicitudes, isLoading, isError, error } = useSolicitudesPropias();
 
   if (isLoading) return <EstadoCarga />;
@@ -349,6 +353,29 @@ function ListaSolicitudes() {
   }
   if (!solicitudes || solicitudes.length === 0) {
     return <EstadoVacio titulo="Todavía no hay solicitudes BPM registradas." icono={<DescriptionOutlinedIcon fontSize="large" />} />;
+  }
+
+  if (isMobile) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        {solicitudes.map((s) => (
+          <Paper key={s.id} variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {s.tipoEstablecimiento}
+              </Typography>
+              <EstadoChip estado={s.estado} />
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              Motivo: {s.motivo}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Fecha: {new Date(s.fechaCreacion).toLocaleDateString()}
+            </Typography>
+          </Paper>
+        ))}
+      </Box>
+    );
   }
 
   return (
@@ -380,6 +407,8 @@ function ListaSolicitudes() {
 }
 
 function ListaEstablecimientos() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { data: establecimientos, isLoading, isError, error } = useEstablecimientos();
 
   if (isLoading) return <EstadoCarga />;
@@ -388,6 +417,31 @@ function ListaEstablecimientos() {
   }
   if (!establecimientos || establecimientos.length === 0) {
     return <EstadoVacio titulo="Todavía no registraste ningún establecimiento." icono={<DomainOutlinedIcon fontSize="large" />} />;
+  }
+
+  if (isMobile) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        {establecimientos.map((est) => (
+          <Paper key={est.id} variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {est.nombre}
+              </Typography>
+              <Button size="small" variant="outlined" component={RouterLink} to={`/empresa/establecimientos/${est.id}/editar`}>
+                Editar
+              </Button>
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              Dirección: {est.calle ?? '—'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Permiso sanitario: {est.numeroPermisoSanitario ?? '—'}
+            </Typography>
+          </Paper>
+        ))}
+      </Box>
+    );
   }
 
   return (
@@ -464,7 +518,7 @@ export default function DashboardEmpresa() {
 
       {empresaId && (
         <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 1 }}>
             <Typography variant="h6">Mis establecimientos</Typography>
             <Button variant="contained" component={RouterLink} to="/empresa/establecimientos/nuevo">
               Nuevo establecimiento
@@ -475,7 +529,7 @@ export default function DashboardEmpresa() {
       )}
 
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 1 }}>
           <Typography variant="h6">Mis solicitudes BPM</Typography>
           <Button variant="contained" component={RouterLink} to="/empresa/solicitudes/nueva">
             Nueva solicitud BPM

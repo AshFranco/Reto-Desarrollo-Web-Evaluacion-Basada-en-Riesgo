@@ -26,7 +26,9 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
 import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -220,7 +222,67 @@ function DialogoRechazo({
   );
 }
 
+function TarjetaUsuarioPendiente({
+  usuario,
+  onAprobar,
+  onRechazar,
+  deshabilitado,
+}: {
+  usuario: UsuarioPendiente;
+  onAprobar: (id: string) => void;
+  onRechazar: (u: UsuarioPendiente) => void;
+  deshabilitado: boolean;
+}) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+        <Typography variant="subtitle2" fontWeight={700}>
+          {usuario.nombreCompleto}
+        </Typography>
+        <Chip
+          label={usuario.roles.join(', ') || 'Sin rol'}
+          size="small"
+          variant="outlined"
+          sx={{ borderColor: 'rgba(15, 23, 42, 0.20)', color: 'text.secondary' }}
+        />
+      </Box>
+      <Typography variant="body2" color="text.secondary">
+        {usuario.correoElectronico}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        Fecha solicitud: {new Date(usuario.fechaCreacion).toLocaleDateString()}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1, mt: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+        <Button
+          size="small"
+          variant="contained"
+          color="primary"
+          fullWidth
+          startIcon={<CheckCircleOutlineIcon fontSize="small" />}
+          disabled={deshabilitado}
+          onClick={() => onAprobar(usuario.id)}
+        >
+          Aprobar
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          color="error"
+          fullWidth
+          startIcon={<CancelOutlinedIcon fontSize="small" />}
+          disabled={deshabilitado}
+          onClick={() => onRechazar(usuario)}
+        >
+          Rechazar
+        </Button>
+      </Box>
+    </Paper>
+  );
+}
+
 function TablaUsuariosPendientes() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { data: pendientes, isLoading, isError, error } = useRegistrosPendientes();
   const resolver = useResolverRegistro();
   const [usuarioRechazo, setUsuarioRechazo] = useState<UsuarioPendiente | null>(null);
@@ -265,60 +327,74 @@ function TablaUsuariosPendientes() {
         </Alert>
       )}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Nombre completo</TableCell>
-              <TableCell>Correo electrónico</TableCell>
-              <TableCell>Rol solicitado</TableCell>
-              <TableCell>Fecha solicitud</TableCell>
-              <TableCell align="right">Acciones</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {pendientes.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell><strong>{u.nombreCompleto}</strong></TableCell>
-                <TableCell>{u.correoElectronico}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={u.roles.join(', ') || 'Sin rol'}
-                    size="small"
-                    variant="outlined"
-                    sx={{ borderColor: 'rgba(15, 23, 42, 0.20)', color: 'text.secondary' }}
-                  />
-                </TableCell>
-                <TableCell>{new Date(u.fechaCreacion).toLocaleDateString()}</TableCell>
-                <TableCell align="right">
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      color="primary"
-                      startIcon={<CheckCircleOutlineIcon fontSize="small" />}
-                      disabled={resolver.isPending}
-                      onClick={() => handleAprobar(u.id)}
-                    >
-                      Aprobar
-                    </Button>
-                    <Button
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {pendientes.map((u) => (
+            <TarjetaUsuarioPendiente
+              key={u.id}
+              usuario={u}
+              onAprobar={handleAprobar}
+              onRechazar={(u) => setUsuarioRechazo(u)}
+              deshabilitado={resolver.isPending}
+            />
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Nombre completo</TableCell>
+                <TableCell>Correo electrónico</TableCell>
+                <TableCell>Rol solicitado</TableCell>
+                <TableCell>Fecha solicitud</TableCell>
+                <TableCell align="right">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {pendientes.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell><strong>{u.nombreCompleto}</strong></TableCell>
+                  <TableCell>{u.correoElectronico}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={u.roles.join(', ') || 'Sin rol'}
                       size="small"
                       variant="outlined"
-                      color="error"
-                      startIcon={<CancelOutlinedIcon fontSize="small" />}
-                      disabled={resolver.isPending}
-                      onClick={() => setUsuarioRechazo(u)}
-                    >
-                      Rechazar
-                    </Button>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                      sx={{ borderColor: 'rgba(15, 23, 42, 0.20)', color: 'text.secondary' }}
+                    />
+                  </TableCell>
+                  <TableCell>{new Date(u.fechaCreacion).toLocaleDateString()}</TableCell>
+                  <TableCell align="right">
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="primary"
+                        startIcon={<CheckCircleOutlineIcon fontSize="small" />}
+                        disabled={resolver.isPending}
+                        onClick={() => handleAprobar(u.id)}
+                      >
+                        Aprobar
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={<CancelOutlinedIcon fontSize="small" />}
+                        disabled={resolver.isPending}
+                        onClick={() => setUsuarioRechazo(u)}
+                      >
+                        Rechazar
+                      </Button>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <DialogoRechazo
         usuario={usuarioRechazo}
@@ -332,7 +408,112 @@ function TablaUsuariosPendientes() {
 // ---------------------------------------------------------------------
 // TAB 1: Gestión de Usuarios y Roles (Blindaje de Administrador y Badges Pulidos)
 // ---------------------------------------------------------------------
+function TarjetaGestionUsuario({
+  usuario,
+  onEditarRol,
+  onToggleEstado,
+  actualizandoEstado,
+}: {
+  usuario: UsuarioSistema;
+  onEditarRol: (u: UsuarioSistema) => void;
+  onToggleEstado: (u: UsuarioSistema) => void;
+  actualizandoEstado: boolean;
+}) {
+  const rolPrincipal = usuario.roles[0]?.nombre ?? 'Sin rol';
+  const estaBloqueado = usuario.estado === 'BLOQUEADO' || usuario.estado === 'INACTIVO';
+  const esAdmin =
+    usuario.roles.some((r) => r.codigo === 'ADMINISTRADOR') ||
+    usuario.correoElectronico.toLowerCase() === 'admin@digemaps.gob.do';
+
+  const configEstado = CONFIG_ESTADO_USUARIO[usuario.estado] ?? {
+    label: usuario.estado,
+    bg: 'rgba(71, 85, 105, 0.08)',
+    border: 'rgba(71, 85, 105, 0.25)',
+    color: '#334155',
+  };
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+        <Typography variant="subtitle2" fontWeight={700}>
+          {usuario.nombreCompleto}
+        </Typography>
+        <Chip
+          label={configEstado.label}
+          size="small"
+          variant="outlined"
+          sx={{
+            bgcolor: configEstado.bg,
+            borderColor: configEstado.border,
+            color: configEstado.color,
+            fontWeight: 600,
+            fontSize: '0.75rem',
+          }}
+        />
+      </Box>
+      <Typography variant="body2" color="text.secondary">
+        {usuario.correoElectronico}
+      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography variant="caption" color="text.secondary">Rol:</Typography>
+        {esAdmin ? (
+          <Chip
+            icon={<LockOutlinedIcon sx={{ fontSize: '0.85rem !important' }} />}
+            label="Administrador (Protegido)"
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: '#2A6DB0',
+              color: '#1D4E80',
+              bgcolor: 'rgba(42, 109, 176, 0.06)',
+              fontWeight: 600,
+            }}
+          />
+        ) : (
+          <Chip
+            label={rolPrincipal}
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: 'rgba(15, 23, 42, 0.20)', color: 'text.secondary' }}
+          />
+        )}
+        {usuario.empresa?.razonSocial && (
+          <Typography variant="caption" color="text.secondary">
+            · Empresa: {usuario.empresa.razonSocial}
+          </Typography>
+        )}
+      </Box>
+      <Box sx={{ display: 'flex', gap: 1, mt: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+        <Button
+          size="small"
+          variant="contained"
+          color="primary"
+          fullWidth
+          startIcon={<EditOutlinedIcon fontSize="small" />}
+          disabled={esAdmin}
+          onClick={() => onEditarRol(usuario)}
+        >
+          Cambiar rol
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          color={estaBloqueado ? 'primary' : 'error'}
+          fullWidth
+          startIcon={estaBloqueado ? <CheckCircleOutlineIcon fontSize="small" /> : <BlockOutlinedIcon fontSize="small" />}
+          disabled={esAdmin || actualizandoEstado}
+          onClick={() => onToggleEstado(usuario)}
+        >
+          {estaBloqueado ? 'Activar' : 'Desactivar'}
+        </Button>
+      </Box>
+    </Paper>
+  );
+}
+
 function TablaGestionUsuarios() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { data: usuarios, isLoading, isError, error } = useUsuariosTodos();
   const actualizarRol = useActualizarRolUsuario();
   const actualizarEstado = useActualizarEstadoUsuario();
@@ -398,9 +579,9 @@ function TablaGestionUsuarios() {
           placeholder="Nombre o correo..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          sx={{ minWidth: 260 }}
+          sx={{ minWidth: 260, flex: { xs: '1 1 100%', sm: 'none' } }}
         />
-        <FormControl size="small" sx={{ minWidth: 220 }}>
+        <FormControl size="small" sx={{ minWidth: 220, flex: { xs: '1 1 100%', sm: 'none' } }}>
           <InputLabel>Filtrar por rol</InputLabel>
           <Select
             value={filtroRol}
@@ -417,120 +598,137 @@ function TablaGestionUsuarios() {
         </FormControl>
       </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Nombre completo</TableCell>
-              <TableCell>Correo electrónico</TableCell>
-              <TableCell>Rol vigente</TableCell>
-              <TableCell>Empresa</TableCell>
-              <TableCell>Estado de cuenta</TableCell>
-              <TableCell align="right">Acciones</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {usuariosFiltrados.map((u) => {
-              const rolPrincipal = u.roles[0]?.nombre ?? 'Sin rol';
-              const estaBloqueado = u.estado === 'BLOQUEADO' || u.estado === 'INACTIVO';
-              const esAdmin =
-                u.roles.some((r) => r.codigo === 'ADMINISTRADOR') ||
-                u.correoElectronico.toLowerCase() === 'admin@digemaps.gob.do';
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {usuariosFiltrados.map((u) => (
+            <TarjetaGestionUsuario
+              key={u.id}
+              usuario={u}
+              onEditarRol={(usr) => {
+                setUsuarioEditarRol(usr);
+                setNuevoRol(usr.roles[0]?.codigo ?? 'TECNICO_EVALUADOR');
+              }}
+              onToggleEstado={handleToggleEstado}
+              actualizandoEstado={actualizarEstado.isPending}
+            />
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Nombre completo</TableCell>
+                <TableCell>Correo electrónico</TableCell>
+                <TableCell>Rol vigente</TableCell>
+                <TableCell>Empresa</TableCell>
+                <TableCell>Estado de cuenta</TableCell>
+                <TableCell align="right">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {usuariosFiltrados.map((u) => {
+                const rolPrincipal = u.roles[0]?.nombre ?? 'Sin rol';
+                const estaBloqueado = u.estado === 'BLOQUEADO' || u.estado === 'INACTIVO';
+                const esAdmin =
+                  u.roles.some((r) => r.codigo === 'ADMINISTRADOR') ||
+                  u.correoElectronico.toLowerCase() === 'admin@digemaps.gob.do';
 
-              const configEstado = CONFIG_ESTADO_USUARIO[u.estado] ?? {
-                label: u.estado,
-                bg: 'rgba(71, 85, 105, 0.08)',
-                border: 'rgba(71, 85, 105, 0.25)',
-                color: '#334155',
-              };
+                const configEstado = CONFIG_ESTADO_USUARIO[u.estado] ?? {
+                  label: u.estado,
+                  bg: 'rgba(71, 85, 105, 0.08)',
+                  border: 'rgba(71, 85, 105, 0.25)',
+                  color: '#334155',
+                };
 
-              return (
-                <TableRow key={u.id}>
-                  <TableCell>
-                    <strong>{u.nombreCompleto}</strong>
-                  </TableCell>
-                  <TableCell>{u.correoElectronico}</TableCell>
-                  <TableCell>
-                    {esAdmin ? (
-                      <Tooltip title="Cuenta del Administrador del Sistema protegida contra modificaciones de rol">
-                        <Chip
-                          icon={<LockOutlinedIcon sx={{ fontSize: '0.85rem !important' }} />}
-                          label="Administrador (Protegido)"
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            borderColor: '#2A6DB0',
-                            color: '#1D4E80',
-                            bgcolor: 'rgba(42, 109, 176, 0.06)',
-                            fontWeight: 600,
-                          }}
-                        />
-                      </Tooltip>
-                    ) : (
-                      <Chip
-                        label={rolPrincipal}
-                        size="small"
-                        variant="outlined"
-                        sx={{ borderColor: 'rgba(15, 23, 42, 0.20)', color: 'text.secondary' }}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>{u.empresa?.razonSocial ?? '—'}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={configEstado.label}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        bgcolor: configEstado.bg,
-                        borderColor: configEstado.border,
-                        color: configEstado.color,
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                      <Tooltip title={esAdmin ? 'No se puede modificar el rol del Administrador del Sistema' : ''}>
-                        <span>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="primary"
-                            startIcon={<EditOutlinedIcon fontSize="small" />}
-                            disabled={esAdmin}
-                            onClick={() => {
-                              setUsuarioEditarRol(u);
-                              setNuevoRol(u.roles[0]?.codigo ?? 'TECNICO_EVALUADOR');
-                            }}
-                          >
-                            Cambiar rol
-                          </Button>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title={esAdmin ? 'No se puede desactivar la cuenta del Administrador del Sistema' : ''}>
-                        <span>
-                          <Button
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell>
+                      <strong>{u.nombreCompleto}</strong>
+                    </TableCell>
+                    <TableCell>{u.correoElectronico}</TableCell>
+                    <TableCell>
+                      {esAdmin ? (
+                        <Tooltip title="Cuenta del Administrador del Sistema protegida contra modificaciones de rol">
+                          <Chip
+                            icon={<LockOutlinedIcon sx={{ fontSize: '0.85rem !important' }} />}
+                            label="Administrador (Protegido)"
                             size="small"
                             variant="outlined"
-                            color={estaBloqueado ? 'primary' : 'error'}
-                            startIcon={estaBloqueado ? <CheckCircleOutlineIcon fontSize="small" /> : <BlockOutlinedIcon fontSize="small" />}
-                            disabled={esAdmin || actualizarEstado.isPending}
-                            onClick={() => handleToggleEstado(u)}
-                          >
-                            {estaBloqueado ? 'Activar' : 'Desactivar'}
-                          </Button>
-                        </span>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                            sx={{
+                              borderColor: '#2A6DB0',
+                              color: '#1D4E80',
+                              bgcolor: 'rgba(42, 109, 176, 0.06)',
+                              fontWeight: 600,
+                            }}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Chip
+                          label={rolPrincipal}
+                          size="small"
+                          variant="outlined"
+                          sx={{ borderColor: 'rgba(15, 23, 42, 0.20)', color: 'text.secondary' }}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>{u.empresa?.razonSocial ?? '—'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={configEstado.label}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          bgcolor: configEstado.bg,
+                          borderColor: configEstado.border,
+                          color: configEstado.color,
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <Tooltip title={esAdmin ? 'No se puede modificar el rol del Administrador del Sistema' : ''}>
+                          <span>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="primary"
+                              startIcon={<EditOutlinedIcon fontSize="small" />}
+                              disabled={esAdmin}
+                              onClick={() => {
+                                setUsuarioEditarRol(u);
+                                setNuevoRol(u.roles[0]?.codigo ?? 'TECNICO_EVALUADOR');
+                              }}
+                            >
+                              Cambiar rol
+                            </Button>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={esAdmin ? 'No se puede desactivar la cuenta del Administrador del Sistema' : ''}>
+                          <span>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color={estaBloqueado ? 'primary' : 'error'}
+                              startIcon={estaBloqueado ? <CheckCircleOutlineIcon fontSize="small" /> : <BlockOutlinedIcon fontSize="small" />}
+                              disabled={esAdmin || actualizarEstado.isPending}
+                              onClick={() => handleToggleEstado(u)}
+                            >
+                              {estaBloqueado ? 'Activar' : 'Desactivar'}
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* Diálogo para Cambiar Rol */}
       <Dialog open={Boolean(usuarioEditarRol)} onClose={() => setUsuarioEditarRol(null)}>
@@ -573,7 +771,65 @@ function TablaGestionUsuarios() {
 // ---------------------------------------------------------------------
 // TAB 2: Catálogos del Sistema: Tipos de Establecimiento
 // ---------------------------------------------------------------------
+function TarjetaCatalogoEstablecimiento({
+  tipo,
+  onEditar,
+  onToggleActivo,
+}: {
+  tipo: TipoEstablecimientoAdmin;
+  onEditar: (t: TipoEstablecimientoAdmin) => void;
+  onToggleActivo: (t: TipoEstablecimientoAdmin) => void;
+}) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+        <Typography variant="subtitle2" fontWeight={700}>
+          {tipo.nombre}
+        </Typography>
+        <Chip
+          label={tipo.activo ? 'Activo' : 'Inactivo'}
+          size="small"
+          variant="outlined"
+          sx={{
+            bgcolor: tipo.activo ? 'rgba(46, 125, 50, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+            borderColor: tipo.activo ? 'rgba(46, 125, 50, 0.3)' : 'rgba(100, 116, 139, 0.25)',
+            color: tipo.activo ? '#1B5E20' : '#475569',
+            fontWeight: 600,
+          }}
+        />
+      </Box>
+      <Typography variant="body2" color="text.secondary">
+        {tipo.descripcion ?? 'Sin descripción operativa'}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1, mt: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+        <Button
+          size="small"
+          variant="outlined"
+          color="primary"
+          fullWidth
+          startIcon={<EditOutlinedIcon fontSize="small" />}
+          onClick={() => onEditar(tipo)}
+        >
+          Editar
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          color={tipo.activo ? 'error' : 'primary'}
+          fullWidth
+          startIcon={tipo.activo ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlineIcon fontSize="small" />}
+          onClick={() => onToggleActivo(tipo)}
+        >
+          {tipo.activo ? 'Desactivar' : 'Activar'}
+        </Button>
+      </Box>
+    </Paper>
+  );
+}
+
 function TablaCatalogoEstablecimientos() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { data: tipos, isLoading, isError, error } = useTiposEstablecimientoAdmin();
   const crearTipo = useCrearTipoEstablecimiento();
   const actualizarTipo = useActualizarTipoEstablecimiento();
@@ -633,7 +889,7 @@ function TablaCatalogoEstablecimientos() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2, mb: 1 }}>
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Gestión de tipos de establecimiento
@@ -658,66 +914,84 @@ function TablaCatalogoEstablecimientos() {
         </Button>
       </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Nombre del tipo de establecimiento</TableCell>
-              <TableCell>Descripción operativa</TableCell>
-              <TableCell>Estado</TableCell>
-              <TableCell align="right">Acciones</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(tipos ?? []).map((t) => (
-              <TableRow key={t.id}>
-                <TableCell><strong>{t.nombre}</strong></TableCell>
-                <TableCell>{t.descripcion ?? 'Sin descripción'}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={t.activo ? 'Activo' : 'Inactivo'}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      bgcolor: t.activo ? 'rgba(46, 125, 50, 0.08)' : 'rgba(100, 116, 139, 0.08)',
-                      borderColor: t.activo ? 'rgba(46, 125, 50, 0.3)' : 'rgba(100, 116, 139, 0.25)',
-                      color: t.activo ? '#1B5E20' : '#475569',
-                      fontWeight: 600,
-                    }}
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<EditOutlinedIcon fontSize="small" />}
-                      onClick={() => {
-                        setTipoEditar(t);
-                        setNombre(t.nombre);
-                        setDescripcion(t.descripcion ?? '');
-                        setErrorForm(null);
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color={t.activo ? 'error' : 'primary'}
-                      startIcon={t.activo ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlineIcon fontSize="small" />}
-                      onClick={() => handleToggleActivo(t)}
-                    >
-                      {t.activo ? 'Desactivar' : 'Activar'}
-                    </Button>
-                  </Box>
-                </TableCell>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {(tipos ?? []).map((t) => (
+            <TarjetaCatalogoEstablecimiento
+              key={t.id}
+              tipo={t}
+              onEditar={(tipo) => {
+                setTipoEditar(tipo);
+                setNombre(tipo.nombre);
+                setDescripcion(tipo.descripcion ?? '');
+                setErrorForm(null);
+              }}
+              onToggleActivo={handleToggleActivo}
+            />
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Nombre del tipo de establecimiento</TableCell>
+                <TableCell>Descripción operativa</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell align="right">Acciones</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {(tipos ?? []).map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell><strong>{t.nombre}</strong></TableCell>
+                  <TableCell>{t.descripcion ?? 'Sin descripción'}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={t.activo ? 'Activo' : 'Inactivo'}
+                      size="small"
+                      variant="outlined"
+                      sx={{
+                        bgcolor: t.activo ? 'rgba(46, 125, 50, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+                        borderColor: t.activo ? 'rgba(46, 125, 50, 0.3)' : 'rgba(100, 116, 139, 0.25)',
+                        color: t.activo ? '#1B5E20' : '#475569',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<EditOutlinedIcon fontSize="small" />}
+                        onClick={() => {
+                          setTipoEditar(t);
+                          setNombre(t.nombre);
+                          setDescripcion(t.descripcion ?? '');
+                          setErrorForm(null);
+                        }}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color={t.activo ? 'error' : 'primary'}
+                        startIcon={t.activo ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlineIcon fontSize="small" />}
+                        onClick={() => handleToggleActivo(t)}
+                      >
+                        {t.activo ? 'Desactivar' : 'Activar'}
+                      </Button>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* Diálogo Nuevo / Editar Tipo */}
       <Dialog open={modalNuevoOpen || Boolean(tipoEditar)} onClose={() => { setModalNuevoOpen(false); setTipoEditar(null); }}>

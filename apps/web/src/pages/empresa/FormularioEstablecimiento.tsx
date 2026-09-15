@@ -294,7 +294,7 @@ export default function FormularioEstablecimiento() {
               helperText={erroresCampo.produccionAnual}
               inputProps={{ min: 0, max: 1000000000 }}
             />
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 0, sm: 2 } }}>
               <TextField
                 label="Empleados (hombres)"
                 type="number"
@@ -332,13 +332,13 @@ export default function FormularioEstablecimiento() {
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 4 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column-reverse', sm: 'row' }, justifyContent: 'space-between', gap: 2, mt: 4 }}>
           {paso === 0 ? (
-            <Button onClick={() => navigate('/empresa')}>
+            <Button fullWidth onClick={() => navigate('/empresa')} sx={{ width: { xs: '100%', sm: 'auto' } }}>
               Cancelar y volver
             </Button>
           ) : (
-            <Button disabled={enviando} onClick={() => setPaso((p) => p - 1)}>
+            <Button disabled={enviando} onClick={() => setPaso((p) => p - 1)} sx={{ width: { xs: '100%', sm: 'auto' } }}>
               Atrás
             </Button>
           )}
@@ -348,6 +348,7 @@ export default function FormularioEstablecimiento() {
               variant="contained"
               disabled={!datosBasicosCompletos || hayErroresCampo}
               onClick={() => setPaso(1)}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Siguiente
             </Button>
@@ -356,6 +357,7 @@ export default function FormularioEstablecimiento() {
               variant="contained"
               disabled={enviando || !datosBasicosCompletos || hayErroresCampo}
               onClick={guardar}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               {enviando ? <CircularProgress size={20} /> : 'Guardar'}
             </Button>
