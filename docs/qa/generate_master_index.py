@@ -120,6 +120,7 @@ def build_master_index():
         ("DEF-2026-012", "Coordinador", "Bandeja de informes devueltos y acción Deshacer devolución", "Alta", "Cerrado"),
         ("DEF-2026-013", "Coordinador", "Retiro de tooltip técnico interno y unificación de acciones", "Baja", "Cerrado"),
         ("DEF-2026-014", "Solicitud BPM / Catálogo", "Catálogo dinámico y desplegable de Tipos de Establecimiento", "Media", "Cerrado"),
+        ("DEF-2026-015", "Perfil / Sesiones", "Aislamiento estricto de perfil y purga de caché en cambios de sesión", "Mayor", "Cerrado"),
     ]
 
     t = doc.add_table(rows=len(items) + 1, cols=5)

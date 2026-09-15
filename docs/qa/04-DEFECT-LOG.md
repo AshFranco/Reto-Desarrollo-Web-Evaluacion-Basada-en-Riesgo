@@ -97,3 +97,19 @@
 - **Componente:** Base de Datos / `schema.prisma`
 - **Descripción:** El DBML oficial de 51 tablas no incluía una tabla para la persistencia y rotación de tokens de refresco, lo que impedía implementar revocación de sesiones.
 - **Resolución:** Se extendió el esquema Prisma con la tabla `refresh_token` vinculada a `usuario`, con hash SHA-256, expiración y bandera de revocación.
+
+---
+
+### DEF-015: Contaminación cruzada de datos y configuración de perfil entre usuarios distintos
+- **Severidad:** Mayor (Seguridad y Privacidad de Datos)
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en `apps/web`
+- **Componente:** Frontend Web / `DialogPerfil.tsx`, `usePerfil.ts`, `AppLayout.tsx`, `Login.tsx`
+- **Descripción:** Al alternar sesiones en el cliente web sin forzar una recarga total del navegador (por ejemplo, iniciando sesión como Técnico Evaluador y posteriormente como Administrador), el modal "Mi perfil" seguía desplegando la información de contacto, número telefónico y estado 2FA del usuario anterior debido a la reutilización de una clave estática en React Query (`['perfil-usuario']`), un `staleTime` prolongado y falta de purga de caché en el cierre e inicio de sesión.
+- **Resolución:**
+  1. Se parametrizó `usePerfil(usuarioId)` incorporando el ID del usuario en la `queryKey: ['perfil-usuario', usuarioId]`, con `staleTime: 0` y validación de coincidencia de ID.
+  2. En `DialogPerfil.tsx`, se aisló el cálculo de datos válidos requiriendo que `perfil.id === usuarioSesion.id`, reseteando el estado de formulario de teléfono y contraseñas ante cambios de identidad.
+  3. Se conectó `usuarioSesion` hacia `TabSeguridad`, impidiendo mostrar el estado 2FA de terceros.
+  4. Se integró `queryClient.clear()` en `cerrarSesion` y en el éxito de `login`, eliminando cualquier caché residual en transiciones de sesión.
+  5. Se añadió una prueba unitaria de regresión en `DialogPerfil.test.tsx` verificando el blindaje ante perfiles discrepantes.
+

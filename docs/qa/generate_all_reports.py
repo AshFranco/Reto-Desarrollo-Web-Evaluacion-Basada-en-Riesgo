@@ -700,6 +700,38 @@ DEFECTOS = [
             ("Pruebas de la API de catálogos", "npm.cmd test -w apps/api", "Aprobado (56/56)"),
             ("Pruebas de formularios web", "npm.cmd test -- --run -w apps/web", "Aprobado (160/160)"),
         ]
+    },
+    {
+        "codigo": "DEF-2026-015",
+        "archivo": "Aislamiento_Perfil_Cache_Sesiones",
+        "titulo_corto": "Módulo: Perfil de Usuario — Aislamiento y Purga de Caché de Sesiones",
+        "modulo": "Perfil de Usuario / Sesiones Web",
+        "severidad": "Mayor (Privacidad de Datos y Seguridad de Sesión)",
+        "prioridad": "P1 (Alta)",
+        "tipo": "Seguridad de Sesión / Gestión de Caché",
+        "descripcion": (
+            "Al iniciar sesión con una cuenta distinta (por ejemplo, Administrador tras haber estado autenticado como "
+            "Técnico Evaluador), el modal de Mi Perfil desplegaba los datos del usuario previo (nombre, correo, teléfono y estado de 2FA), "
+            "debido a la reutilización en memoria de claves de caché no vinculadas al ID del usuario y la falta de purga al cerrar o iniciar sesión."
+        ),
+        "pasos": [
+            "Iniciar sesión como Técnico Evaluador y abrir el modal Mi Perfil.",
+            "Cerrar sesión e iniciar sesión como Administrador del Sistema.",
+            "Abrir el menú de usuario y presionar 'Mi perfil'.",
+            "Observar que se mostraban los datos y configuración del técnico en lugar de los del administrador."
+        ],
+        "observado": "- Persistencia visual de la identidad, teléfono y estado de autenticación en dos pasos del usuario anterior.",
+        "esperado": "- Presentación inmediata y exclusiva de la información y configuración de seguridad correspondiente al usuario activo de la sesión.",
+        "rca": "La queryKey de TanStack Query era estática (['perfil-usuario']) sin aislar por ID de usuario, combinada con un staleTime de 5 minutos y ausencia de queryClient.clear() en las transiciones de sesión.",
+        "solucion": [
+            ("Frontend (usePerfil.ts):", "Parametrización de usePerfil con queryKey ligada a usuarioId, staleTime=0 y validación estricta de identidad contra la respuesta de la API."),
+            ("Frontend (DialogPerfil.tsx):", "Blindaje de TabInformacion y TabSeguridad validando que perfil.id coincida con usuarioSesion.id y reseteo reactivo de estados de formulario."),
+            ("Frontend (AppLayout.tsx / Login.tsx):", "Purga exhaustiva mediante queryClient.clear() al ejecutar cerrarSesion y al autenticar un nuevo usuario en Login."),
+        ],
+        "verificacion": [
+            ("Pruebas unitarias frontend", "npx.cmd vitest run src/pages/perfil/DialogPerfil.test.tsx", "Aprobado (10/10)"),
+            ("Suite completa web", "npm.cmd test -w apps/web", "Aprobado (176/176)"),
+        ]
     }
 ]
 
