@@ -4,6 +4,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/mocks/node';
+import { MOCK_EVALUACION_DETALLE, MOCK_EVIDENCIA } from '@/mocks/handlers';
 import { db } from '@/lib/db';
 import EjecutarEvaluacion from './EjecutarEvaluacion';
 
@@ -129,10 +130,13 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
     expect(llamadaAlServidor).toBe(true);
   });
 
-  it('al activar "Mostrar solo pendientes" y guardar una respuesta, el criterio permanece visible en pantalla permitiendo adjuntar evidencia', async () => {
+  it('al activar "Mostrar solo pendientes", filtra los criterios ya respondidos según el comportamiento estándar sin sobrecarga cognitiva', async () => {
     server.use(
-      http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => {
-        return HttpResponse.json({ mensaje: 'Avance guardado.' });
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id', () => {
+        return HttpResponse.json({
+          ...MOCK_EVALUACION_DETALLE,
+          respuestas: [{ id: '1', idItemFicha: '2', idOpcionRespuesta: '1', observacion: null }],
+        });
       })
     );
 
@@ -143,18 +147,8 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
     const switchPendientes = screen.getByLabelText('Mostrar solo pendientes');
     fireEvent.click(switchPendientes);
 
-    // Responde el ítem
-    fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
-
-    // Verifica que se guardó
-    await waitFor(() => expect(screen.getByText('✓ Guardado.')).toBeInTheDocument());
-
-    // CRÍTICO: El criterio NO desaparece de la vista, permitiendo al técnico adjuntar evidencias
-    const tarjetaCriterio = screen.getByText('Ítem evaluable').closest('.MuiPaper-root') as HTMLElement;
-    expect(tarjetaCriterio).toBeInTheDocument();
-    expect(
-      within(tarjetaCriterio).getByRole('button', { name: /Adjuntar evidencia|Guardar y adjuntar evidencia/i })
-    ).toBeInTheDocument();
+    // Como el ítem ya está respondido, se oculta directamente bajo el filtro estándar
+    await waitFor(() => expect(screen.queryByText('Ítem evaluable')).not.toBeInTheDocument());
   });
 
   it('en evidencia general, muestra un solo botón principal y abre el modal integrado con opciones de archivos y GPS', async () => {
@@ -175,5 +169,33 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
     expect(screen.getByText('Subir Fotografías, Videos o Documentos')).toBeInTheDocument();
     expect(screen.getByText('Capturar Geolocalización GPS en Campo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Capturar ubicación GPS' })).toBeInTheDocument();
+  });
+
+  it('muestra modal de advertencia y confirmación antes de eliminar un archivo de evidencia', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id', () => {
+        return HttpResponse.json({
+          ...MOCK_EVALUACION_DETALLE,
+          evidencias: [MOCK_EVIDENCIA],
+        });
+      })
+    );
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('ff8b6ae7-81f6-4238-9627-c9e2e965a5e0.png')).toBeInTheDocument());
+
+    // Al hacer clic en eliminar, NO elimina inmediatamente: abre diálogo de confirmación
+    const btnEliminar = screen.getByLabelText('Eliminar evidencia');
+    fireEvent.click(btnEliminar);
+
+    await waitFor(() => expect(screen.getByText('Confirmar eliminación de archivo')).toBeInTheDocument());
+    expect(screen.getByText(/¿Estás seguro de que deseas eliminar este archivo adjunto\?/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Eliminar archivo' })).toBeInTheDocument();
+
+    // Cancelar cierra el diálogo sin eliminar
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByText('Confirmar eliminación de archivo')).not.toBeInTheDocument());
+    expect(screen.getByText('ff8b6ae7-81f6-4238-9627-c9e2e965a5e0.png')).toBeInTheDocument();
   });
 });
