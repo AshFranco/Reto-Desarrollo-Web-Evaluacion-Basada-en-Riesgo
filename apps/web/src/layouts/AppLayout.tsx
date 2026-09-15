@@ -11,7 +11,10 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
 } from '@mui/material';
@@ -21,8 +24,13 @@ import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlin
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import { clearSession, getSession } from '@/lib/auth/session';
+import { useSyncStatus } from '@/lib/sync/useSyncStatus';
+import { useFotoPerfil } from '@/lib/perfil/useFotoPerfil';
 import type { UsuarioLocal } from '@/lib/types';
+import { DialogPerfil } from '@/pages/perfil/DialogPerfil';
+
 
 /** Estilo compartido de los ítems de navegación -- ítem activo con fondo teñido, texto/ícono en color primario y una barra de acento a la izquierda. */
 const sxItemNav = {
@@ -68,6 +76,8 @@ export function AppLayout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [usuario, setUsuario] = useState<UsuarioLocal | null>(null);
+  const [anchorMenuUsuario, setAnchorMenuUsuario] = useState<null | HTMLElement>(null);
+  const [abrirPerfil, setAbrirPerfil] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -88,13 +98,28 @@ export function AppLayout() {
     navigate('/login', { replace: true });
   }
 
+  function abrirMenuUsuario(event: React.MouseEvent<HTMLElement>) {
+    setAnchorMenuUsuario(event.currentTarget);
+  }
+
+  function cerrarMenuUsuario() {
+    setAnchorMenuUsuario(null);
+  }
+
+  function handleAbrirPerfil() {
+    cerrarMenuUsuario();
+    setAbrirPerfil(true);
+  }
+
   const panelPropio = usuario ? RUTA_PRINCIPAL_POR_ROL[usuario.rol] : null;
+  const [fotoPerfil] = useFotoPerfil(usuario?.id);
   const iniciales = usuario?.nombreCompleto
     ?.split(' ')
     .slice(0, 2)
     .map((parte) => parte[0])
     .join('')
     .toUpperCase();
+
 
   const contenidoDrawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -142,54 +167,64 @@ export function AppLayout() {
             />
           </ListItemButton>
         )}
-        <ListItemButton
-          component={RouterLink}
-          to="/historico"
-          selected={location.pathname === '/historico'}
-          sx={sxItemNav}
-          onClick={() => setMobileOpen(false)}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <HistoryOutlinedIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText
-            primary={
-              usuario?.rol === 'ADMINISTRADOR_EMPRESA' || usuario?.rol === 'USUARIO_DELEGADO'
-                ? 'Histórico de solicitudes'
-                : 'Consulta histórica'
-            }
-            primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-          />
-        </ListItemButton>
+        {usuario?.rol !== 'TECNICO_EVALUADOR' && (
+          <ListItemButton
+            component={RouterLink}
+            to="/historico"
+            selected={location.pathname === '/historico'}
+            sx={sxItemNav}
+            onClick={() => setMobileOpen(false)}
+          >
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              <HistoryOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary={
+                usuario?.rol === 'ADMINISTRADOR_EMPRESA' || usuario?.rol === 'USUARIO_DELEGADO'
+                  ? 'Histórico de solicitudes'
+                  : 'Consulta histórica'
+              }
+              primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+            />
+          </ListItemButton>
+        )}
       </List>
 
       <Divider />
 
       <Box sx={{ p: 2 }}>
         {usuario && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '0.85rem' }}>
-              {iniciales}
-            </Avatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="body2" fontWeight={600} noWrap>
-                {usuario.nombreCompleto}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
-              </Typography>
+          <Tooltip title="Abrir opciones de cuenta" placement="top">
+            <Box
+              onClick={abrirMenuUsuario}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                p: 1,
+                borderRadius: 2,
+                cursor: 'pointer',
+                transition: 'background-color 0.15s',
+                '&:hover': { bgcolor: (t: Theme) => alpha(t.palette.primary.main, 0.07) },
+              }}
+            >
+              <Avatar
+                src={fotoPerfil ?? undefined}
+                sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '0.85rem' }}
+              >
+                {iniciales}
+              </Avatar>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="body2" fontWeight={600} noWrap>
+                  {usuario.nombreCompleto}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
+          </Tooltip>
         )}
-        <ListItemButton
-          onClick={cerrarSesion}
-          sx={{ borderRadius: 2, color: 'text.secondary' }}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <LogoutOutlinedIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Cerrar sesión" primaryTypographyProps={{ variant: 'body2' }} />
-        </ListItemButton>
       </Box>
     </Box>
   );
@@ -197,6 +232,7 @@ export function AppLayout() {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: { xs: 'column', md: 'row' } }}>
       {/* Barra superior solo visible en pantallas móviles (< md) */}
+
       {isMobile && (
         <AppBar
           position="sticky"
@@ -236,10 +272,18 @@ export function AppLayout() {
               EBR / BPM
             </Typography>
             {usuario && (
-              <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.75rem' }}>
-                {iniciales}
-              </Avatar>
+              <Tooltip title="Opciones de cuenta">
+                <IconButton size="small" onClick={abrirMenuUsuario} sx={{ p: 0 }}>
+                  <Avatar
+                    src={fotoPerfil ?? undefined}
+                    sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.75rem' }}
+                  >
+                    {iniciales}
+                  </Avatar>
+                </IconButton>
+              </Tooltip>
             )}
+
           </Toolbar>
         </AppBar>
       )}
@@ -294,6 +338,59 @@ export function AppLayout() {
       >
         <Outlet />
       </Box>
+
+      {/* ── Menú desplegable de cuenta ── */}
+      <Menu
+        anchorEl={anchorMenuUsuario}
+        open={Boolean(anchorMenuUsuario)}
+        onClose={cerrarMenuUsuario}
+        transformOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+        anchorOrigin={{ horizontal: 'left', vertical: 'top' }}
+        PaperProps={{ sx: { minWidth: 200, borderRadius: 2, mt: -1 } }}
+      >
+        {usuario && (
+          <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar
+              src={fotoPerfil ?? undefined}
+              sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '0.85rem' }}
+            >
+              {iniciales}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="body2" fontWeight={700} noWrap>
+                {usuario.nombreCompleto}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
+        <MenuItem onClick={handleAbrirPerfil} sx={{ gap: 1.5, py: 1.25 }}>
+          <PersonOutlinedIcon fontSize="small" color="action" />
+          <Typography variant="body2">Mi perfil</Typography>
+        </MenuItem>
+        <Divider />
+        <MenuItem
+          onClick={() => { cerrarMenuUsuario(); void cerrarSesion(); }}
+          sx={{ gap: 1.5, py: 1.25, color: 'error.main' }}
+        >
+          <LogoutOutlinedIcon fontSize="small" />
+          <Typography variant="body2">Cerrar sesión</Typography>
+        </MenuItem>
+      </Menu>
+
+      {/* ── Diálogo de perfil ── */}
+      {usuario && (
+        <DialogPerfil
+          open={abrirPerfil}
+          onClose={() => setAbrirPerfil(false)}
+          rolActivo={usuario.rol}
+          usuarioSesion={usuario}
+        />
+      )}
+
     </Box>
   );
 }

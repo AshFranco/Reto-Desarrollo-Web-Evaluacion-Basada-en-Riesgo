@@ -12,12 +12,15 @@ describe('login', () => {
   it('con credenciales válidas guarda la sesión y devuelve los datos del usuario', async () => {
     const data = await login('tecnico@ebr.local', 'clave-de-prueba');
 
-    expect(data.accessToken).toBeTruthy();
-    expect(data.usuario.rol).toBe('TECNICO_EVALUADOR');
+    expect(data.requiereMfa).toBeFalsy();
+    if (!data.requiereMfa) {
+      expect(data.accessToken).toBeTruthy();
+      expect(data.usuario.rol).toBe('TECNICO_EVALUADOR');
 
-    const sesion = await getSession();
-    expect(sesion?.accessToken).toBe(data.accessToken);
-    expect(sesion?.usuario.nombreCompleto).toBe(data.usuario.nombreCompleto);
+      const sesion = await getSession();
+      expect(sesion?.accessToken).toBe(data.accessToken);
+      expect(sesion?.usuario.nombreCompleto).toBe(data.usuario.nombreCompleto);
+    }
   });
 
   it('propaga el error tal cual cuando el backend responde 401 (credenciales inválidas) y no guarda sesión', async () => {
@@ -136,5 +139,47 @@ describe('login', () => {
       correo: 'tecnico@ebr.local',
       password: 'clave-de-prueba',
     });
+  });
+
+  it('devuelve requiereMfa si el servidor indica que se necesita segundo factor, sin guardar sesión', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/auth/login', () =>
+        HttpResponse.json({
+          requiereMfa: true,
+          mensaje: 'Verificación en dos pasos requerida',
+          codigoDemo: '123456',
+        })
+      )
+    );
+
+    const resultado = await login('coordinador@ebr.local', 'clave-de-prueba');
+    expect(resultado.requiereMfa).toBe(true);
+
+    const sesion = await getSession();
+    expect(sesion).toBeNull();
+  });
+
+  it('permite enviar codigoMfa en la petición de login y guarda sesión si es exitoso', async () => {
+    let cuerpoRecibido: any = null;
+    server.use(
+      http.post('http://localhost:3000/api/v1/auth/login', async ({ request }) => {
+        cuerpoRecibido = await request.json();
+        return HttpResponse.json({
+          accessToken: 'token-mfa',
+          usuario: { id: '2', nombreCompleto: 'Coordinador', rol: 'COORDINADOR', empresaId: null },
+        });
+      })
+    );
+
+    const resultado = await login('coordinador@ebr.local', 'clave-de-prueba', '123456');
+    expect(resultado.requiereMfa).toBeFalsy();
+    expect(cuerpoRecibido).toEqual({
+      correo: 'coordinador@ebr.local',
+      password: 'clave-de-prueba',
+      codigoMfa: '123456',
+    });
+
+    const sesion = await getSession();
+    expect(sesion?.accessToken).toBe('token-mfa');
   });
 });
