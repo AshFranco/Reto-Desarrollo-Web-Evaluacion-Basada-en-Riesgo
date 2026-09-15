@@ -48,6 +48,9 @@ export class SyncProcessor {
       for (const op of listos) {
         await this.ejecutarOperacion(op, headers);
       }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sync:actualizado'));
+      }
     } finally {
       this.procesando = false;
     }
@@ -92,6 +95,9 @@ export class SyncProcessor {
       if (res.ok) {
         await marcarEnviada(op.uuidLocal);
         this.proximoIntento.delete(op.uuidLocal);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('sync:actualizado', { detail: { tipo: op.tipo, evalId } }));
+        }
       } else {
         await marcarError(op.uuidLocal, `HTTP ${res.status}`);
         this.proximoIntento.set(op.uuidLocal, Date.now() + this.calcularBackoff(op.intentos + 1));

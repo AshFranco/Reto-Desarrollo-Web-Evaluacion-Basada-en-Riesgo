@@ -6,6 +6,7 @@ import { SyncProcessor } from '@/lib/sync/processor';
 import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { theme } from '@/theme';
 import Login from '@/pages/Login';
+import RestablecerContrasena from '@/pages/RestablecerContrasena';
 import NoAutorizado from '@/pages/NoAutorizado';
 import { RoleRoute } from '@/routes/RoleRoute';
 import { AppLayout } from '@/layouts/AppLayout';
@@ -19,7 +20,15 @@ import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento
 import ConsultaHistorica from '@/pages/historico/ConsultaHistorica';
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 1000 * 60 * 5 } },
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      retry: (failureCount, error) => {
+        if (error instanceof Error && error.message.includes('429')) return false;
+        return failureCount < 2;
+      },
+    },
+  },
 });
 
 const processor = new SyncProcessor();
@@ -37,6 +46,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
             <Route path="/no-autorizado" element={<NoAutorizado />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
 

@@ -27,6 +27,15 @@ export class ExpedientesController {
     return this.expedientesService.cerrar(casoId);
   }
 
+  @Patch(':casoId/reabrir')
+  @Roles(RolUsuario.COORDINADOR, RolUsuario.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Reabrir formalmente un expediente cerrado' })
+  @ApiResponse({ status: 200, description: 'Expediente reabierto exitosamente.' })
+  @ApiResponse({ status: 400, description: 'El expediente no se encuentra cerrado.' })
+  reabrir(@Param('casoId') casoId: string) {
+    return this.expedientesService.reabrir(casoId);
+  }
+
   /**
    * Hueco de seguridad reportado y corregido: antes no tenia @Roles ni
    * scoping forzado por empresa -- un usuario de Empresa o un Tecnico

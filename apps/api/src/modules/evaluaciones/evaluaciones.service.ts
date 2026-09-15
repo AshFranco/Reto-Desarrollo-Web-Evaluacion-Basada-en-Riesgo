@@ -47,6 +47,8 @@ export class EvaluacionesService {
         respuestas: true,
         evidencias: true,
         historialEstados: { orderBy: { fechaHora: 'desc' }, take: 1 },
+        caso: { select: { id: true, estado: true } },
+        calculoRiesgo: true,
       },
     });
 
@@ -258,6 +260,29 @@ export class EvaluacionesService {
         idRespuestaItem: ev.idRespuestaItem ? ev.idRespuestaItem.toString() : null,
         tamanoBytes: ev.tamanoBytes ? ev.tamanoBytes.toString() : null,
       })),
+      caso: e.caso
+        ? {
+            id: e.caso.id?.toString(),
+            estado: e.caso.estado,
+          }
+        : null,
+      calculoRiesgo: e.calculoRiesgo
+        ? {
+            ...e.calculoRiesgo,
+            id: e.calculoRiesgo.id?.toString(),
+            idEvaluacion: e.calculoRiesgo.idEvaluacion?.toString(),
+            idSubcategoriaRp: e.calculoRiesgo.idSubcategoriaRp?.toString(),
+            idRangoCalificacion: e.calculoRiesgo.idRangoCalificacion?.toString(),
+            porcentajeCumplimiento: e.calculoRiesgo.porcentajeCumplimiento?.toString(),
+            rpValor: e.calculoRiesgo.rpValor?.toString(),
+            reValor: e.calculoRiesgo.reValor?.toString(),
+            rtValor: e.calculoRiesgo.rtValor?.toString(),
+            puntosObtenidos: e.calculoRiesgo.puntosObtenidos?.toString(),
+            puntosExcluidosNa: e.calculoRiesgo.puntosExcluidosNa?.toString(),
+            puntajeTotalPosible: e.calculoRiesgo.puntajeTotalPosible?.toString(),
+            denominadorEfectivo: e.calculoRiesgo.denominadorEfectivo?.toString(),
+          }
+        : null,
     };
   }
 }

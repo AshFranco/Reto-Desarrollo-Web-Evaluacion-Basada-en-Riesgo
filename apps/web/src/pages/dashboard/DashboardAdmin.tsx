@@ -250,6 +250,15 @@ function TablaUsuariosPendientes() {
 
   return (
     <>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          Aprobación de usuarios
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Revisa y valida las solicitudes de registro de cuentas pendientes en la plataforma.
+        </Typography>
+      </Box>
+
       {errorAccion && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {errorAccion}
@@ -287,7 +296,7 @@ function TablaUsuariosPendientes() {
                       size="small"
                       variant="contained"
                       color="primary"
-                      startIcon={<CheckCircleOutlineIcon />}
+                      startIcon={<CheckCircleOutlineIcon fontSize="small" />}
                       disabled={resolver.isPending}
                       onClick={() => handleAprobar(u.id)}
                     >
@@ -297,7 +306,7 @@ function TablaUsuariosPendientes() {
                       size="small"
                       variant="outlined"
                       color="error"
-                      startIcon={<CancelOutlinedIcon />}
+                      startIcon={<CancelOutlinedIcon fontSize="small" />}
                       disabled={resolver.isPending}
                       onClick={() => setUsuarioRechazo(u)}
                     >
@@ -371,6 +380,15 @@ function TablaGestionUsuarios() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ mb: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          Gestión de usuarios y roles
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Directorio institucional de cuentas registradas, asignación de roles y control de acceso.
+        </Typography>
+      </Box>
+
       {errorAccion && <Alert severity="error">{errorAccion}</Alert>}
 
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -478,8 +496,9 @@ function TablaGestionUsuarios() {
                         <span>
                           <Button
                             size="small"
-                            variant="outlined"
-                            startIcon={<EditOutlinedIcon />}
+                            variant="contained"
+                            color="primary"
+                            startIcon={<EditOutlinedIcon fontSize="small" />}
                             disabled={esAdmin}
                             onClick={() => {
                               setUsuarioEditarRol(u);
@@ -495,8 +514,8 @@ function TablaGestionUsuarios() {
                           <Button
                             size="small"
                             variant="outlined"
-                            color={estaBloqueado ? 'success' : 'error'}
-                            startIcon={<BlockOutlinedIcon />}
+                            color={estaBloqueado ? 'primary' : 'error'}
+                            startIcon={estaBloqueado ? <CheckCircleOutlineIcon fontSize="small" /> : <BlockOutlinedIcon fontSize="small" />}
                             disabled={esAdmin || actualizarEstado.isPending}
                             onClick={() => handleToggleEstado(u)}
                           >
@@ -614,14 +633,20 @@ function TablaCatalogoEstablecimientos() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          Gestiona las categorías oficiales de establecimientos alimentarios que los solicitantes seleccionan en la plataforma.
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 1 }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Gestión de tipos de establecimiento
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Gestiona las categorías oficiales de establecimientos alimentarios que los solicitantes seleccionan en la plataforma.
+          </Typography>
+        </Box>
         <Button
+          size="small"
           variant="contained"
           color="primary"
-          startIcon={<AddCircleOutlineIcon />}
+          startIcon={<AddCircleOutlineIcon fontSize="small" />}
           onClick={() => {
             setNombre('');
             setDescripcion('');
@@ -629,7 +654,7 @@ function TablaCatalogoEstablecimientos() {
             setModalNuevoOpen(true);
           }}
         >
-          Nuevo Tipo
+          Nuevo tipo
         </Button>
       </Box>
 
@@ -666,7 +691,8 @@ function TablaCatalogoEstablecimientos() {
                     <Button
                       size="small"
                       variant="outlined"
-                      startIcon={<EditOutlinedIcon />}
+                      color="primary"
+                      startIcon={<EditOutlinedIcon fontSize="small" />}
                       onClick={() => {
                         setTipoEditar(t);
                         setNombre(t.nombre);
@@ -679,7 +705,8 @@ function TablaCatalogoEstablecimientos() {
                     <Button
                       size="small"
                       variant="outlined"
-                      color={t.activo ? 'error' : 'success'}
+                      color={t.activo ? 'error' : 'primary'}
+                      startIcon={t.activo ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlineIcon fontSize="small" />}
                       onClick={() => handleToggleActivo(t)}
                     >
                       {t.activo ? 'Desactivar' : 'Activar'}
@@ -754,12 +781,8 @@ export default function DashboardAdmin() {
         etiqueta="Administración"
         titulo="Panel de control administrativo"
         icono={<AdminPanelSettingsOutlinedIcon />}
-        accion={
-          <Button variant="outlined" component={RouterLink} to="/historico" startIcon={<HistoryOutlinedIcon />}>
-            Consulta histórica
-          </Button>
-        }
       />
+
 
       <ResumenAdmin
         totalPendientes={totalPendientes}
@@ -780,7 +803,7 @@ export default function DashboardAdmin() {
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <HowToRegOutlinedIcon fontSize="small" />
-                Centro de Aprobación de Usuarios
+                Aprobación de usuarios
                 {totalPendientes > 0 && (
                   <Chip
                     label={totalPendientes}
@@ -801,7 +824,7 @@ export default function DashboardAdmin() {
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <GroupOutlinedIcon fontSize="small" />
-                Gestión de Usuarios y Roles
+                Gestión de usuarios y roles
               </Box>
             }
           />
@@ -809,7 +832,7 @@ export default function DashboardAdmin() {
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CategoryOutlinedIcon fontSize="small" />
-                Catálogos: Tipos de Establecimiento
+                Gestión de tipos de establecimiento
               </Box>
             }
           />

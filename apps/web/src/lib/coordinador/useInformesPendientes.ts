@@ -91,12 +91,18 @@ export function useInformesDevueltos() {
 export function useDeshacerDevolucion() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (evaluacionId: string) =>
-      apiFetchJson<{ id: string; mensaje: string }>(`/api/v1/informes/${evaluacionId}/revertir-revision`, {
+    mutationFn: (param: string | { evaluacionId: string; casoId?: string }) => {
+      const evaluacionId = typeof param === 'string' ? param : param.evaluacionId;
+      return apiFetchJson<{ id: string; mensaje: string }>(`/api/v1/informes/${evaluacionId}/revertir-revision`, {
         method: 'PATCH',
-      }),
-    onSuccess: () => {
+      });
+    },
+    onSuccess: (_data, param) => {
+      const casoId = typeof param === 'object' ? param.casoId : undefined;
       queryClient.invalidateQueries({ queryKey: ['casos'] });
+      if (casoId) {
+        queryClient.invalidateQueries({ queryKey: ['casos', casoId] });
+      }
     },
   });
 }

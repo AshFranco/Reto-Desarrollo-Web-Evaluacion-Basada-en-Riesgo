@@ -27,7 +27,7 @@ export class EvidenciasService {
         idEvaluacion: evaluacion.id,
         idRespuestaItem: dto.respuestaItemId ? BigInt(dto.respuestaItemId) : undefined,
         tipo: dto.tipo,
-        nombreArchivo: claveArchivo,
+        nombreArchivo: file.originalname || claveArchivo,
         rutaAlmacenamiento: claveArchivo,
         tipoMime: file.mimetype,
         tamanoBytes: BigInt(file.size),

@@ -21,7 +21,7 @@ describe('DashboardAdmin', () => {
 
     // Verifica que cargue el encabezado y las tarjetas de resumen
     expect(screen.getByText('Panel de control administrativo')).toBeInTheDocument();
-    expect(screen.getByText('Centro de Aprobación de Usuarios')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /aprobación de usuarios/i })).toBeInTheDocument();
 
     // Espera a que cargue la tabla con el usuario mock
     await waitFor(() => {

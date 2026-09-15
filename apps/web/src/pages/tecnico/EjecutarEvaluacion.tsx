@@ -30,7 +30,11 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
+import WifiOffOutlinedIcon from '@mui/icons-material/WifiOffOutlined';
 import { Collapse } from '@mui/material';
+import { useQueryClient } from '@tanstack/react-query';
 import { useFichaVigente } from '@/lib/tecnico/useFichaVigente';
 import {
   useEvaluacionDetalle,
@@ -46,7 +50,7 @@ import { useCatalogoMotorRiesgo, useCalcularRiesgo, type SeleccionFactor } from 
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
-import type { Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo } from '@/lib/types';
+import type { EvaluacionDetalle, Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo } from '@/lib/types';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 
 /**
@@ -197,14 +201,16 @@ function SubirEvidencia({
                     textOverflow: 'ellipsis',
                     overflow: 'hidden',
                     whiteSpace: 'nowrap',
-                    maxWidth: 240,
+                    maxWidth: { xs: 180, sm: 320, md: 480 },
                   }}
                   title={ev.nombreArchivo}
                 >
-                  {ev.nombreArchivo}
+                  {ev.nombreArchivo.includes('-') && ev.nombreArchivo.length > 30 && !ev.nombreArchivo.includes('.')
+                    ? `Archivo adjunto (#${ev.id.slice(-4)})`
+                    : ev.nombreArchivo}
                 </Typography>
                 {ev.tamanoBytes && (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
                     ({Math.round(Number(ev.tamanoBytes) / 1024)} KB)
                   </Typography>
                 )}
@@ -668,18 +674,29 @@ function CardAntecedentesEstablecimiento({ establecimiento }: { establecimiento:
 }
 
 function SeccionResultadoRiesgo({
-  evaluacionId,
+  evaluacion,
   onReabrir,
   reabriendo,
   errorReabrir,
+  onVerFicha,
 }: {
-  evaluacionId: string;
+  evaluacion: EvaluacionDetalle;
   onReabrir: () => void;
   reabriendo: boolean;
   errorReabrir: string | null;
+  onVerFicha: () => void;
 }) {
+  const navigate = useNavigate();
   const { data: catalogo } = useCatalogoMotorRiesgo();
-  const [resultado, setResultado] = useState<ResultadoRiesgo | null>(null);
+  const [resultado, setResultado] = useState<ResultadoRiesgo | null>(evaluacion.calculoRiesgo ?? null);
+
+  useEffect(() => {
+    if (evaluacion.calculoRiesgo) {
+      setResultado(evaluacion.calculoRiesgo);
+    }
+  }, [evaluacion.calculoRiesgo]);
+
+  const casoCerrado = evaluacion.caso?.estado === 'Cerrado' || evaluacion.estado.codigo === 'CERRADA';
 
   const nivelTexto = useMemo(() => {
     if (!resultado || !catalogo) return null;
@@ -699,37 +716,76 @@ function SeccionResultadoRiesgo({
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 1.5,
-          borderColor: 'info.light',
+          borderColor: 'primary.light',
         }}
       >
         <Box>
           <Typography variant="subtitle2" fontWeight={600}>
-            Evaluación finalizada
+            {casoCerrado ? 'Caso cerrado — Modo inspección' : 'Evaluación finalizada'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Los criterios están bloqueados temporalmente. Si necesitas corregir o modificar respuestas antes del cierre final, puedes reabrirla.
+            {casoCerrado
+              ? 'Este caso se encuentra formalmente cerrado en el archivo institucional. Los datos se muestran en modo de solo lectura para inspección y auditoría.'
+              : 'Los criterios están bloqueados. Si necesitas corregir respuestas antes del cierre final, puedes reabrirla.'}
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          color="warning"
-          startIcon={reabriendo ? <CircularProgress size={16} color="inherit" /> : <EditOutlinedIcon />}
-          disabled={reabriendo}
-          onClick={onReabrir}
-        >
-          {reabriendo ? 'Reabriendo...' : 'Reabrir evaluación para edición'}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            startIcon={<VisibilityOutlinedIcon />}
+            onClick={onVerFicha}
+          >
+            Ver respuestas de la ficha
+          </Button>
+          <Tooltip
+            title={
+              casoCerrado
+                ? 'Este caso está cerrado. Para editarlo, un coordinador debe reabrir el caso desde el apartado de expedientes cerrados.'
+                : ''
+            }
+          >
+            <span>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={reabriendo ? <CircularProgress size={16} color="inherit" /> : <EditOutlinedIcon />}
+                disabled={reabriendo || casoCerrado}
+                onClick={onReabrir}
+              >
+                {reabriendo ? 'Reabriendo...' : 'Reabrir evaluación para edición'}
+              </Button>
+            </span>
+          </Tooltip>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/tecnico')}
+          >
+            Volver al panel
+          </Button>
+        </Box>
       </Paper>
       {errorReabrir && <Alert severity="error">{errorReabrir}</Alert>}
 
       {resultado ? (
         <ResumenResultado resultado={resultado} catalogoNivel={nivelTexto} />
+      ) : casoCerrado || evaluacion.estado.codigo !== 'FINALIZADA' ? (
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            {casoCerrado ? 'Expediente de evaluación cerrado' : 'Evaluación en modo solo lectura'}
+          </Typography>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {casoCerrado
+              ? 'Este caso se encuentra cerrado en el archivo institucional. La evaluación se muestra en modo solo lectura para fines de consulta y auditoría. No se permite realizar recálculos en este estado.'
+              : `Esta evaluación se encuentra en estado ${evaluacion.estado.nombre}. Para modificar respuestas o volver a calcular el resultado de riesgo, primero debe ser reabierta para edición.`}
+          </Alert>
+        </Paper>
       ) : (
         <Paper variant="outlined" sx={{ padding: 3 }}>
           <Typography variant="h6" gutterBottom>
             Calcular resultado de riesgo
           </Typography>
-          <SeleccionFactores evaluacionId={evaluacionId} onCalculado={setResultado} />
+          <SeleccionFactores evaluacionId={evaluacion.id} onCalculado={setResultado} />
         </Paper>
       )}
     </Box>
@@ -747,17 +803,56 @@ export default function EjecutarEvaluacion() {
   const reabrir = useReabrirEvaluacion();
   const sync = useSyncStatus();
   const sincronizacion = useSincronizacionEvaluacion(evaluacionId);
+  const queryClient = useQueryClient();
   const [errorFinalizar, setErrorFinalizar] = useState<string | null>(null);
   const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
   const [finalizadoLocal, setFinalizadoLocal] = useState(false);
   const [inicioIntentado, setInicioIntentado] = useState(false);
+  const [verFichaEnBloqueada, setVerFichaEnBloqueada] = useState(false);
+
+  const casoCerrado = evaluacion?.caso?.estado === 'Cerrado' || evaluacion?.estado.codigo === 'CERRADA';
+
+  // 1. Cuando la evaluación en el servidor ya está bloqueada/finalizada, limpiar finalizadoLocal
+  useEffect(() => {
+    if (evaluacion?.bloqueada && finalizadoLocal) {
+      setFinalizadoLocal(false);
+    }
+  }, [evaluacion?.bloqueada, finalizadoLocal]);
+
+  // 2. Escuchar evento de sincronización de processor.ts para refrescar el detalle automáticamente
+  useEffect(() => {
+    function handleSyncActualizado() {
+      void sincronizacion.refrescar();
+      if (evaluacionId) {
+        queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+        queryClient.invalidateQueries({ queryKey: ['asignaciones', 'mias'] });
+      }
+    }
+    window.addEventListener('sync:actualizado', handleSyncActualizado);
+    return () => window.removeEventListener('sync:actualizado', handleSyncActualizado);
+  }, [sincronizacion, queryClient, evaluacionId]);
+
+  // 3. Cuando se detecta red y hay una finalización local pendiente
+  useEffect(() => {
+    if (sync.enLinea && finalizadoLocal) {
+      void sincronizacion.refrescar();
+      if (evaluacionId) {
+        queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+      }
+    }
+  }, [sync.enLinea, finalizadoLocal, sincronizacion, queryClient, evaluacionId]);
 
   async function handleReabrir() {
     if (!evaluacionId) return;
+    if (casoCerrado) {
+      setErrorReabrir('Este caso está cerrado. Para editarlo, un coordinador debe reabrir el caso desde expedientes cerrados.');
+      return;
+    }
     setErrorReabrir(null);
     try {
       await reabrir.mutateAsync(evaluacionId);
       setFinalizadoLocal(false);
+      setVerFichaEnBloqueada(false);
     } catch (err) {
       setErrorReabrir(err instanceof Error ? err.message : 'Error al reabrir la evaluación');
     }
@@ -864,7 +959,47 @@ export default function EjecutarEvaluacion() {
 
   if (cargandoFicha || cargandoEvaluacion) return <EstadoCarga etiqueta="Cargando la evaluación…" />;
   if (errorFicha) return <Alert severity="error">Error al cargar la ficha vigente.</Alert>;
-  if (errorEvaluacion || !evaluacion) return <Alert severity="error">Error al cargar la evaluación.</Alert>;
+  if (errorEvaluacion || !evaluacion) {
+    const mensajeError =
+      errorEvaluacion && typeof errorEvaluacion === 'object'
+        ? String((errorEvaluacion as { message?: unknown }).message ?? 'Error al cargar la evaluación.')
+        : 'No se pudo obtener la información de la evaluación desde el servidor.';
+
+    return (
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 4,
+          textAlign: 'center',
+          maxWidth: 600,
+          mx: 'auto',
+          mt: 4,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2,
+        }}
+      >
+        <WifiOffOutlinedIcon color="warning" sx={{ fontSize: 56 }} />
+        <Typography variant="h6" fontWeight={600}>
+          {!sync.enLinea ? 'Conéctate a internet para realizar esta acción' : 'Error al cargar la evaluación'}
+        </Typography>
+        <Alert severity={!sync.enLinea ? 'info' : 'error'} sx={{ width: '100%', textAlign: 'left' }}>
+          {!sync.enLinea
+            ? 'No fue posible cargar esta evaluación porque tu dispositivo se encuentra sin conexión a internet y este expediente no está guardado en la memoria local.'
+            : mensajeError}
+        </Alert>
+        <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+          <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() => navigate('/tecnico')}>
+            Volver al panel
+          </Button>
+          <Button variant="outlined" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        </Box>
+      </Paper>
+    );
+  }
 
   const totalRespondidas = idsRespondidos.size;
   const totalEvaluables = evaluacion.versionFicha.totalItemsEvaluables;
@@ -875,19 +1010,13 @@ export default function EjecutarEvaluacion() {
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="h4">Ficha BPM — {evaluacion.establecimiento.nombre}</Typography>
+            {casoCerrado && <Chip size="small" color="default" label="Caso Cerrado" variant="outlined" sx={{ fontWeight: 600 }} />}
             {!sync.enLinea && <Chip size="small" color="warning" label="Sin conexión" />}
           </Box>
           <Typography color="text.secondary">
             {evaluacion.establecimiento.empresa?.razonSocial} · Versión {evaluacion.versionFicha.numeroVersion}
           </Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/tecnico')}
-        >
-          Volver al panel del técnico
-        </Button>
       </Box>
 
       <CardAntecedentesEstablecimiento establecimiento={evaluacion.establecimiento} />
@@ -921,19 +1050,124 @@ export default function EjecutarEvaluacion() {
       )}
 
       {finalizadoLocal ? (
-        <Alert severity="warning">
-          Evaluación finalizada localmente — se enviará al servidor cuando haya conexión. El resultado del cálculo
-          de riesgo se podrá ver una vez que se sincronice.
-        </Alert>
-      ) : evaluacion.bloqueada ? (
+        <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CheckCircleOutlineIcon color="success" sx={{ fontSize: 28 }} />
+            <Typography variant="h6" fontWeight={600}>
+              Evaluación finalizada localmente
+            </Typography>
+          </Box>
+          <Alert severity="warning">
+            Las respuestas de los {totalEvaluables} criterios han sido completadas y registradas en este dispositivo. La evaluación se enviará automáticamente al servidor en cuanto se detecte conexión a internet.
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            {sync.enLinea
+              ? 'Conexión detectada. Sincronizando con el servidor en segundo plano...'
+              : 'Tu dispositivo se encuentra sin conexión a internet. Puedes regresar al panel de asignaciones o revisar las respuestas registradas.'}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<VisibilityOutlinedIcon />}
+              onClick={() => setVerFichaEnBloqueada(true)}
+            >
+              Ver respuestas registradas
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/tecnico')}
+            >
+              Volver al panel
+            </Button>
+            {sync.enLinea && (
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => {
+                  void sincronizacion.refrescar();
+                  if (evaluacionId) {
+                    queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+                  }
+                }}
+              >
+                Sincronizar ahora
+              </Button>
+            )}
+          </Box>
+        </Paper>
+      ) : evaluacion.bloqueada && !verFichaEnBloqueada ? (
         <SeccionResultadoRiesgo
-          evaluacionId={evaluacion.id}
+          evaluacion={evaluacion}
           onReabrir={handleReabrir}
           reabriendo={reabrir.isPending}
           errorReabrir={errorReabrir}
+          onVerFicha={() => setVerFichaEnBloqueada(true)}
         />
       ) : (
         <>
+          {evaluacion.bloqueada && (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 1.5,
+                borderColor: 'primary.light',
+                bgcolor: 'background.default',
+              }}
+            >
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600} color="primary.main">
+                  Visualizando Ficha BPM ({casoCerrado ? 'Caso Cerrado — Solo lectura' : 'Modo solo lectura'})
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {casoCerrado
+                    ? 'Este caso se encuentra formalmente cerrado. Puedes revisar todas las respuestas y evidencias registradas en modo solo lectura.'
+                    : 'Esta evaluación se encuentra finalizada. Puedes revisar todas las respuestas y evidencias registradas.'}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AssessmentOutlinedIcon />}
+                  onClick={() => setVerFichaEnBloqueada(false)}
+                >
+                  {evaluacion.calculoRiesgo ? 'Volver al resultado de riesgo' : 'Volver al resumen'}
+                </Button>
+                <Tooltip
+                  title={
+                    casoCerrado
+                      ? 'Este caso está cerrado. Para editarlo, un coordinador debe reabrir el caso desde el apartado de expedientes cerrados.'
+                      : ''
+                  }
+                >
+                  <span>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={reabrir.isPending ? <CircularProgress size={16} color="inherit" /> : <EditOutlinedIcon />}
+                      disabled={reabrir.isPending || casoCerrado}
+                      onClick={handleReabrir}
+                    >
+                      {reabrir.isPending ? 'Reabriendo...' : 'Reabrir evaluación para edición'}
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Button
+                  variant="outlined"
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => navigate('/tecnico')}
+                >
+                  Volver al panel
+                </Button>
+              </Box>
+            </Paper>
+          )}
           {/* ── Navegador de Secciones ── */}
           {secciones.length > 1 && (() => {
             const respondidosPorSeccion = criteriosPorSeccion.map(
@@ -1095,29 +1329,31 @@ export default function EjecutarEvaluacion() {
             />
           </Paper>
 
-          <Box>
-            {errorFinalizar && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {errorFinalizar}
-              </Alert>
-            )}
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                disabled={finalizar.isPending || totalRespondidas < totalEvaluables}
-                onClick={handleFinalizar}
-              >
-                {finalizar.isPending ? <CircularProgress size={20} /> : 'Finalizar evaluación'}
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<ArrowBackIcon />}
-                onClick={() => navigate('/tecnico')}
-              >
-                Guardar y salir al panel
-              </Button>
+          {!evaluacion.bloqueada && (
+            <Box>
+              {errorFinalizar && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {errorFinalizar}
+                </Alert>
+              )}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  disabled={finalizar.isPending || totalRespondidas < totalEvaluables}
+                  onClick={handleFinalizar}
+                >
+                  {finalizar.isPending ? <CircularProgress size={20} /> : 'Finalizar evaluación'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => navigate('/tecnico')}
+                >
+                  Guardar y salir al panel
+                </Button>
+              </Box>
             </Box>
-          </Box>
+          )}
         </>
       )}
     </Box>

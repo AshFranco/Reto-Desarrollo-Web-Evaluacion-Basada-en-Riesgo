@@ -10,10 +10,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import { useEvaluacionesAsignadas } from '@/lib/tecnico/useEvaluacionesAsignadas';
+import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import type { AsignacionMia } from '@/lib/types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
@@ -22,16 +27,60 @@ import { EstadoCarga } from '@/components/ui/EstadoCarga';
 import { EstadoChip } from '@/components/ui/EstadoChip';
 
 /**
- * Antes este botón llamaba a POST .../iniciar y trataba "ya fue iniciada"
- * como no-error para navegar igual (no había forma de saber el estado real
- * desde esta lista). Ahora navega directo: EjecutarEvaluacion.tsx conoce el
- * estado real de la evaluación y decide ahí si hace falta iniciarla —
- * online contra el servidor, o encolada si no hay conexión (ver
- * useSincronizacionEvaluacion.ts). Así también funciona sin red: navegar
- * no depende de ninguna llamada al servidor.
+ * La acción del botón varía según la situación real de la asignación y la evaluación:
+ * - Caso Cerrado: "Ver expediente" o "Consultar" (modo lectura).
+ * - DEVUELTA: "Corregir evaluación" (prioridad de atención).
+ * - EN_CURSO: "Continuar evaluación".
+ * - PROGRAMADA: "Iniciar evaluación".
+ * - EN_REVISION / APROBADA: "Ver evaluación" (modo consulta).
  */
 function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
   const navigate = useNavigate();
+  const sync = useSyncStatus();
+  const casoCerrado = asignacion.caso.estado === 'Cerrado' || asignacion.caso.estado === 'CERRADO';
+  const estadoEvaluacion = asignacion.evaluacionEstado;
+  const esInspeccionSoloLectura = casoCerrado || estadoEvaluacion === 'CERRADA' || estadoEvaluacion === 'APROBADA';
+  const bloqueadoSinConexion = !sync.enLinea && esInspeccionSoloLectura;
+
+  let botonTexto = 'Iniciar evaluación';
+  let botonVariant: 'contained' | 'outlined' = 'contained';
+  let botonIcono = <PlayArrowOutlinedIcon fontSize="small" />;
+
+  if (casoCerrado) {
+    botonTexto = 'Ver expediente';
+    botonVariant = 'outlined';
+    botonIcono = <VisibilityOutlinedIcon fontSize="small" />;
+  } else if (estadoEvaluacion === 'DEVUELTA') {
+    botonTexto = 'Corregir evaluación';
+    botonVariant = 'contained';
+    botonIcono = <EditOutlinedIcon fontSize="small" />;
+  } else if (estadoEvaluacion === 'EN_CURSO') {
+    botonTexto = 'Continuar evaluación';
+    botonVariant = 'contained';
+    botonIcono = <PlayArrowOutlinedIcon fontSize="small" />;
+  } else if (
+    estadoEvaluacion === 'EN_REVISION' ||
+    estadoEvaluacion === 'APROBADA' ||
+    estadoEvaluacion === 'FINALIZADA' ||
+    estadoEvaluacion === 'CERRADA'
+  ) {
+    botonTexto = 'Ver evaluación';
+    botonVariant = 'outlined';
+    botonIcono = <VisibilityOutlinedIcon fontSize="small" />;
+  }
+
+  const botonElemento = (
+    <Button
+      size="small"
+      variant={botonVariant}
+      color="primary"
+      startIcon={botonIcono}
+      disabled={!asignacion.evaluacionId || bloqueadoSinConexion}
+      onClick={() => navigate(`/tecnico/evaluaciones/${asignacion.evaluacionId}`)}
+    >
+      {botonTexto}
+    </Button>
+  );
 
   return (
     <TableRow>
@@ -41,14 +90,13 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
         <EstadoChip estado={asignacion.caso.estado} />
       </TableCell>
       <TableCell>
-        <Button
-          size="small"
-          variant="contained"
-          disabled={!asignacion.evaluacionId}
-          onClick={() => navigate(`/tecnico/evaluaciones/${asignacion.evaluacionId}`)}
-        >
-          Iniciar / Continuar
-        </Button>
+        {bloqueadoSinConexion ? (
+          <Tooltip title="Conéctate a internet para realizar esta acción">
+            <span>{botonElemento}</span>
+          </Tooltip>
+        ) : (
+          botonElemento
+        )}
         {!asignacion.evaluacionId && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
             Esta asignación todavía no tiene una evaluación asociada.
@@ -94,20 +142,47 @@ function TablaAsignaciones() {
 function ResumenAsignaciones() {
   const { data: asignaciones } = useEvaluacionesAsignadas();
   const total = asignaciones?.length ?? 0;
-  const sinEvaluacion = asignaciones?.filter((a) => !a.evaluacionId).length ?? 0;
+  const enCurso = asignaciones?.filter((a) => a.evaluacionEstado === 'EN_CURSO').length ?? 0;
+  const completadas = asignaciones?.filter((a) =>
+    a.evaluacionEstado === 'FINALIZADA' ||
+    a.evaluacionEstado === 'EN_REVISION' ||
+    a.evaluacionEstado === 'APROBADA' ||
+    a.evaluacionEstado === 'CERRADA'
+  ).length ?? 0;
+  const devueltas = asignaciones?.filter((a) => a.evaluacionEstado === 'DEVUELTA').length ?? 0;
 
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-      <StatCard icono={<AssignmentOutlinedIcon />} valor={total} etiqueta="Casos asignados" />
       <StatCard
         icono={<AssignmentOutlinedIcon />}
-        valor={sinEvaluacion}
-        etiqueta="Sin evaluación creada"
-        color="#B8860B"
+        valor={total}
+        etiqueta="Casos asignados"
+        color="#2A6DB0"
       />
+      <StatCard
+        icono={<AssignmentOutlinedIcon />}
+        valor={enCurso}
+        etiqueta="En curso"
+        color="#0288D1"
+      />
+      <StatCard
+        icono={<AssignmentOutlinedIcon />}
+        valor={completadas}
+        etiqueta="Completadas / Enviadas"
+        color="#2E7D32"
+      />
+      {devueltas > 0 && (
+        <StatCard
+          icono={<AssignmentOutlinedIcon />}
+          valor={devueltas}
+          etiqueta="Devueltas para corrección"
+          color="#C62828"
+        />
+      )}
     </Box>
   );
 }
+
 
 export default function DashboardTecnico() {
   return (

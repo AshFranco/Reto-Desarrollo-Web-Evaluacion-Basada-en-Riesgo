@@ -11,7 +11,7 @@ import { useCasosAsignados, ID_ESTADO_EVALUACION } from './useCasos';
 export function useExpedientes() {
   return useQuery({
     queryKey: ['expedientes'],
-    queryFn: () => apiFetchJson<Expediente[]>('/api/v1/expedientes'),
+    queryFn: () => apiFetchJson<Expediente[]>('/api/v1/expedientes?estado=Cerrado'),
   });
 }
 
@@ -51,6 +51,20 @@ export function useCerrarExpediente() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['casos'] });
       queryClient.invalidateQueries({ queryKey: ['expedientes'] });
+    },
+  });
+}
+
+/** PATCH /api/v1/expedientes/:casoId/reabrir — reabre un expediente y caso previamente cerrado. */
+export function useReabrirExpediente() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (casoId: string) =>
+      apiFetchJson<Expediente>(`/api/v1/expedientes/${casoId}/reabrir`, { method: 'PATCH' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['casos'] });
+      queryClient.invalidateQueries({ queryKey: ['expedientes'] });
+      queryClient.invalidateQueries({ queryKey: ['asignaciones'] });
     },
   });
 }

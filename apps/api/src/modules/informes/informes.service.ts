@@ -94,6 +94,13 @@ export class InformesService {
     const estadoEnRevision = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: 'EN_REVISION' } });
 
     if (evaluacion.idEstado !== estadoDevuelta.id) {
+      if (evaluacion.idEstado === estadoEnRevision.id) {
+        return {
+          ...evaluacion,
+          id: evaluacion.id.toString(),
+          mensaje: 'La evaluación ya se encuentra en estado En Revisión.',
+        };
+      }
       throw new BadRequestException('Solo se puede revertir una evaluación que esté en estado Devuelta.');
     }
 
