@@ -100,7 +100,7 @@ export default function Login() {
         component="form"
         onSubmit={manejarSubmit}
         variant="outlined"
-        sx={{ padding: 4, width: '100%', maxWidth: 400 }}
+        sx={{ padding: { xs: 2.5, sm: 4 }, width: '100%', maxWidth: 400 }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
           <Box

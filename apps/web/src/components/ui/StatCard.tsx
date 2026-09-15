@@ -22,7 +22,7 @@ export function StatCard({
         display: 'flex',
         alignItems: 'center',
         gap: 2,
-        flex: '1 1 200px',
+        flex: { xs: '1 1 100%', sm: '1 1 200px' },
         borderLeft: '3px solid',
         borderLeftColor: color,
         bgcolor: alpha(color, 0.035),

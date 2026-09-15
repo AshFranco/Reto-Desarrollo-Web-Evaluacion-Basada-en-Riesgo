@@ -22,7 +22,9 @@ import {
   MenuItem,
   Select,
   Tooltip,
+  useMediaQuery,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
@@ -96,8 +98,11 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
     }
   }
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <VisibilityOutlinedIcon color="primary" />
         Inspección Detallada del Caso {casoId ? `#${casoId}` : ''}
@@ -283,35 +288,58 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
                   No hay evaluaciones registradas en este caso.
                 </Typography>
               ) : (
-                <TableContainer component={Paper} variant="outlined">
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>ID Evaluación</TableCell>
-                        <TableCell>Inicio</TableCell>
-                        <TableCell>Finalización</TableCell>
-                        <TableCell>Estado</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {caso.evaluaciones.map((ev: any) => (
-                        <TableRow key={ev.id}>
-                          <TableCell sx={{ fontFamily: 'monospace' }}>#{ev.id}</TableCell>
-                          <TableCell>{ev.fechaInicio ? new Date(ev.fechaInicio).toLocaleDateString() : '—'}</TableCell>
-                          <TableCell>{ev.fechaFinalizacion ? new Date(ev.fechaFinalizacion).toLocaleDateString() : '—'}</TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              label={ev.bloqueada ? 'Finalizada' : 'En proceso'}
-                              color={ev.bloqueada ? 'success' : 'info'}
-                              variant="outlined"
-                            />
-                          </TableCell>
+                isMobile ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {caso.evaluaciones.map((ev: any) => (
+                      <Paper key={ev.id} variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                            #{ev.id}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {ev.fechaInicio ? new Date(ev.fechaInicio).toLocaleDateString() : 'Sin fecha'}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={ev.bloqueada ? 'Finalizada' : 'En proceso'}
+                          color={ev.bloqueada ? 'success' : 'info'}
+                          variant="outlined"
+                        />
+                      </Paper>
+                    ))}
+                  </Box>
+                ) : (
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>ID Evaluación</TableCell>
+                          <TableCell>Inicio</TableCell>
+                          <TableCell>Finalización</TableCell>
+                          <TableCell>Estado</TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {caso.evaluaciones.map((ev: any) => (
+                          <TableRow key={ev.id}>
+                            <TableCell sx={{ fontFamily: 'monospace' }}>#{ev.id}</TableCell>
+                            <TableCell>{ev.fechaInicio ? new Date(ev.fechaInicio).toLocaleDateString() : '—'}</TableCell>
+                            <TableCell>{ev.fechaFinalizacion ? new Date(ev.fechaFinalizacion).toLocaleDateString() : '—'}</TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={ev.bloqueada ? 'Finalizada' : 'En proceso'}
+                                color={ev.bloqueada ? 'success' : 'info'}
+                                variant="outlined"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )
               )}
             </Box>
 
@@ -338,12 +366,13 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
         )}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
-        <Box>
+      <DialogActions sx={{ px: 3, py: 2, display: 'flex', flexDirection: { xs: 'column-reverse', sm: 'row' }, justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ width: { xs: '100%', sm: 'auto' } }}>
           {estaCerrado && (
             <Button
               variant="outlined"
               color="primary"
+              fullWidth={isMobile}
               startIcon={<LockOpenOutlinedIcon />}
               onClick={() => {
                 setErrorReabrir(null);
@@ -354,7 +383,7 @@ export function ModalInspeccionCaso({ casoId, open, onClose }: ModalInspeccionCa
             </Button>
           )}
         </Box>
-        <Button onClick={onClose} variant="contained">
+        <Button onClick={onClose} variant="contained" fullWidth={isMobile}>
           Cerrar
         </Button>
       </DialogActions>

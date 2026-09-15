@@ -12,6 +12,8 @@ import {
   TableRow,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -107,9 +109,91 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
   );
 }
 
+function TarjetaAsignacionTecnico({ asignacion }: { asignacion: AsignacionMia }) {
+  const navigate = useNavigate();
+  const sync = useSyncStatus();
+  const casoCerrado = asignacion.caso.estado === 'Cerrado' || asignacion.caso.estado === 'CERRADO';
+  const estadoEvaluacion = asignacion.evaluacionEstado;
+  const esInspeccionSoloLectura = casoCerrado || estadoEvaluacion === 'CERRADA' || estadoEvaluacion === 'APROBADA';
+  const bloqueadoSinConexion = !sync.enLinea && esInspeccionSoloLectura;
+
+  let botonTexto = 'Iniciar evaluación';
+  let botonVariant: 'contained' | 'outlined' = 'contained';
+  let botonIcono = <PlayArrowOutlinedIcon fontSize="small" />;
+
+  if (casoCerrado) {
+    botonTexto = 'Ver expediente';
+    botonVariant = 'outlined';
+    botonIcono = <VisibilityOutlinedIcon fontSize="small" />;
+  } else if (estadoEvaluacion === 'DEVUELTA') {
+    botonTexto = 'Corregir evaluación';
+    botonVariant = 'contained';
+    botonIcono = <EditOutlinedIcon fontSize="small" />;
+  } else if (estadoEvaluacion === 'EN_CURSO') {
+    botonTexto = 'Continuar evaluación';
+    botonVariant = 'contained';
+    botonIcono = <PlayArrowOutlinedIcon fontSize="small" />;
+  } else if (
+    estadoEvaluacion === 'EN_REVISION' ||
+    estadoEvaluacion === 'APROBADA' ||
+    estadoEvaluacion === 'FINALIZADA' ||
+    estadoEvaluacion === 'CERRADA'
+  ) {
+    botonTexto = 'Ver evaluación';
+    botonVariant = 'outlined';
+    botonIcono = <VisibilityOutlinedIcon fontSize="small" />;
+  }
+
+  const botonElemento = (
+    <Button
+      fullWidth
+      size="small"
+      variant={botonVariant}
+      color="primary"
+      startIcon={botonIcono}
+      disabled={!asignacion.evaluacionId || bloqueadoSinConexion}
+      onClick={() => navigate(`/tecnico/evaluaciones/${asignacion.evaluacionId}`)}
+    >
+      {botonTexto}
+    </Button>
+  );
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            {asignacion.caso.establecimiento.nombre}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            Asignado el {new Date(asignacion.fechaAsignacion).toLocaleDateString()}
+          </Typography>
+        </Box>
+        <EstadoChip estado={asignacion.caso.estado} />
+      </Box>
+
+      {bloqueadoSinConexion ? (
+        <Tooltip title="Conéctate a internet para realizar esta acción">
+          <span>{botonElemento}</span>
+        </Tooltip>
+      ) : (
+        botonElemento
+      )}
+
+      {!asignacion.evaluacionId && (
+        <Typography variant="caption" color="text.secondary">
+          Esta asignación todavía no tiene una evaluación asociada.
+        </Typography>
+      )}
+    </Paper>
+  );
+}
+
 function TablaAsignaciones() {
   const { data: asignaciones, isLoading, isError, error } = useEvaluacionesAsignadas();
   const sync = useSyncStatus();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   if (isLoading) return <EstadoCarga etiqueta="Cargando tus asignaciones…" />;
   if (isError) {
@@ -128,7 +212,13 @@ function TablaAsignaciones() {
     );
   }
 
-  return (
+  return isMobile ? (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      {asignaciones.map((a) => (
+        <TarjetaAsignacionTecnico key={a.id} asignacion={a} />
+      ))}
+    </Box>
+  ) : (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
@@ -162,7 +252,13 @@ function ResumenAsignaciones() {
   const devueltas = asignaciones?.filter((a) => a.evaluacionEstado === 'DEVUELTA').length ?? 0;
 
   return (
-    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: devueltas > 0 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)' },
+        gap: 2,
+      }}
+    >
       <StatCard
         icono={<AssignmentOutlinedIcon />}
         valor={total}

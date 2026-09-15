@@ -21,13 +21,22 @@ export function PageHeader({
   icono?: ReactNode;
 }) {
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        flexWrap: 'wrap',
+        gap: 2,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75, minWidth: 0 }}>
         {icono && (
           <Box
             sx={{
-              width: 48,
-              height: 48,
+              width: { xs: 40, sm: 48 },
+              height: { xs: 40, sm: 48 },
               borderRadius: 2.5,
               flexShrink: 0,
               display: 'flex',
@@ -40,14 +49,23 @@ export function PageHeader({
             {icono}
           </Box>
         )}
-        <Box>
-          <Typography variant="overline" color="primary.main">
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="overline" color="primary.main" sx={{ display: 'block', lineHeight: 1.2 }}>
             {etiqueta}
           </Typography>
-          <Typography variant="h4">{titulo}</Typography>
+          <Typography
+            variant="h4"
+            sx={{
+              fontSize: { xs: '1.35rem', sm: '1.75rem', md: '2.125rem' },
+              fontWeight: 700,
+              wordBreak: 'break-word',
+            }}
+          >
+            {titulo}
+          </Typography>
         </Box>
       </Box>
-      {accion}
+      {accion && <Box sx={{ width: { xs: '100%', sm: 'auto' } }}>{accion}</Box>}
     </Box>
   );
 }
