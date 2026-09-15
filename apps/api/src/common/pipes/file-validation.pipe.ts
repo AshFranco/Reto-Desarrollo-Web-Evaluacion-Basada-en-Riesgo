@@ -33,7 +33,7 @@ export class FileValidationPipe implements PipeTransform {
     const detected = await FileType.fromBuffer(file.buffer);
     const allowed = this.config.allowedFileMimeTypes;
 
-    let mimeEfectivo = detected?.mime;
+    let mimeEfectivo: string | undefined = detected?.mime;
 
     // Para archivos de texto estructurado de geolocalización (geojson, json, kml, gpx),
     // file-type no tiene magic bytes fijos. Validamos su estructura y asignamos su MIME.
