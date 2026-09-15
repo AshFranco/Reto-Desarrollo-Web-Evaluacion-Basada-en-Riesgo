@@ -95,4 +95,20 @@ describe('ConsultaHistorica', () => {
 
     await waitFor(() => expect(new URL(urlCapturada).searchParams.get('solicitudId')).toBe('5'));
   });
+
+  it('abre el modal de inspección en modo estrictamente solo lectura', async () => {
+    await iniciarSesionComo('COORDINADOR');
+    renderPantalla();
+
+    await waitFor(() => expect(screen.getByText('Alimentos de Prueba SRL')).toBeInTheDocument());
+
+    const botonInspeccionar = screen.getByRole('button', { name: /inspeccionar/i });
+    fireEvent.click(botonInspeccionar);
+
+    await waitFor(() => expect(screen.getByText(/Inspección Detallada del Caso/i)).toBeInTheDocument());
+    expect(screen.getByText('Modo solo lectura')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cambiar técnico/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /desvincular/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reabrir caso/i })).not.toBeInTheDocument();
+  });
 });

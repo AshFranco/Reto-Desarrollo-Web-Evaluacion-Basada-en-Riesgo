@@ -334,6 +334,7 @@ export default function ConsultaHistorica() {
         casoId={casoAInspeccionar}
         open={Boolean(casoAInspeccionar)}
         onClose={() => setCasoAInspeccionar(null)}
+        soloLectura={true}
       />
     </Box>
   );
