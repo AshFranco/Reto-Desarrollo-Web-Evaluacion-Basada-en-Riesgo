@@ -8,10 +8,10 @@
 
 | Severidad | Abiertos | Resueltos | Mitigados / Documentados | Total |
 |---|---|---|---|---|
-| **Crítica** | 0 | 3 | 1 (MFA) | 4 |
-| **Mayor** | 0 | 3 | 0 | 3 |
-| **Menor** | 0 | 1 | 0 | 1 |
-| **Total** | **0** | **7** | **1** | **8** |
+| **Crítica** | 0 | 5 | 0 | 5 |
+| **Mayor** | 0 | 8 | 0 | 8 |
+| **Menor / Media** | 0 | 8 | 0 | 8 |
+| **Total** | **0** | **21** | **0** | **21** |
 
 ---
 
@@ -112,4 +112,79 @@
   3. Se conectó `usuarioSesion` hacia `TabSeguridad`, impidiendo mostrar el estado 2FA de terceros.
   4. Se integró `queryClient.clear()` en `cerrarSesion` y en el éxito de `login`, eliminando cualquier caché residual en transiciones de sesión.
   5. Se añadió una prueba unitaria de regresión en `DialogPerfil.test.tsx` verificando el blindaje ante perfiles discrepantes.
+
+---
+
+### DEF-016: Deficiencias de responsividad y desbordamiento en pantallas móviles y tablets
+- **Severidad:** Mayor (Usabilidad y Experiencia de Usuario)
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en `apps/web`
+- **Componente:** Frontend Web / `DashboardCoordinador.tsx`, `DashboardAdmin.tsx`, `DashboardTecnico.tsx`, `FormularioEstablecimiento.tsx`, `FormularioSolicitud.tsx`, `ConsultaHistorica.tsx`
+- **Descripción:** En pantallas móviles y tablets, las vistas de los diferentes roles presentaban desbordamientos horizontales, solapamiento de tarjetas de métricas, botones de acción inaccesibles y tablas cortadas, afectando la operatividad en dispositivos portátiles.
+- **Resolución:**
+  1. Se rediseñaron los contenedores con directivas adaptativas `flexDirection: { xs: 'column', sm: 'row' }` y `flexWrap: 'wrap'`.
+  2. Se envolvieron las tablas de datos en contenedores con desplazamiento horizontal suave (`overflowX: 'auto'`).
+  3. Se ajustaron los diálogos y formularios para expandirse al 100% del ancho de pantalla en vistas móviles (`fullWidth`, `maxWidth="sm"`/`"md"`).
+
+---
+
+### DEF-017: Modificación indebida de prioridad y acciones en expedientes cerrados
+- **Severidad:** Mayor (Integridad de Datos y Auditoría)
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en `apps/web` y `apps/api`
+- **Componente:** Frontend / `ModalInspeccionCaso.tsx`, Backend / `expedientes.service.ts`
+- **Descripción:** Al inspeccionar expedientes en estado "Cerrado", la interfaz permitía a los coordinadores editar la prioridad del caso y desplegaba controles de decisión que solo deben operar sobre casos abiertos.
+- **Resolución:**
+  1. Se implementó la condición `esCerrado = caso.estado === 'Cerrado'`.
+  2. Cuando el expediente está cerrado, el selector de prioridad se desactiva y se muestra un chip visual de solo lectura (`Cerrado`).
+  3. Se ocultan los botones de toma de decisiones activas sobre el expediente concluido.
+
+---
+
+### DEF-018: Imposibilidad de reapertura controlada en expedientes cerrados
+- **Severidad:** Media (Flujo Operativo)
+- **Prioridad:** Media
+- **Estado:** ✅ Resuelto en `apps/api` y `apps/web`
+- **Componente:** Backend / `expedientes.service.ts`, Frontend / `ModalInspeccionCaso.tsx`
+- **Descripción:** Casos formalmente archivados requerían en situaciones extraordinarias una reapertura motivada por el Coordinador, pero el backend rechazaba la transición o la interfaz no presentaba el flujo de solicitud de motivo de reapertura.
+- **Resolución:**
+  1. Se habilitó el método `reabrirExpediente` en `expedientes.service.ts` validando que el caso esté cerrado y exigiendo motivo textual obligatorio.
+  2. En el frontend se integró el diálogo de confirmación con campo obligatorio de justificación de reapertura y auditoría de usuario.
+
+---
+
+### DEF-019: Carencia de buscador rápido de criterios en la Ficha Técnica BPM
+- **Severidad:** Media (Eficiencia en Campo)
+- **Prioridad:** Media
+- **Estado:** ✅ Resuelto en `apps/web`
+- **Componente:** Frontend Web / `EjecutarEvaluacion.tsx`
+- **Descripción:** Los técnicos evaluadores debían inspeccionar manualmente múltiples pestañas y listas extensas para localizar ítems específicos durante las auditorías en plantas industriales.
+- **Resolución:**
+  1. Se integró una barra de búsqueda con debounce en tiempo real en la cabecera de la ficha técnica.
+  2. Permite filtrar dinámicamente por numeración de criterio (ej. "1.1 a") o por cualquier palabra clave del título/descripción en todo el catálogo BPM.
+
+---
+
+### DEF-020: Mutación involuntaria de datos en el módulo de Consulta Histórica
+- **Severidad:** Crítica (Integridad y Trazabilidad Histórica)
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en `apps/web`
+- **Componente:** Frontend Web / `ConsultaHistorica.tsx`, `ModalInspeccionCaso.tsx`
+- **Descripción:** Al consultar expedientes o inspecciones históricas desde el panel de consulta general, se reutilizaban los modales interactivos permitiendo accidentalmente modificar asignaciones o prioridades de registros archivados.
+- **Resolución:**
+  1. Se introdujo y forzó la prop `soloLectura={true}` al invocar `ModalInspeccionCaso` desde `ConsultaHistorica.tsx`.
+  2. Se inhabilitaron todos los selectores, formularios y botones de mutación en dicho contexto.
+
+---
+
+### DEF-021: Ausencia de geolocalización GPS por criterio individual y falta de confirmación al eliminar evidencias
+- **Severidad:** Mayor (Integridad de Evidencias y Seguridad Operativa)
+- **Prioridad:** Alta
+- **Estado:** ✅ Resuelto en `apps/web` y `apps/api`
+- **Componente:** Frontend Web / `EjecutarEvaluacion.tsx`, Backend / `subir-evidencia.dto.ts`
+- **Descripción:** Las evidencias fotográficas y archivos no disponían de geolocalización GPS específica por criterio individual, y el botón de papelera borraba archivos de forma inmediata sin confirmación previa, provocando pérdidas accidentales en dispositivos táctiles de campo.
+- **Resolución:**
+  1. Se implementó un modal interactivo (`<Dialog>`) exclusivo para cada criterio evaluable, con soporte de subida de archivos multimedia y captura de coordenadas GPS en tiempo real con exportación de GeoJSON vinculado a `respuestaItemId`.
+  2. Se integró un diálogo modal de confirmación y advertencia ("¿Estás seguro de que deseas eliminar este archivo adjunto? Esta acción no se puede deshacer") antes de proceder con cualquier eliminación.
+
 

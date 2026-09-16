@@ -732,6 +732,182 @@ DEFECTOS = [
             ("Pruebas unitarias frontend", "npx.cmd vitest run src/pages/perfil/DialogPerfil.test.tsx", "Aprobado (10/10)"),
             ("Suite completa web", "npm.cmd test -w apps/web", "Aprobado (176/176)"),
         ]
+    },
+    {
+        "codigo": "DEF-2026-016",
+        "archivo": "Responsividad_Dashboards_Vistas_Moviles",
+        "titulo_corto": "Módulo: Responsividad y Adaptabilidad — Dashboards y Formularios Móviles",
+        "modulo": "Interfaz Web / Todos los Roles",
+        "severidad": "Mayor (Usabilidad y Accesibilidad)",
+        "prioridad": "P1 (Alta)",
+        "tipo": "Diseño Responsivo / UI-UX",
+        "descripcion": (
+            "En dispositivos móviles y pantallas estrechas, los dashboards de Coordinador, Administrador, Empresa, "
+            "Técnico y Consulta Histórica presentaban desbordamientos horizontales, tablas cortadas y botones fuera de vista."
+        ),
+        "pasos": [
+            "Acceder a la aplicación desde un dispositivo móvil o emulador (viewport < 600px).",
+            "Navegar por los dashboards de Coordinador, Técnico, Empresa y Administrador.",
+            "Constatar el corte de columnas en tablas y solapamiento de tarjetas de métricas."
+        ],
+        "observado": "- Elementos visuales truncados y tablas con pérdida de información lateral.",
+        "esperado": "- Adaptación fluida de rejilla (grid/flex), contenedores con scroll horizontal suave y botones táctiles del 100% de ancho.",
+        "rca": "Estructuras de layout rígidas con anchos fijos en píxeles y omisión de directivas responsivas por breakpoints de MUI.",
+        "solucion": [
+            ("Frontend (Dashboards):", "Reestructuración con Box flexWrap, stacks verticales en xs y scroll horizontal seguro en tablas."),
+            ("Frontend (Formularios y Modales):", "Ajuste a fullWidth y maxWidth dinámico para adaptación fluida en pantallas táctiles."),
+        ],
+        "verificacion": [
+            ("Pruebas de renderizado responsive", "npx.cmd vitest run src/routes/RoleRoute.test.tsx", "Aprobado (4/4)"),
+            ("Suite completa frontend", "npm.cmd test -w apps/web", "Aprobado (182/182)"),
+        ]
+    },
+    {
+        "codigo": "DEF-2026-017",
+        "archivo": "Bloqueo_Prioridad_Decisiones_Expedientes_Cerrados",
+        "titulo_corto": "Módulo: Coordinador — Bloqueo de Prioridad y Decisiones en Casos Cerrados",
+        "modulo": "Gestión de Expedientes / Coordinador",
+        "severidad": "Mayor (Integridad de Datos)",
+        "prioridad": "P1 (Alta)",
+        "tipo": "Seguridad Operativa / Integridad",
+        "descripcion": (
+            "Al inspeccionar un expediente en estado 'Cerrado', el modal permitía alterar la prioridad del caso "
+            "y mantenía activos los botones de toma de decisiones operativas, vulnerando la inmutabilidad de registros archivados."
+        ),
+        "pasos": [
+            "Iniciar sesión como Coordinador y acceder a la pestaña de Expedientes Cerrados.",
+            "Hacer clic en 'Inspeccionar' sobre un expediente cerrado.",
+            "Observar que el selector de prioridad y las acciones operativas se encontraban habilitados."
+        ],
+        "observado": "- Capacidad de mutar prioridad y disparar transiciones de estado sobre expedientes formalmente concluidos.",
+        "esperado": "- Inhabilitación total del selector de prioridad y ocultamiento de botones de acción para casos cerrados.",
+        "rca": "Ausencia de validación reactiva sobre el estado del caso en ModalInspeccionCaso.tsx.",
+        "solucion": [
+            ("Frontend (ModalInspeccionCaso.tsx):", "Incorporación de condición esCerrado y desactivación de controles interactivos."),
+            ("Backend (expedientes.service.ts):", "Validación estricta en endpoints de actualización de casos archivados."),
+        ],
+        "verificacion": [
+            ("Pruebas unitarias de expedientes", "npx.cmd vitest run src/lib/coordinador/useExpedientes.test.tsx", "Aprobado (6/6)"),
+            ("Suite completa frontend", "npm.cmd test -w apps/web", "Aprobado (182/182)"),
+        ]
+    },
+    {
+        "codigo": "DEF-2026-018",
+        "archivo": "Reapertura_Expedientes_Cerrados_Motivo",
+        "titulo_corto": "Módulo: Coordinador — Reapertura Controlada de Expedientes Archivados",
+        "modulo": "Gestión de Expedientes / Coordinador",
+        "severidad": "Media (Operabilidad del Sistema)",
+        "prioridad": "P2 (Media)",
+        "tipo": "Flujo de Negocio / Auditoría",
+        "descripcion": (
+            "No se permitía la reapertura administrativa de expedientes cerrados cuando se requería una rectificación "
+            "o nueva instrucción por parte del Coordinador con su correspondiente justificación formal."
+        ),
+        "pasos": [
+            "Abrir un expediente cerrado como Coordinador.",
+            "Intentar reaperturar el caso con una nota explicativa.",
+            "Constatar que el sistema bloqueaba la acción o no persistía el motivo de reapertura."
+        ],
+        "observado": "- Imposibilidad de reiniciar el flujo de trabajo sobre un caso cerrado que ameritaba revisión.",
+        "esperado": "- Flujo de reapertura controlado que solicita motivo obligatorio y transiciona el caso a estado activo registrando auditoría.",
+        "rca": "Regla de transición de estados excesivamente restrictiva en la lógica de negocio del backend.",
+        "solucion": [
+            ("Backend (expedientes.service.ts):", "Método reabrirExpediente con validación de estado previo 'Cerrado' y auditoría de motivo."),
+            ("Frontend (ModalInspeccionCaso.tsx):", "Modal con campo de texto obligatorio para la justificación de la reapertura."),
+        ],
+        "verificacion": [
+            ("Pruebas unitarias de expedientes", "npx.cmd vitest run src/lib/coordinador/useExpedientes.test.tsx", "Aprobado (6/6)"),
+            ("Suite completa frontend", "npm.cmd test -w apps/web", "Aprobado (182/182)"),
+        ]
+    },
+    {
+        "codigo": "DEF-2026-019",
+        "archivo": "Buscador_Criterios_Ficha_Tecnica_BPM",
+        "titulo_corto": "Módulo: Técnico Evaluador — Buscador en Tiempo Real en Ficha Técnica",
+        "modulo": "Ficha Técnica BPM / Técnico Evaluador",
+        "severidad": "Media (Eficiencia y Usabilidad en Campo)",
+        "prioridad": "P2 (Media)",
+        "tipo": "Usabilidad / Herramienta de Productividad",
+        "descripcion": (
+            "En la evaluación técnica en campo, los inspectores debían recorrer manualmente extensas secciones para "
+            "ubicar criterios específicos, sin una herramienta de búsqueda inmediata por código o palabra clave."
+        ),
+        "pasos": [
+            "Ingresar a una evaluación técnica en curso.",
+            "Intentar buscar un criterio específico como 'plagas', 'agua' o el código '1.1 a'.",
+            "Constatar que únicamente se podía navegar pestaña por pestaña sin filtro de texto."
+        ],
+        "observado": "- Navegación lenta y tediosa durante auditorías presenciales en fábricas de alimentos.",
+        "esperado": "- Barra de búsqueda integrada con debounce en tiempo real que filtre inmediatamente por numeración o descripción.",
+        "rca": "Omisión de un mecanismo de filtrado de texto en el componente de ejecución de evaluación.",
+        "solucion": [
+            ("Frontend (EjecutarEvaluacion.tsx):", "Implementación de TextField de búsqueda con debounce y filtrado normalizado sobre el árbol BPM."),
+            ("Frontend (FilaCriterio):", "Mantenimiento de estado de respuesta y visualización de resultados sin reiniciar selecciones."),
+        ],
+        "verificacion": [
+            ("Pruebas de ficha técnica", "npx.cmd vitest run src/pages/tecnico/EjecutarEvaluacion.test.tsx", "Aprobado (9/9)"),
+            ("Suite completa frontend", "npm.cmd test -w apps/web", "Aprobado (182/182)"),
+        ]
+    },
+    {
+        "codigo": "DEF-2026-020",
+        "archivo": "Consulta_Historica_Modo_Solo_Lectura",
+        "titulo_corto": "Módulo: Consultas Históricas — Blindaje Modo Solo Lectura en Inspección",
+        "modulo": "Consulta Histórica / Auditoría General",
+        "severidad": "Crítica (Integridad y Trazabilidad Histórica)",
+        "prioridad": "P1 (Alta)",
+        "tipo": "Seguridad de Datos / Auditoría",
+        "descripcion": (
+            "Al consultar casos desde la pantalla de Consulta Histórica, el modal de inspección reutilizaba los controles "
+            "interactivos del coordinador, posibilitando mutaciones accidentales sobre registros de ejercicios concluidos."
+        ),
+        "pasos": [
+            "Acceder a /historico/consulta como usuario autorizado.",
+            "Filtrar y seleccionar un caso archivado para inspeccionar.",
+            "Constatar que el modal presentaba selectores de prioridad y botones de decisión editables."
+        ],
+        "observado": "- Riesgo de alteración involuntaria de información histórica y auditorías pasadas.",
+        "esperado": "- Despliegue estricto en modo solo lectura con todos los campos bloqueados y botones mutadores suprimidos.",
+        "rca": "Falta de parametrización del modo soloLectura al invocar ModalInspeccionCaso desde ConsultaHistorica.tsx.",
+        "solucion": [
+            ("Frontend (ConsultaHistorica.tsx):", "Paso forzado de soloLectura={true} en la apertura de expedientes históricos."),
+            ("Frontend (ModalInspeccionCaso.tsx):", "Ocultamiento condicional de controles mutadores bajo la bandera soloLectura."),
+        ],
+        "verificacion": [
+            ("Pruebas de consulta histórica", "npx.cmd vitest run src/lib/historico/useCasosHistorico.test.tsx", "Aprobado (3/3)"),
+            ("Suite completa frontend", "npm.cmd test -w apps/web", "Aprobado (182/182)"),
+        ]
+    },
+    {
+        "codigo": "DEF-2026-021",
+        "archivo": "Modal_Geolocalizacion_GPS_Criterio_Y_Advertencia_Borrado",
+        "titulo_corto": "Módulo: Técnico Evaluador — Modal Propio con GPS por Criterio y Advertencia de Borrado",
+        "modulo": "Ficha Técnica / Evidencias de Campo",
+        "severidad": "Mayor (Integridad de Evidencias y Seguridad Operativa)",
+        "prioridad": "P1 (Alta)",
+        "tipo": "Funcionalidad de Campo / Heurística de Seguridad",
+        "descripcion": (
+            "Los criterios evaluables no contaban con modal individual para capturar geolocalización geográfica GPS "
+            "específica del hallazgo. Asimismo, la eliminación de evidencias operaba sin diálogo de advertencia previo, "
+            "ocasionando borrados accidentales en dispositivos móviles táctiles."
+        ),
+        "pasos": [
+            "Ingresar a una evaluación en curso y responder un criterio de inspección.",
+            "Pulsar 'Adjuntar evidencia' en dicho criterio.",
+            "Constatar que no se abría un modal con GPS y que pulsar la papelera borraba archivos sin confirmar."
+        ],
+        "observado": "- Falta de georreferenciación puntual del criterio y pérdida de archivos por toques accidentales.",
+        "esperado": "- Modal exclusivo por criterio con subida multimedia y captura GPS GeoJSON, junto a diálogo de confirmación antes de eliminar.",
+        "rca": "Desactivación de permitirGps en FilaCriterio y carencia de un estado de confirmación en la acción de borrado.",
+        "solucion": [
+            ("Frontend (EjecutarEvaluacion.tsx):", "Habilitación de modal individual con GPS y exportación GeoJSON vinculado a respuestaItemId."),
+            ("Frontend (EjecutarEvaluacion.tsx):", "Implementación de diálogo modal de confirmación y advertencia destructiva previa al borrado."),
+            ("Pruebas unitarias:", "Nueva suite validando apertura del modal propio con GPS y diálogo de advertencia de borrado."),
+        ],
+        "verificacion": [
+            ("Pruebas unitarias de modal y confirmación", "npx.cmd vitest run src/pages/tecnico/EjecutarEvaluacion.test.tsx", "Aprobado (9/9)"),
+            ("Suite completa frontend", "npm.cmd test -w apps/web", "Aprobado (182/182)"),
+        ]
     }
 ]
 
