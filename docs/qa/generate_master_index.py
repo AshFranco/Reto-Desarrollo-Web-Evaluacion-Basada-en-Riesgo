@@ -74,7 +74,7 @@ def build_master_index():
     r3 = p2.add_run("ÍNDICE MAESTRO\n")
     r3.font.size = Pt(8.5)
     r3.font.bold = True
-    r4 = p2.add_run("TOTAL: 14 DEFECTOS CERRADOS")
+    r4 = p2.add_run("TOTAL: 21 DEFECTOS CERRADOS")
     r4.font.size = Pt(7.5)
     r4.font.color.rgb = RGBColor(90, 90, 90)
 
@@ -89,7 +89,7 @@ def build_master_index():
 
     p_sub = doc.add_paragraph()
     p_sub.paragraph_format.space_after = Pt(12)
-    rsub = p_sub.add_run("Consolidado oficial de las 14 no conformidades detectadas, analizadas y resueltas durante el ciclo de pruebas de QA.")
+    rsub = p_sub.add_run("Consolidado oficial de las 21 no conformidades detectadas, analizadas y resueltas durante el ciclo de pruebas de QA.")
     rsub.font.size = Pt(9.5)
     rsub.font.color.rgb = RGBColor(90, 90, 90)
 
@@ -98,10 +98,10 @@ def build_master_index():
     p_res.paragraph_format.space_after = Pt(8)
     p_res.paragraph_format.line_spacing = 1.15
     p_res.add_run(
-        "El presente índice relaciona los 14 informes técnicos individuales generados en formato Microsoft Word (.docx), "
+        "El presente índice relaciona los 21 informes técnicos individuales generados en formato Microsoft Word (.docx), "
         "los cuales documentan el diagnóstico de causa raíz (RCA), la solución implementada a nivel de código y base de datos, "
         "y las evidencias de verificación automatizada. Todos los defectos reportados se encuentran actualmente en estado "
-        "CERRADO / VERIFICADO con 100% de pruebas unitarias y de integración aprobadas (56 en Backend, 160 en Frontend)."
+        "CERRADO / VERIFICADO con 100% de pruebas unitarias y de integración aprobadas (56 en Backend, 182 en Frontend)."
     )
 
     # Tabla maestra
@@ -121,6 +121,12 @@ def build_master_index():
         ("DEF-2026-013", "Coordinador", "Retiro de tooltip técnico interno y unificación de acciones", "Baja", "Cerrado"),
         ("DEF-2026-014", "Solicitud BPM / Catálogo", "Catálogo dinámico y desplegable de Tipos de Establecimiento", "Media", "Cerrado"),
         ("DEF-2026-015", "Perfil / Sesiones", "Aislamiento estricto de perfil y purga de caché en cambios de sesión", "Mayor", "Cerrado"),
+        ("DEF-2026-016", "Todos los Roles", "Responsividad y adaptabilidad móvil en dashboards y formularios", "Mayor", "Cerrado"),
+        ("DEF-2026-017", "Coordinador", "Bloqueo de prioridad y decisiones en expedientes cerrados", "Mayor", "Cerrado"),
+        ("DEF-2026-018", "Coordinador", "Reapertura controlada y motivada de expedientes cerrados", "Media", "Cerrado"),
+        ("DEF-2026-019", "Técnico Evaluador", "Buscador interactivo en tiempo real de criterios BPM", "Media", "Cerrado"),
+        ("DEF-2026-020", "Consulta Histórica", "Blindaje forzado en modo solo lectura para auditoría histórica", "Crítica", "Cerrado"),
+        ("DEF-2026-021", "Técnico Evaluador", "Modal con geolocalización GPS por criterio y confirmación de borrado", "Mayor", "Cerrado"),
     ]
 
     t = doc.add_table(rows=len(items) + 1, cols=5)
