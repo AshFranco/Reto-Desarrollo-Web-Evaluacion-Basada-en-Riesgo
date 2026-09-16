@@ -33,7 +33,7 @@ Cuando algo está declarado como "hecho" en documentación de una rama pero el c
 
 ## Fuentes principales
 
-- SRS oficial — Reto Julio-Septiembre 2026.
+- [SRS oficial — Reto Julio-Septiembre 2026 (PDF)](./SRS-Especificacion-Requisitos-Software-EBR-BPM.pdf).
 - `CONTEXTO_PROYECTO.md` — auditoría del estado real del repositorio, generada leyendo el código (no el README) el 2026-09-03.
 - `docs/hallazgos.md` — defectos encontrados en los archivos fuente Excel.
 - `docs/adr/001-stack.md` — decisión de stack, estado: propuesto, no ratificado.
