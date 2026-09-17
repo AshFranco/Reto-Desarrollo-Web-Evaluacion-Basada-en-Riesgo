@@ -91,10 +91,11 @@ export class AuthService {
         telefono: dto.telefono,
         contrasenaHash,
         idEmpresa: BigInt(dto.empresaId),
+        cartaAutorizacionUrl: dto.cartaAutorizacionUrl ?? null,
         estado: 'PENDIENTE_VALIDACION',
         roles: { create: { idRol: rol.id } },
       },
-      select: { id: true, correoElectronico: true, nombreCompleto: true },
+      select: { id: true, correoElectronico: true, nombreCompleto: true, cartaAutorizacionUrl: true },
     });
 
     return {
@@ -131,12 +132,10 @@ export class AuthService {
     }
 
     if (usuario.dobleFactorActivo) {
-      // NOTA: el esquema oficial no define una columna para el secreto TOTP.
-      // Falta agregarla (ver COMPARACION_ARQUITECTURA.md) antes de poder
-      // verificar el código de doble factor. Por ahora se omite ese paso.
-      throw new Error(
-        'MFA activo pero no implementable: falta columna de secreto TOTP en el esquema oficial.',
-      );
+      if (!usuario.secretoTotp) {
+        throw new BadRequestException('El usuario tiene MFA marcado como activo pero no tiene un secreto TOTP configurado.');
+      }
+      return { requiereMfa: true, mensaje: 'Ingrese su código de autenticación de dos factores.' };
     }
 
     await this.loginThrottle.registrarLoginExitoso(usuario.id);
@@ -189,5 +188,65 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await this.tokenService.revokeAllForUser(BigInt(userId));
+  }
+
+  async solicitarRecuperacionContrasena(correo: string) {
+    const mensajeGenerico = 'Si el correo electrónico está registrado en el sistema, recibirá las instrucciones para restablecer su contraseña.';
+
+    try {
+      const correoLimpio = (correo || '').trim().toLowerCase();
+      if (!correoLimpio) return { mensaje: mensajeGenerico };
+
+      const usuario = await this.prisma.usuario.findFirst({
+        where: { correoElectronico: correoLimpio },
+      });
+
+      if (!usuario) {
+        return { mensaje: mensajeGenerico };
+      }
+
+      const resetToken = this.tokenService.signAccessToken({
+        sub: usuario.id.toString(),
+        rol: 'RESET_PASSWORD',
+        empresaId: null,
+      });
+
+      return {
+        mensaje: mensajeGenerico,
+        token: resetToken,
+      };
+    } catch {
+      return { mensaje: mensajeGenerico };
+    }
+  }
+
+  async resetearContrasena(token: string, nuevaContrasena: string) {
+    let payload;
+    try {
+      payload = this.tokenService.verifyAccessToken(token);
+    } catch {
+      throw new BadRequestException('Token de recuperación inválido o expirado.');
+    }
+
+    if (payload.rol !== 'RESET_PASSWORD') {
+      throw new BadRequestException('El token proporcionado no es un token de recuperación de contraseña.');
+    }
+
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: BigInt(payload.sub) },
+    });
+    if (!usuario) {
+      throw new BadRequestException('Usuario no encontrado.');
+    }
+
+    const contrasenaHash = await this.passwordService.hash(nuevaContrasena);
+    await this.prisma.usuario.update({
+      where: { id: usuario.id },
+      data: { contrasenaHash, intentosFallidos: 0, bloqueadoHasta: null },
+    });
+
+    await this.tokenService.revokeAllForUser(usuario.id);
+
+    return { mensaje: 'Contraseña restablecida exitosamente. Ya puede iniciar sesión con su nueva contraseña.' };
   }
 }

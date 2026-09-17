@@ -32,4 +32,10 @@ export class UsuariosController {
   listarPorRol(@Param('codigoRol') codigoRol: string) {
     return this.usuariosService.listarPorRol(codigoRol);
   }
+
+  @Get('tecnicos')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.COORDINADOR)
+  listarTecnicos() {
+    return this.usuariosService.listarTecnicosConCarga();
+  }
 }

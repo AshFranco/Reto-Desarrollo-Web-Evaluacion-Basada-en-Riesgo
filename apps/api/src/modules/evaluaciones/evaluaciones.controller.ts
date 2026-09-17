@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { EvaluacionesService } from './evaluaciones.service';
 import {
   RegistrarRespuestasDto,
@@ -49,5 +49,21 @@ export class EvaluacionesController {
     @Body() dto: FinalizarEvaluacionDto,
   ) {
     return this.evaluacionesService.finalizar(id, user.sub, dto);
+  }
+
+  @Get(':id/observaciones')
+  @Roles(RolUsuario.TECNICO_EVALUADOR)
+  obtenerObservaciones(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.evaluacionesService.obtenerObservaciones(id, user.sub);
+  }
+
+  @Patch(':id/corregir')
+  @Roles(RolUsuario.TECNICO_EVALUADOR)
+  corregir(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: RegistrarRespuestasDto,
+  ) {
+    return this.evaluacionesService.corregir(id, user.sub, dto);
   }
 }

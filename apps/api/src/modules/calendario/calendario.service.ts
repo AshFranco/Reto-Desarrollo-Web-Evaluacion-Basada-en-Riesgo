@@ -71,4 +71,44 @@ export class CalendarioService {
 
     return Array.from(porTecnico.values());
   }
+
+  async reprogramar(evaluacionId: string, nuevaFecha: string, comentario?: string) {
+    const evaluacion = await this.prisma.evaluacion.findUnique({
+      where: { id: BigInt(evaluacionId) },
+    });
+    if (!evaluacion) throw new (require('@nestjs/common').NotFoundException)('Evaluación no encontrada.');
+
+    const actualizada = await this.prisma.evaluacion.update({
+      where: { id: BigInt(evaluacionId) },
+      data: { fechaProgramada: new Date(nuevaFecha) },
+    });
+
+    return {
+      mensaje: 'Evaluación reprogramada exitosamente.',
+      evaluacion: { ...actualizada, id: actualizada.id.toString(), idEvaluador: actualizada.idEvaluador.toString() },
+    };
+  }
+
+  async cancelar(evaluacionId: string, motivo?: string) {
+    const evaluacion = await this.prisma.evaluacion.findUnique({
+      where: { id: BigInt(evaluacionId) },
+    });
+    if (!evaluacion) throw new (require('@nestjs/common').NotFoundException)('Evaluación no encontrada.');
+
+    const estadoCancelado = await this.prisma.estadoEvaluacion.findFirst({
+      where: { codigo: { in: ['CANCELADA', 'CANCELADO'] } },
+    });
+
+    const actualizada = await this.prisma.evaluacion.update({
+      where: { id: BigInt(evaluacionId) },
+      data: {
+        idEstado: estadoCancelado?.id ?? evaluacion.idEstado,
+      },
+    });
+
+    return {
+      mensaje: 'Cita de evaluación cancelada exitosamente.',
+      evaluacion: { ...actualizada, id: actualizada.id.toString(), idEvaluador: actualizada.idEvaluador.toString() },
+    };
+  }
 }

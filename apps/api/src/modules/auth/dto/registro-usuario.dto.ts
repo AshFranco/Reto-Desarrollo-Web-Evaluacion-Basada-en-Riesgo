@@ -54,4 +54,9 @@ export class RegistroUsuarioDto {
   // nunca se acepta un objeto "empresa" completo desde el cliente.
   @IsString()
   empresaId: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  cartaAutorizacionUrl?: string;
 }

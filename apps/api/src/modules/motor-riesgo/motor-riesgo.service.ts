@@ -217,6 +217,41 @@ export class MotorRiesgoService {
       })),
     });
 
+    // --- 6) RF-07 Ciclo Cerrado: Programación Institucional automática y origen del siguiente Caso ---
+    if (resultado.fechaProximaInspeccion && this.prisma.programacionInstitucional) {
+      const programacionExistente = await this.prisma.programacionInstitucional.findFirst({
+        where: { idEvaluacionOrigen: evaluacion.id },
+      });
+      if (!programacionExistente) {
+        const programacion = await this.prisma.programacionInstitucional.create({
+          data: {
+            idEstablecimiento: evaluacion.idEstablecimiento,
+            idEvaluacionOrigen: evaluacion.id,
+            fechaProgramada: resultado.fechaProximaInspeccion,
+            frecuenciaAplicada: resultado.frecuencia,
+            generadaAutomatica: true,
+            prioridad: 'NORMAL',
+          },
+        });
+
+        const origenProg = await this.prisma.origenCaso.findFirst({
+          where: { codigo: 'PROGRAMACION_INSTITUCIONAL' },
+        });
+
+        if (origenProg) {
+          await this.prisma.caso.create({
+            data: {
+              idEstablecimiento: evaluacion.idEstablecimiento,
+              idOrigen: origenProg.id,
+              idProgramacion: programacion.id,
+              estado: 'Pendiente',
+              prioridad: 'NORMAL',
+            },
+          });
+        }
+      }
+    }
+
     return { ...calculo, id: calculo.id.toString(), idEvaluacion: calculo.idEvaluacion.toString() };
   }
 

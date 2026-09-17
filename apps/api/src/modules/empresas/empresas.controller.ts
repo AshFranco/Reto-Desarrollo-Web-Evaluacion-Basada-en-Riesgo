@@ -9,6 +9,7 @@ import {
 import { EmpresasService } from './empresas.service';
 import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/token.service';
 import { RolUsuario } from '../../common/enums';
@@ -16,6 +17,12 @@ import { RolUsuario } from '../../common/enums';
 @Controller({ path: 'empresas', version: '1' })
 export class EmpresasController {
   constructor(private readonly empresasService: EmpresasService) {}
+
+  @Public()
+  @Get('publicas')
+  listarPublicas() {
+    return this.empresasService.listarPublicas();
+  }
 
   @Post()
   @Roles(

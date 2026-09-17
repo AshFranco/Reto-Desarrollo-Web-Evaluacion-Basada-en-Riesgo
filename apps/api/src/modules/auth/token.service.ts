@@ -26,6 +26,12 @@ export class TokenService {
     });
   }
 
+  verifyAccessToken(token: string): JwtPayload {
+    return this.jwt.verify<JwtPayload>(token, {
+      secret: this.config.jwtAccessSecret,
+    });
+  }
+
   async issueRefreshToken(
     userId: bigint,
     meta: { userAgent?: string; ip?: string },

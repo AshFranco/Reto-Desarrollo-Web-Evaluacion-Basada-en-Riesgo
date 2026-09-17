@@ -14,6 +14,7 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
+import { SolicitudRecuperacionDto, ResetContrasenaDto } from './dto/recuperacion-contrasena.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -84,5 +85,21 @@ export class AuthController {
   ) {
     await this.authService.logout(user.sub);
     this.tokenService.clearRefreshCookie(res);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async forgotPassword(@Body() dto: SolicitudRecuperacionDto) {
+    return this.authService.solicitarRecuperacionContrasena(dto.correo);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async resetPassword(@Body() dto: ResetContrasenaDto) {
+    return this.authService.resetearContrasena(dto.token, dto.nuevaContrasena);
   }
 }

@@ -200,6 +200,52 @@ export class EvaluacionesService {
     return evaluacion;
   }
 
+  async obtenerObservaciones(evaluacionId: string, tecnicoId: string) {
+    const evaluacion = await this.obtenerYValidarPropiedad(evaluacionId, tecnicoId);
+    const historial = await this.prisma.historialEstado.findMany({
+      where: { idEvaluacion: evaluacion.id },
+      include: { usuario: { select: { nombreCompleto: true } }, estadoDestino: true },
+      orderBy: { fechaHora: 'desc' },
+    });
+    return historial.map((h) => ({
+      id: h.id.toString(),
+      estado: h.estadoDestino.nombre,
+      codigoEstado: h.estadoDestino.codigo,
+      usuario: h.usuario.nombreCompleto,
+      comentario: h.comentario,
+      fechaHora: h.fechaHora,
+    }));
+  }
+
+  async corregir(evaluacionId: string, tecnicoId: string, dto: RegistrarRespuestasDto) {
+    const evaluacion = await this.obtenerYValidarPropiedad(evaluacionId, tecnicoId);
+    
+    if (evaluacion.bloqueada) {
+      await this.prisma.evaluacion.update({
+        where: { id: evaluacion.id },
+        data: { bloqueada: false },
+      });
+    }
+
+    await this.registrarRespuestas(evaluacionId, tecnicoId, dto);
+
+    const estadoEnCurso = await this.prisma.estadoEvaluacion.findUniqueOrThrow({
+      where: { codigo: 'EN_CURSO' },
+    });
+
+    const actualizada = await this.prisma.evaluacion.update({
+      where: { id: evaluacion.id },
+      data: {
+        idEstado: estadoEnCurso.id,
+        versionRegistro: { increment: 1 },
+      },
+    });
+
+    await this.registrarHistorial(evaluacion.id, evaluacion.idEstado, estadoEnCurso.id, tecnicoId);
+
+    return { mensaje: 'Correcciones registradas exitosamente.', evaluacion: this.serializar(actualizada) };
+  }
+
   private serializar(e: any) {
     return { ...e, id: e.id.toString(), idEvaluador: e.idEvaluador.toString() };
   }

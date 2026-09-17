@@ -30,6 +30,7 @@ import { CategoriasAlimentoModule } from './modules/categorias-alimento/categori
 import { EvidenciasModule } from './modules/evidencias/evidencias.module';
 import { InformesModule } from './modules/informes/informes.module';
 import { ExpedientesModule } from './modules/expedientes/expedientes.module';
+import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -81,6 +82,7 @@ import { HealthController } from './health.controller';
     EvidenciasModule,
     InformesModule,
     ExpedientesModule,
+    NotificacionesModule,
   ],
   controllers: [HealthController],
   providers: [

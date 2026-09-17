@@ -1,12 +1,59 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
+import { PdfService } from '../../common/services/pdf.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 
 @Injectable()
 export class ExpedientesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pdfService: PdfService,
+  ) {}
+
+  async generarPdf(casoId: string): Promise<Buffer> {
+    const caso = await this.prisma.caso.findUnique({
+      where: { id: BigInt(casoId) },
+      include: {
+        establecimiento: { include: { empresa: true } },
+        expediente: true,
+        evaluaciones: { include: { estado: true, calculoRiesgo: true, informe: true } },
+        origen: true,
+      },
+    });
+
+    if (!caso) throw new NotFoundException('Caso no encontrado.');
+    if (!caso.expediente) throw new NotFoundException('El caso aún no posee un expediente registrado.');
+
+    const expediente = caso.expediente;
+    const evaluacionAprobada = caso.evaluaciones.find((e) => e.estado?.codigo === 'CERRADA' || e.estado?.codigo === 'APROBADA');
+
+    return this.pdfService.generarDocumentoPdf({
+      titulo: 'EXPEDIENTE Y DICTAMEN DE CIERRE DE EVALUACION',
+      subtitulo: `Establecimiento: ${caso.establecimiento.nombre}`,
+      metadata: [
+        { etiqueta: 'ID Expediente', valor: expediente.id.toString() },
+        { etiqueta: 'ID Caso', valor: caso.id.toString() },
+        { etiqueta: 'Estado Expediente', valor: expediente.estado },
+        { etiqueta: 'Resultado Final', valor: expediente.resultadoFinal ?? 'N/A' },
+        { etiqueta: 'Fecha de Cierre', valor: expediente.fechaCierre?.toISOString().split('T')[0] ?? 'N/A' },
+        { etiqueta: 'Empresa', valor: caso.establecimiento.empresa.razonSocial },
+        { etiqueta: 'RNC Empresa', valor: caso.establecimiento.empresa.rnc },
+        { etiqueta: 'Origen del Caso', valor: caso.origen?.nombre ?? 'N/A' },
+      ],
+      secciones: [
+        {
+          titulo: 'Dictamen Oficial',
+          contenido: `El expediente correspondiente al caso #${caso.id} ha sido dictaminado con resultado final: ${expediente.resultadoFinal ?? 'N/A'}.`,
+        },
+        {
+          titulo: 'Detalles de Evaluacion Aprobada',
+          contenido: evaluacionAprobada?.informe?.resumenEjecutivo ?? 'Evaluacion finalizada y archivada correctamente en el sistema EBR.',
+        },
+      ],
+    });
+  }
 
   async cerrar(casoId: string) {
     const caso = await this.prisma.caso.findUnique({

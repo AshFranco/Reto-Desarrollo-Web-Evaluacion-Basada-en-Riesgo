@@ -14,7 +14,7 @@ export class UsuariosService {
   async listarPendientesValidacion() {
     const usuarios = await this.prisma.usuario.findMany({
       where: { estado: 'PENDIENTE_VALIDACION' },
-      select: { id: true, nombreCompleto: true, correoElectronico: true, fechaCreacion: true },
+      select: { id: true, nombreCompleto: true, correoElectronico: true, cedulaPasaporte: true, telefono: true, cartaAutorizacionUrl: true, fechaCreacion: true },
       orderBy: { fechaCreacion: 'asc' },
     });
     return usuarios.map((u) => ({ ...u, id: u.id.toString() }));
@@ -55,7 +55,7 @@ export class UsuariosService {
 
   /**
    * RF-10 (Asignación de Evaluador): el Coordinador necesita un selector
-   * real de técnicos disponibles, no un campo de texto libre para el id.
+   * real de técnicos disponibles con su carga de trabajo visible.
    */
   async listarPorRol(codigoRol: string) {
     const usuarios = await this.prisma.usuario.findMany({
@@ -67,5 +67,31 @@ export class UsuariosService {
       orderBy: { nombreCompleto: 'asc' },
     });
     return usuarios.map((u) => ({ ...u, id: u.id.toString() }));
+  }
+
+  async listarTecnicosConCarga() {
+    const tecnicos = await this.prisma.usuario.findMany({
+      where: {
+        estado: 'APROBADO',
+        roles: { some: { rol: { codigo: 'TECNICO_EVALUADOR' } } },
+      },
+      select: {
+        id: true,
+        nombreCompleto: true,
+        correoElectronico: true,
+        asignacionesEvaluador: {
+          where: { estado: 'Asignado' },
+          select: { id: true },
+        },
+      },
+      orderBy: { nombreCompleto: 'asc' },
+    });
+
+    return tecnicos.map((t) => ({
+      id: t.id.toString(),
+      nombreCompleto: t.nombreCompleto,
+      correoElectronico: t.correoElectronico,
+      cargaAsignada: t.asignacionesEvaluador.length,
+    }));
   }
 }
