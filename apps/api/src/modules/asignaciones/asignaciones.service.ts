@@ -82,12 +82,77 @@ export class AsignacionesService {
     });
   }
 
+  /**
+   * Desasigna el evaluador de un caso (cancela la asignación activa y
+   * regresa el estado del caso a Pendiente).
+   */
+  async desasignar(casoId: string) {
+    const caso = await this.prisma.caso.findUnique({ where: { id: BigInt(casoId) } });
+    if (!caso) throw new NotFoundException('Caso no encontrado.');
+    if (caso.estado === 'Cerrado') throw new BadRequestException('No se puede desasignar un caso cerrado.');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.asignacionEvaluador.updateMany({
+        where: { idCaso: BigInt(casoId), estado: 'Asignado' },
+        data: { estado: 'Cancelada' },
+      });
+
+      await tx.caso.update({
+        where: { id: BigInt(casoId) },
+        data: { estado: 'Pendiente' },
+      });
+
+      const estadoProgramada = await tx.estadoEvaluacion.findUnique({ where: { codigo: 'PROGRAMADA' } });
+      if (estadoProgramada) {
+        await tx.evaluacion.deleteMany({
+          where: { idCaso: BigInt(casoId), idEstado: estadoProgramada.id },
+        });
+      }
+
+      return { mensaje: 'Técnico desasignado correctamente.' };
+    });
+  }
+
+
+  /**
+   * RF-11 (Calendario)/RF-12 (Ejecución): el Técnico necesita el
+   * `evaluacionId` de cada asignación para poder navegar directo a
+   * "iniciar" su evaluación desde la lista, sin un paso intermedio.
+   */
   async listarPorEvaluador(evaluadorId: string) {
     const asignaciones = await this.prisma.asignacionEvaluador.findMany({
       where: { idEvaluador: BigInt(evaluadorId), estado: 'Asignado' },
       include: { caso: { include: { establecimiento: { select: { nombre: true, calle: true } } } } },
       orderBy: { fechaAsignacion: 'desc' },
     });
-    return asignaciones.map((a) => ({ ...a, id: a.id.toString(), idCaso: a.idCaso.toString() }));
+
+    // Una consulta para traer todas las evaluaciones de estos casos de una
+    // vez (evita N+1: una query por cada asignación en un loop).
+    const idsCaso = asignaciones.map((a) => a.idCaso);
+    const evaluaciones = await this.prisma.evaluacion.findMany({
+      where: { idCaso: { in: idsCaso } },
+      select: {
+        id: true,
+        idCaso: true,
+        estado: { select: { codigo: true } },
+      },
+    });
+    const evaluacionPorCaso = new Map(
+      evaluaciones.map((e) => [
+        e.idCaso.toString(),
+        { id: e.id.toString(), estadoCodigo: e.estado?.codigo ?? null },
+      ]),
+    );
+
+    return asignaciones.map((a) => {
+      const ev = evaluacionPorCaso.get(a.idCaso.toString());
+      return {
+        ...a,
+        id: a.id.toString(),
+        idCaso: a.idCaso.toString(),
+        evaluacionId: ev ? ev.id : null,
+        evaluacionEstado: ev ? ev.estadoCodigo : null,
+      };
+    });
   }
 }

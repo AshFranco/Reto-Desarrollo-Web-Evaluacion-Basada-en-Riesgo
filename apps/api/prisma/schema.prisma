@@ -83,6 +83,7 @@ model Usuario {
   telefono           String?   @db.VarChar(20)
   contrasenaHash     String    @map("contrasena_hash") @db.VarChar(255)
   dobleFactorActivo  Boolean   @default(false) @map("doble_factor_activo")
+  secretoTotp        String?   @map("secreto_totp") @db.VarChar(255)
   estado             String    @default("PENDIENTE_VALIDACION") @db.VarChar(25)
   motivoRechazo      String?   @map("motivo_rechazo") @db.VarChar(400)
   intentosFallidos   Int       @default(0) @map("intentos_fallidos") @db.SmallInt

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, unlink } from 'fs/promises';
 import { extname, join, normalize, resolve } from 'path';
 import { AppConfigService } from '../../config/app-config.service';
 
@@ -23,6 +23,12 @@ export class StorageService {
       'image/webp': '.webp',
       'application/pdf': '.pdf',
       'video/mp4': '.mp4',
+      'video/webm': '.webm',
+      'video/quicktime': '.mov',
+      'application/geo+json': '.geojson',
+      'application/json': '.json',
+      'application/vnd.google-earth.kml+xml': '.kml',
+      'application/gpx+xml': '.gpx',
     };
     return mapa[mime] ?? '';
   }
@@ -41,5 +47,20 @@ export class StorageService {
 
     await writeFile(rutaDestino, buffer, { mode: 0o640 });
     return { claveArchivo };
+  }
+
+  async eliminar(claveArchivo: string): Promise<void> {
+    const baseDir = resolve(this.config.storageLocalPath);
+    const rutaDestino = normalize(join(baseDir, claveArchivo));
+
+    if (!rutaDestino.startsWith(baseDir)) {
+      throw new Error('Ruta de almacenamiento inválida.');
+    }
+
+    try {
+      await unlink(rutaDestino);
+    } catch {
+      // Ignorar si el archivo no existe en el sistema de archivos
+    }
   }
 }

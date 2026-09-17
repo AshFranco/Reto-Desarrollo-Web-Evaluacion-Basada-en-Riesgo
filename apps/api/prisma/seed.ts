@@ -1,6 +1,8 @@
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
-import * as path from 'path';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -291,6 +293,20 @@ async function seedFichaBpm() {
     });
   }
 
+  // Rangos de calificación (% cumplimiento -> descripción/acción). Fuente:
+  // Ficha Inspección BPM, filas 198-201 (mismos valores que
+  // db/03_seed_ficha_bpm.sql) -- no se estaba sembrando en Prisma, causaba
+  // que POST /motor-riesgo/calcular fallara con "Porcentaje X fuera de los
+  // rangos de calificación" en cualquier ambiente sembrado solo con este script.
+  const rangosCalificacion = leerJson<
+    { limiteInferior: number; limiteSuperior: number; incluyeInferior: boolean; incluyeSuperior: boolean; descripcion: string; accion: string; orden: number }[]
+  >('rangos-calificacion.json');
+  for (const r of rangosCalificacion) {
+    await prisma.rangoCalificacion.create({
+      data: { idVersionFicha: versionFicha.id, ...r },
+    });
+  }
+
   // Jerarquía: cada sección es un item_ficha padre (no evaluable), y sus
   // ítems reales son hijos (evaluables) -- soporta la estructura auto-referenciada.
   for (const seccion of ficha.secciones) {
@@ -322,7 +338,7 @@ async function seedFichaBpm() {
   }
 
   console.log(
-    `✔ Ficha BPM "${ficha.version}": ${ficha.secciones.length} secciones, ${totalItems} ítems evaluables (total puntos posibles: ${ficha.totalPuntosPosibles}).`,
+    `✔ Ficha BPM "${ficha.version}": ${ficha.secciones.length} secciones, ${totalItems} ítems evaluables, ${rangosCalificacion.length} rangos de calificación (total puntos posibles: ${ficha.totalPuntosPosibles}).`,
   );
 }
 

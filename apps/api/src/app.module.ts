@@ -30,6 +30,7 @@ import { CategoriasAlimentoModule } from './modules/categorias-alimento/categori
 import { EvidenciasModule } from './modules/evidencias/evidencias.module';
 import { InformesModule } from './modules/informes/informes.module';
 import { ExpedientesModule } from './modules/expedientes/expedientes.module';
+import { CatalogosModule } from './modules/catalogos/catalogos.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -37,7 +38,7 @@ import { HealthController } from './health.controller';
     ConfigModule.forRoot({
       isGlobal: true,
       validate, // aborta el arranque si el .env es inválido
-      envFilePath: '.env',
+      envFilePath: ['.env', 'apps/api/.env'],
     }),
 
     AppConfigModule,
@@ -47,7 +48,7 @@ import { HealthController } from './health.controller';
       {
         name: 'default',
         ttl: 60_000,
-        limit: 100, // 100 peticiones/min por IP a nivel global
+        limit: 500, // 500 peticiones/min por IP a nivel global para soportar SPA sin falsos positivos 429
       },
     ]),
 
@@ -81,6 +82,7 @@ import { HealthController } from './health.controller';
     EvidenciasModule,
     InformesModule,
     ExpedientesModule,
+    CatalogosModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -1,21 +1,58 @@
 import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ExpedientesService } from './expedientes.service';
 import { BuscarExpedientesQuery } from './dto/buscar-expedientes.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtPayload } from '../auth/token.service';
 import { RolUsuario } from '../../common/enums';
 
+@ApiTags('Expedientes')
+@ApiBearerAuth('access-token')
 @Controller({ path: 'expedientes', version: '1' })
 export class ExpedientesController {
   constructor(private readonly expedientesService: ExpedientesService) {}
 
   @Patch(':casoId/cerrar')
   @Roles(RolUsuario.COORDINADOR, RolUsuario.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Cerrar formalmente el expediente de un caso' })
+  @ApiResponse({ status: 200, description: 'Expediente cerrado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'El caso no cuenta con informe aprobado para cierre.' })
   cerrar(@Param('casoId') casoId: string) {
     return this.expedientesService.cerrar(casoId);
   }
 
+  @Patch(':casoId/reabrir')
+  @Roles(RolUsuario.COORDINADOR, RolUsuario.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Reabrir formalmente un expediente cerrado' })
+  @ApiResponse({ status: 200, description: 'Expediente reabierto exitosamente.' })
+  @ApiResponse({ status: 400, description: 'El expediente no se encuentra cerrado.' })
+  reabrir(@Param('casoId') casoId: string) {
+    return this.expedientesService.reabrir(casoId);
+  }
+
+  /**
+   * Hueco de seguridad reportado y corregido: antes no tenia @Roles ni
+   * scoping forzado por empresa -- un usuario de Empresa o un Tecnico
+   * podian ver expedientes de CUALQUIER empresa, no solo la suya, porque
+   * el filtro empresaId era opcional (lo decidia el cliente, no el server).
+   */
   @Get()
-  buscar(@Query() query: BuscarExpedientesQuery) {
-    return this.expedientesService.buscar(query);
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.TECNICO_EVALUADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+    RolUsuario.USUARIO_DELEGADO,
+  )
+  @ApiOperation({ summary: 'Consultar expedientes cerrados con scoping por empresa' })
+  @ApiResponse({ status: 200, description: 'Lista de expedientes cerrados.' })
+  buscar(@Query() query: BuscarExpedientesQuery, @CurrentUser() user: JwtPayload) {
+    return this.expedientesService.buscar(query, user);
   }
 }

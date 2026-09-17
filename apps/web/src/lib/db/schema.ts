@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { UsuarioLocal, OpcionRespuestaLocal } from '@/lib/types';
+import type { UsuarioLocal, OpcionRespuestaLocal, AsignacionMia } from '@/lib/types';
+import type { EntradaCalculo } from '@ebr/risk-engine';
 
 export interface SesionLocal {
   id: 1;
@@ -17,7 +18,7 @@ export interface CatalogoItemLocal {
   nivel: number;
   orden: number;
   esEvaluable: boolean;
-  peso: number;
+  peso: string | null;
   idCriticidad: string | null;
 }
 
@@ -67,21 +68,19 @@ export interface OperacionPendiente {
   errorMsg?: string;
 }
 
-export interface AsignacionLocal {
-  id: string;
-  casoId: string;
-  idEvaluador: string;
-  estado: string;
-  fechaAsignacion: string;
-  establecimientoNombre: string;
-  establecimientoCalle: string;
-  sincronizadoEn: number;
+export type AsignacionLocal = AsignacionMia;
+
+export interface CatalogoMotorLocal {
+  id: 1;
+  descargadoEn: number;
+  datos: Omit<EntradaCalculo, 'respuestas'>;
 }
 
 export class EbrDatabase extends Dexie {
   sesion!: EntityTable<SesionLocal, 'id'>;
   catalogo_item!: EntityTable<CatalogoItemLocal, 'id'>;
   catalogo_meta!: EntityTable<CatalogoMetaLocal, 'id'>;
+  catalogo_motor!: EntityTable<CatalogoMotorLocal, 'id'>;
   evaluacion!: EntityTable<EvaluacionLocal, 'uuidLocal'>;
   respuesta!: EntityTable<RespuestaLocal, 'uuidLocal'>;
   evidencia!: EntityTable<EvidenciaLocal, 'uuidLocal'>;
@@ -99,6 +98,9 @@ export class EbrDatabase extends Dexie {
       evidencia:      'uuidLocal, evaluacionUuid, subida',
       cola_sync:      'uuidLocal, tipo, estado, timestamp',
       asignacion:     'id, estado',
+    });
+    this.version(2).stores({
+      catalogo_motor: 'id',
     });
   }
 }

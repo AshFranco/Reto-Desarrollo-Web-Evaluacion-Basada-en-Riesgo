@@ -1,4 +1,10 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { IsDateString, IsNumberString, IsOptional } from 'class-validator';
 import { CalendarioService } from './calendario.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -20,19 +26,24 @@ class RangoFechasQuery {
  * Coordinador pueda consultar el calendario de CUALQUIER técnico antes de
  * asignarlo -- para eso usa el parámetro opcional `evaluadorId`.
  */
+@ApiTags('Calendario')
+@ApiBearerAuth('access-token')
 @Controller({ path: 'calendario', version: '1' })
 @Roles(RolUsuario.TECNICO_EVALUADOR, RolUsuario.COORDINADOR, RolUsuario.ADMINISTRADOR)
 export class CalendarioController {
   constructor(private readonly calendarioService: CalendarioService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Consultar calendario de inspecciones asignadas o del equipo' })
+  @ApiResponse({ status: 200, description: 'Calendario de evaluaciones programadas.' })
+  @ApiResponse({ status: 400, description: 'Parámetros de consulta inválidos.' })
   obtener(@Query() query: RangoFechasQuery, @CurrentUser() user: JwtPayload) {
     const esInterno = user.rol === 'COORDINADOR' || user.rol === 'ADMINISTRADOR';
 
     if (esInterno && !query.evaluadorId) {
-      throw new BadRequestException(
-        'Debe indicar el parámetro evaluadorId para consultar el calendario de un técnico.',
-      );
+      // Sin evaluadorId: calendario combinado de todo el equipo,
+      // agrupado por técnico (para comparar carga de trabajo de un vistazo).
+      return this.calendarioService.obtenerCalendarioEquipo(query.desde, query.hasta);
     }
     if (!esInterno && query.evaluadorId && query.evaluadorId !== user.sub) {
       throw new BadRequestException('No puede consultar el calendario de otro técnico.');

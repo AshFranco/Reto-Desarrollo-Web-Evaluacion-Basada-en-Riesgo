@@ -13,9 +13,9 @@ export class SubirEvidenciaDto {
 
   @IsOptional()
   @IsLatitude()
-  latitud?: number;
+  latitud?: string | number;
 
   @IsOptional()
   @IsLongitude()
-  longitud?: number;
+  longitud?: string | number;
 }
