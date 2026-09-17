@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { server } from '@/mocks/node';
 import { MOCK_CASO_RESUMEN, MOCK_CASO_DETALLE, MOCK_ASIGNACION } from '@/mocks/handlers';
 import { db } from '@/lib/db';
-import { useCasos, useCasoDetalle, useAsignarEvaluador } from './useCasos';
+import { useCasos, useCasoDetalle, useAsignarEvaluador, useCasosAsignados } from './useCasos';
 
 beforeEach(() => db.open());
 afterEach(() => db.delete());
@@ -65,5 +65,28 @@ describe('useAsignarEvaluador', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('El usuario indicado no es un Técnico Evaluador válido.');
+  });
+});
+
+describe('useCasosAsignados', () => {
+  it('trae el detalle solo de los casos en estado Asignado, ignorando Pendiente/Cerrado', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/casos', () =>
+        HttpResponse.json([
+          { ...MOCK_CASO_RESUMEN, id: '1', estado: 'Asignado' },
+          { ...MOCK_CASO_RESUMEN, id: '2', estado: 'Pendiente' },
+          { ...MOCK_CASO_RESUMEN, id: '3', estado: 'Cerrado' },
+        ])
+      ),
+      http.get('http://localhost:3000/api/v1/casos/:id', ({ params }) =>
+        HttpResponse.json({ ...MOCK_CASO_DETALLE, id: params.id as string })
+      )
+    );
+
+    const { result } = renderHook(() => useCasosAsignados(), { wrapper: crearWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.data).toHaveLength(1);
+    expect(result.current.data[0]?.id).toBe('1');
   });
 });

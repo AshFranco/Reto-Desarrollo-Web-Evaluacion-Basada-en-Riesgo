@@ -32,6 +32,19 @@ export class TokenService {
     });
   }
 
+  signPasswordResetToken(userId: string, passwordHashSlice: string): string {
+    return this.jwt.sign(
+      { sub: userId, pwh: passwordHashSlice, purpose: 'pwd_reset' },
+      { secret: this.config.jwtAccessSecret, expiresIn: '1h' },
+    );
+  }
+
+  verifyPasswordResetToken(token: string): { sub: string; pwh: string; purpose: string } {
+    return this.jwt.verify(token, {
+      secret: this.config.jwtAccessSecret,
+    });
+  }
+
   async issueRefreshToken(
     userId: bigint,
     meta: { userAgent?: string; ip?: string },

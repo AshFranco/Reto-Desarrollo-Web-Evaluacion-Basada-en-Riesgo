@@ -33,14 +33,40 @@ export class FileValidationPipe implements PipeTransform {
     const detected = await FileType.fromBuffer(file.buffer);
     const allowed = this.config.allowedFileMimeTypes;
 
-    if (!detected || !allowed.includes(detected.mime)) {
+    let mimeEfectivo: string | undefined = detected?.mime;
+
+    // Para archivos de texto estructurado de geolocalización (geojson, json, kml, gpx),
+    // file-type no tiene magic bytes fijos. Validamos su estructura y asignamos su MIME.
+    if (!mimeEfectivo && file.originalname) {
+      const ext = file.originalname.toLowerCase().split('.').pop() ?? '';
+      if (ext === 'geojson' || ext === 'json') {
+        try {
+          JSON.parse(file.buffer.toString('utf8'));
+          mimeEfectivo = ext === 'geojson' ? 'application/geo+json' : 'application/json';
+        } catch {
+          // No es JSON válido
+        }
+      } else if (ext === 'kml') {
+        const contenido = file.buffer.toString('utf8', 0, Math.min(file.buffer.length, 1024));
+        if (contenido.includes('<kml') || contenido.includes('xmlns')) {
+          mimeEfectivo = 'application/vnd.google-earth.kml+xml';
+        }
+      } else if (ext === 'gpx') {
+        const contenido = file.buffer.toString('utf8', 0, Math.min(file.buffer.length, 1024));
+        if (contenido.includes('<gpx') || contenido.includes('xmlns')) {
+          mimeEfectivo = 'application/gpx+xml';
+        }
+      }
+    }
+
+    if (!mimeEfectivo || !allowed.includes(mimeEfectivo)) {
       throw new BadRequestException(
         'Tipo de archivo no permitido o el contenido no coincide con su extensión.',
       );
     }
 
-    // Sobrescribe el mimetype declarado por el cliente con el detectado realmente.
-    file.mimetype = detected.mime;
+    // Sobrescribe el mimetype declarado por el cliente con el verificado realmente.
+    file.mimetype = mimeEfectivo;
     return file;
   }
 }

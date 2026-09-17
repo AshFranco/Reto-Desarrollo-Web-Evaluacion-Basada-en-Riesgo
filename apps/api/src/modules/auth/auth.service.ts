@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -9,44 +11,41 @@ import { TokenService } from './token.service';
 import { LoginThrottleService } from './login-throttle.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
+import { SolicitudRecuperacionDto, ResetContrasenaDto } from './dto/recuperacion-contrasena.dto';
+import { RecuperarContrasenaDto } from './dto/recuperar-contrasena.dto';
+import { RestablecerContrasenaDto } from './dto/restablecer-contrasena.dto';
 
-interface RequestMeta {
+export interface RequestMeta {
   ip?: string;
   userAgent?: string;
 }
 
-/**
- * Orden de prioridad para elegir el "rol principal" cuando un usuario
- * tiene varios roles asignados (ej. cuentas internas de prueba). Sin esto,
- * Prisma devuelve las filas de `usuario_rol` en un orden no garantizado,
- * causando 403 intermitentes según qué rol "ganara" al azar.
- */
-const PRIORIDAD_ROLES = [
-  'ADMINISTRADOR',
-  'COORDINADOR',
-  'TECNICO_EVALUADOR',
-  'ADMINISTRADOR_EMPRESA',
-  'USUARIO_DELEGADO',
-];
+export type LoginResult =
+  | { requiereMfa: true; mensaje: string }
+  | {
+      requiereMfa: false;
+      accessToken: string;
+      refreshToken: string;
+      usuario: {
+        id: string;
+        nombreCompleto: string;
+        rol: string;
+        empresaId: string | null;
+      };
+    };
 
-function elegirRolPrincipal(roles: { rol: { codigo: string } }[]): string | null {
-  const codigos = roles.map((r) => r.rol.codigo);
-  for (const prioridad of PRIORIDAD_ROLES) {
-    if (codigos.includes(prioridad)) return prioridad;
-  }
-  return codigos[0] ?? null;
+function elegirRolPrincipal(roles: { rol: { codigo: string; esInterno: boolean } }[]): string | null {
+  const rolInterno = roles.find((r) => r.rol.esInterno);
+  if (rolInterno) return rolInterno.rol.codigo;
+
+  const primerRol = roles[0];
+  return primerRol ? primerRol.rol.codigo : null;
 }
 
-/**
- * Adaptado al esquema oficial (DBML de 51 tablas): el rol ya no es un
- * campo enum fijo en `usuario`, sino una relación muchos-a-muchos vía
- * `usuario_rol` -> `rol`. Para simplificar el flujo de auth, se asume
- * UN rol principal por usuario (el primero asignado); si el dominio
- * necesita múltiples roles simultáneos reales, este servicio debe
- * revisarse junto con RolesGuard.
- */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
@@ -82,7 +81,6 @@ export class AuthService {
 
     const contrasenaHash = await this.passwordService.hash(dto.password);
 
-    // Estado inicial SIEMPRE fijado por el servidor (nunca por el body del cliente).
     const usuario = await this.prisma.usuario.create({
       data: {
         nombreCompleto: dto.nombreCompleto,
@@ -105,30 +103,29 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto, meta: RequestMeta) {
+  async login(dto: LoginDto, meta: RequestMeta): Promise<LoginResult> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { correoElectronico: dto.correo },
       include: { roles: { include: { rol: true } } },
     });
 
-    // Respuesta indistinguible si el usuario no existe (evita enumeración de correos).
     if (!usuario) {
       throw new UnauthorizedException('Credenciales inválidas.');
     }
 
     await this.loginThrottle.assertNotLocked(usuario.id);
 
-    if (usuario.estado !== 'APROBADO') {
-      throw new UnauthorizedException('Su cuenta aún no ha sido aprobada.');
-    }
-
-    const passwordValida = await this.passwordService.verify(
+    const match = await this.passwordService.verify(
       usuario.contrasenaHash,
       dto.password,
     );
-    if (!passwordValida) {
+    if (!match) {
       await this.loginThrottle.registrarIntentoFallido(usuario.id);
       throw new UnauthorizedException('Credenciales inválidas.');
+    }
+
+    if (usuario.estado !== 'APROBADO') {
+      throw new UnauthorizedException('Su cuenta aún no ha sido aprobada.');
     }
 
     if (usuario.dobleFactorActivo) {
@@ -153,6 +150,7 @@ export class AuthService {
     const refreshToken = await this.tokenService.issueRefreshToken(usuario.id, meta);
 
     return {
+      requiereMfa: false,
       accessToken,
       refreshToken,
       usuario: {
@@ -170,13 +168,15 @@ export class AuthService {
       throw new UnauthorizedException('Sesión inválida. Inicie sesión nuevamente.');
     }
 
-    const usuario = await this.prisma.usuario.findUniqueOrThrow({
+    const usuario = await this.prisma.usuario.findUnique({
       where: { id: result.userId },
       include: { roles: { include: { rol: true } } },
     });
+    if (!usuario || usuario.estado !== 'APROBADO') {
+      throw new UnauthorizedException('Usuario inactivo.');
+    }
 
     const rolPrincipal = elegirRolPrincipal(usuario.roles);
-
     const accessToken = this.tokenService.signAccessToken({
       sub: usuario.id.toString(),
       rol: rolPrincipal ?? '',
@@ -190,19 +190,19 @@ export class AuthService {
     await this.tokenService.revokeAllForUser(BigInt(userId));
   }
 
-  async solicitarRecuperacionContrasena(correo: string) {
+  async solicitarRecuperacionContrasena(correoOrDto: string | RecuperarContrasenaDto | SolicitudRecuperacionDto) {
     const mensajeGenerico = 'Si el correo electrónico está registrado en el sistema, recibirá las instrucciones para restablecer su contraseña.';
-
     try {
-      const correoLimpio = (correo || '').trim().toLowerCase();
-      if (!correoLimpio) return { mensaje: mensajeGenerico };
+      const correoInput = typeof correoOrDto === 'string' ? correoOrDto : (correoOrDto as any).correo;
+      const correoLimpio = (correoInput || '').trim().toLowerCase();
+      if (!correoLimpio) return { ok: true, mensaje: mensajeGenerico };
 
       const usuario = await this.prisma.usuario.findFirst({
         where: { correoElectronico: correoLimpio },
       });
 
       if (!usuario) {
-        return { mensaje: mensajeGenerico };
+        return { ok: true, mensaje: mensajeGenerico };
       }
 
       const resetToken = this.tokenService.signAccessToken({
@@ -212,11 +212,12 @@ export class AuthService {
       });
 
       return {
+        ok: true,
         mensaje: mensajeGenerico,
         token: resetToken,
       };
     } catch {
-      return { mensaje: mensajeGenerico };
+      return { ok: true, mensaje: mensajeGenerico };
     }
   }
 
@@ -247,6 +248,15 @@ export class AuthService {
 
     await this.tokenService.revokeAllForUser(usuario.id);
 
-    return { mensaje: 'Contraseña restablecida exitosamente. Ya puede iniciar sesión con su nueva contraseña.' };
+    return { ok: true, mensaje: 'Contraseña restablecida exitosamente. Ya puede iniciar sesión con su nueva contraseña.' };
+  }
+
+  async restablecerContrasena(dto: RestablecerContrasenaDto | any) {
+    if (dto.token && dto.nuevaContrasena) {
+      return this.resetearContrasena(dto.token, dto.nuevaContrasena);
+    }
+    const token = dto.token;
+    const nuevaClave = dto.contrasenaNueva || dto.nuevaContrasena;
+    return this.resetearContrasena(token, nuevaClave);
   }
 }

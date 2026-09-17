@@ -14,7 +14,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:seed:demo": "ts-node prisma/seed-demo.ts"
   },
   "dependencies": {
     "@ebr/risk-engine": "file:../../packages/risk-engine",
@@ -40,10 +41,12 @@
     "hpp": "^0.2.3",
     "ioredis": "^5.4.1",
     "nestjs-pino": "^4.1.0",
+    "nodemailer": "^10.0.10",
     "otplib": "^12.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pino-http": "^10.3.0",
+    "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sanitize-html": "^2.13.0",
@@ -59,7 +62,9 @@
     "@types/jest": "^29.5.12",
     "@types/multer": "^1.4.12",
     "@types/node": "^20.14.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/passport-jwt": "^4.0.1",
+    "@types/qrcode": "^1.5.6",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",

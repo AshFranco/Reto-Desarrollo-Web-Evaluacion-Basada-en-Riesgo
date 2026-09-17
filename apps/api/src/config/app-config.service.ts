@@ -41,7 +41,13 @@ export class AppConfigService {
   }
 
   get databaseUrl(): string {
-    return this.require('DATABASE_URL');
+    let url = this.require('DATABASE_URL');
+    // Previene conectar a la base de datos de mantenimiento de PostgreSQL ('postgres')
+    // en lugar de la base de datos de la aplicación ('ebr').
+    if (url.includes(':5432/postgres')) {
+      url = url.replace(':5432/postgres', ':5432/ebr');
+    }
+    return url;
   }
 
   get jwtAccessSecret(): string {
@@ -99,12 +105,56 @@ export class AppConfigService {
   }
 
   get allowedFileMimeTypes(): string[] {
-    return this.require('ALLOWED_FILE_MIME_TYPES')
+    const fromEnv = this.config.get<string>('ALLOWED_FILE_MIME_TYPES') ?? '';
+    const envTypes = fromEnv
       .split(',')
-      .map((m) => m.trim());
+      .map((m) => m.trim())
+      .filter(Boolean);
+    const defaults = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime',
+      'application/geo+json',
+      'application/json',
+      'application/vnd.google-earth.kml+xml',
+      'application/gpx+xml',
+    ];
+    return Array.from(new Set([...envTypes, ...defaults]));
   }
 
   get storageLocalPath(): string {
     return this.config.get<string>('STORAGE_LOCAL_PATH', './storage/uploads');
+  }
+
+  get smtpHost(): string | null {
+    return this.config.get<string>('SMTP_HOST') ?? null;
+  }
+
+  get smtpPort(): number {
+    return Number(this.config.get<string>('SMTP_PORT', '587'));
+  }
+
+  get smtpSecure(): boolean {
+    return this.config.get<string>('SMTP_SECURE', 'false') === 'true';
+  }
+
+  get smtpUser(): string | null {
+    return this.config.get<string>('SMTP_USER') ?? null;
+  }
+
+  get smtpPass(): string | null {
+    return this.config.get<string>('SMTP_PASS') ?? null;
+  }
+
+  get smtpFrom(): string {
+    return this.config.get<string>('SMTP_FROM', 'DIGEMAPS EBR/BPM <no-reply@digemaps.gob.do>');
+  }
+
+  get frontendUrl(): string {
+    return this.config.get<string>('FRONTEND_URL', 'http://localhost:5173');
   }
 }

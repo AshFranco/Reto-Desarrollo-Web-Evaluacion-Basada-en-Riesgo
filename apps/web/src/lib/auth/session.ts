@@ -19,6 +19,7 @@ export async function getSession() {
 
 export async function clearSession(): Promise<void> {
   await db.sesion.delete(1);
+  await db.asignacion.clear().catch(() => {});
 }
 
 export async function isTokenValid(): Promise<boolean> {

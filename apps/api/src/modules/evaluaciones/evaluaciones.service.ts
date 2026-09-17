@@ -9,6 +9,8 @@ import {
   RegistrarRespuestasDto,
   FinalizarEvaluacionDto,
 } from './dto/registrar-respuestas.dto';
+import { RolUsuario } from '../../common/enums';
+
 
 /**
  * Captura de la Ficha BPM, adaptada al esquema oficial:
@@ -43,7 +45,10 @@ export class EvaluacionesService {
         versionFicha: true,
         estado: true,
         respuestas: true,
+        evidencias: true,
         historialEstados: { orderBy: { fechaHora: 'desc' }, take: 1 },
+        caso: { select: { id: true, estado: true } },
+        calculoRiesgo: true,
       },
     });
 
@@ -175,6 +180,41 @@ export class EvaluacionesService {
     return this.serializar(actualizada);
   }
 
+  /**
+   * Reabre una evaluación previamente finalizada para permitir volver a editarla
+   * (Principio de Heurística de Jakob Nielsen: Control y Libertad del Usuario),
+   * siempre que el caso no haya sido cerrado formalmente por Coordinación.
+   */
+  async reabrir(evaluacionId: string, usuarioId: string, rol: string) {
+    const evaluacion = await this.prisma.evaluacion.findUnique({
+      where: { id: BigInt(evaluacionId) },
+      include: { caso: true },
+    });
+    if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
+    if (rol === RolUsuario.TECNICO_EVALUADOR && evaluacion.idEvaluador?.toString() !== usuarioId) {
+      throw new ForbiddenException('No tienes permiso para reabrir esta evaluación.');
+    }
+    if (evaluacion.caso?.estado === 'Cerrado') {
+      throw new BadRequestException('No se puede reabrir una evaluación de un caso que ya ha sido cerrado.');
+    }
+
+    const estadoEnCurso = await this.prisma.estadoEvaluacion.findUniqueOrThrow({
+      where: { codigo: 'EN_CURSO' },
+    });
+
+    const actualizada = await this.prisma.evaluacion.update({
+      where: { id: BigInt(evaluacionId) },
+      data: {
+        idEstado: estadoEnCurso.id,
+        bloqueada: false,
+      },
+    });
+
+    await this.registrarHistorial(actualizada.id, evaluacion.idEstado, estadoEnCurso.id, usuarioId);
+    return this.serializar(actualizada);
+  }
+
+
   private async registrarHistorial(
     idEvaluacion: bigint,
     idEstadoOrigen: number | null,
@@ -247,6 +287,48 @@ export class EvaluacionesService {
   }
 
   private serializar(e: any) {
-    return { ...e, id: e.id.toString(), idEvaluador: e.idEvaluador.toString() };
+    if (!e) return e;
+    return {
+      ...e,
+      id: e.id?.toString(),
+      idEvaluador: e.idEvaluador?.toString(),
+      respuestas: e.respuestas?.map((r: any) => ({
+        ...r,
+        id: r.id?.toString(),
+        idEvaluacion: r.idEvaluacion?.toString(),
+        idItemFicha: r.idItemFicha?.toString(),
+        idOpcionRespuesta: r.idOpcionRespuesta?.toString(),
+      })),
+      evidencias: e.evidencias?.map((ev: any) => ({
+        ...ev,
+        id: ev.id?.toString(),
+        idEvaluacion: ev.idEvaluacion?.toString(),
+        idRespuestaItem: ev.idRespuestaItem ? ev.idRespuestaItem.toString() : null,
+        tamanoBytes: ev.tamanoBytes ? ev.tamanoBytes.toString() : null,
+      })),
+      caso: e.caso
+        ? {
+            id: e.caso.id?.toString(),
+            estado: e.caso.estado,
+          }
+        : null,
+      calculoRiesgo: e.calculoRiesgo
+        ? {
+            ...e.calculoRiesgo,
+            id: e.calculoRiesgo.id?.toString(),
+            idEvaluacion: e.calculoRiesgo.idEvaluacion?.toString(),
+            idSubcategoriaRp: e.calculoRiesgo.idSubcategoriaRp?.toString(),
+            idRangoCalificacion: e.calculoRiesgo.idRangoCalificacion?.toString(),
+            porcentajeCumplimiento: e.calculoRiesgo.porcentajeCumplimiento?.toString(),
+            rpValor: e.calculoRiesgo.rpValor?.toString(),
+            reValor: e.calculoRiesgo.reValor?.toString(),
+            rtValor: e.calculoRiesgo.rtValor?.toString(),
+            puntosObtenidos: e.calculoRiesgo.puntosObtenidos?.toString(),
+            puntosExcluidosNa: e.calculoRiesgo.puntosExcluidosNa?.toString(),
+            puntajeTotalPosible: e.calculoRiesgo.puntajeTotalPosible?.toString(),
+            denominadorEfectivo: e.calculoRiesgo.denominadorEfectivo?.toString(),
+          }
+        : null,
+    };
   }
 }
