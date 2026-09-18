@@ -101,6 +101,8 @@ jobs:
       - name: Generar Prisma Client (PrismaService lo extiende directamente)
         working-directory: apps/api
         run: npx prisma generate
+      - name: Construir @ebr/risk-engine (tsconfig.json de apps/api resuelve el tipo via dist/index.d.ts)
+        run: npm run build:engine
       - name: Verificacion de tipos
         working-directory: apps/api
         run: npx tsc --noEmit
