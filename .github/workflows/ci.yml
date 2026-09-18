@@ -55,9 +55,6 @@ jobs:
   esquema-prisma:
     name: Esquema Prisma (migraciones + seed reales)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
     services:
       postgres:
         image: postgres:16
@@ -77,44 +74,56 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci || npm install
+      # El monorepo no tiene package-lock.json en la raiz (solo
+      # packages/risk-engine trae el suyo propio), asi que npm ci no aplica
+      # aqui; npm install corre en la raiz para que los workspaces
+      # (@ebr/risk-engine, etc.) queden enlazados correctamente.
+      - run: npm install
+      - name: Generar Prisma Client (prisma/seed.ts lo importa directamente)
+        working-directory: apps/api
+        run: npx prisma generate
       - name: Aplicar migraciones reales de Prisma (lo que realmente usa el backend)
+        working-directory: apps/api
         run: npx prisma migrate deploy
       - name: Ejecutar seed real (prisma/seed.ts)
+        working-directory: apps/api
         run: npx prisma db seed
 
   pruebas-backend:
     name: Pruebas backend (NestJS)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci || npm install
+      - run: npm install
+      - name: Generar Prisma Client (PrismaService lo extiende directamente)
+        working-directory: apps/api
+        run: npx prisma generate
       - name: Verificacion de tipos
+        working-directory: apps/api
         run: npx tsc --noEmit
       - name: Pruebas unitarias (Jest)
+        working-directory: apps/api
         run: npx jest
 
   pruebas-frontend:
     name: Pruebas frontend (PWA)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci || npm install
+      - run: npm install
+      - name: Construir @ebr/risk-engine (apps/web lo resuelve via dist/, no src/)
+        run: npm run build:engine
       - name: Verificacion de tipos
+        working-directory: apps/web
         run: npx tsc --noEmit
       - name: Pruebas unitarias (Vitest)
+        working-directory: apps/web
         run: npx vitest run
 
   politica-de-commits:
