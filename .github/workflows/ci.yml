@@ -52,6 +52,71 @@ jobs:
           PGPASSWORD: ebr
         run: psql -h localhost -U postgres -d ebr -v ON_ERROR_STOP=1 -f db/opcional/06_pruebas.sql
 
+  esquema-prisma:
+    name: Esquema Prisma (migraciones + seed reales)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ebr
+          POSTGRES_DB: ebr_bpm
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:ebr@localhost:5432/ebr_bpm?schema=public
+      SEED_ADMIN_EMAIL: admin.ci@ebr-bpm.test
+      SEED_ADMIN_PASSWORD: CiSoloParaPruebasNoUsarEnProd2026!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci || npm install
+      - name: Aplicar migraciones reales de Prisma (lo que realmente usa el backend)
+        run: npx prisma migrate deploy
+      - name: Ejecutar seed real (prisma/seed.ts)
+        run: npx prisma db seed
+
+  pruebas-backend:
+    name: Pruebas backend (NestJS)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci || npm install
+      - name: Verificacion de tipos
+        run: npx tsc --noEmit
+      - name: Pruebas unitarias (Jest)
+        run: npx jest
+
+  pruebas-frontend:
+    name: Pruebas frontend (PWA)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci || npm install
+      - name: Verificacion de tipos
+        run: npx tsc --noEmit
+      - name: Pruebas unitarias (Vitest)
+        run: npx vitest run
+
   politica-de-commits:
     name: Autoria de commits
     runs-on: ubuntu-latest
