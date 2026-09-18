@@ -653,8 +653,17 @@ function FilaCriterio({
     }
 
     try {
-      await responder.mutateAsync({ evaluacionId, ...respuesta });
-      setGuardado(true);
+      const resultado = await responder.mutateAsync({ evaluacionId, ...respuesta });
+      // navigator.onLine reportó conexión, pero el fetch real pudo fallar
+      // igual (wifi sin salida a internet) -- en ese caso el hook encoló en
+      // vez de perder la respuesta (ver useEvaluacion.ts), así que la UI
+      // debe avisar "guardado localmente", no "guardado" a secas.
+      if (resultado && typeof resultado === 'object' && 'encolado' in resultado) {
+        setGuardadoLocal(true);
+        onGuardadoOffline();
+      } else {
+        setGuardado(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar la respuesta');
     }
