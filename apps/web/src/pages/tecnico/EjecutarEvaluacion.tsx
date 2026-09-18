@@ -60,6 +60,7 @@ import { useSubirEvidencia, useEliminarEvidencia } from '@/lib/tecnico/useEviden
 import { useCatalogoMotorRiesgo, useCalcularRiesgo, type SeleccionFactor } from '@/lib/tecnico/useCalcularRiesgo';
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEvaluacion';
+import { useResultadoEvaluacion } from '@/lib/motor/useResultadoEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
 import { comprimirFoto } from '@/lib/fotos/compressor';
 import { db } from '@/lib/db';
@@ -1194,6 +1195,15 @@ export default function EjecutarEvaluacion() {
   const reabrir = useReabrirEvaluacion();
   const sync = useSyncStatus();
   const sincronizacion = useSincronizacionEvaluacion(evaluacionId);
+  // Vista previa local del % de cumplimiento BPM, calculada en el dispositivo
+  // con @ebr/risk-engine (mismo motor que el servidor) a partir de las
+  // respuestas ya guardadas -- funciona sin conexión. Solo se muestra el
+  // cumplimiento, no el nivel de riesgo/frecuencia final: esos dependen de
+  // factoresManuales (selección del técnico en "Calcular riesgo"), que este
+  // cálculo local no recibe -- mostrar una clasificación de riesgo final
+  // incorrecta a un inspector sería un problema real, el % de cumplimiento
+  // en cambio se deriva únicamente de las respuestas ya respondidas.
+  const resultadoLocal = useResultadoEvaluacion(evaluacion, ficha?.opcionesRespuesta ?? []);
   const queryClient = useQueryClient();
   const [errorFinalizar, setErrorFinalizar] = useState<string | null>(null);
   const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
@@ -1474,6 +1484,13 @@ export default function EjecutarEvaluacion() {
       {!evaluacion.bloqueada && !finalizadoLocal && (
         <Alert severity="info">
           {totalRespondidas}/{totalEvaluables} criterios respondidos. Para finalizar hay que responder todos.
+        </Alert>
+      )}
+
+      {!evaluacion.bloqueada && !finalizadoLocal && resultadoLocal && (
+        <Alert severity="info" variant="outlined">
+          Cumplimiento BPM en vivo: <strong>{`${resultadoLocal.cumplimiento.porcentajeCumplimiento.toFixed(1)}%`}</strong>
+          {' '}(cálculo local, disponible sin conexión — no reemplaza el resultado oficial de "Calcular riesgo").
         </Alert>
       )}
 

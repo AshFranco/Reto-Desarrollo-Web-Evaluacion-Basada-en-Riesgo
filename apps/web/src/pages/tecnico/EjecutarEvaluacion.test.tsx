@@ -4,9 +4,12 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/mocks/node';
-import { MOCK_EVALUACION_DETALLE, MOCK_EVIDENCIA } from '@/mocks/handlers';
+import { MOCK_EVALUACION_DETALLE, MOCK_EVIDENCIA, MOCK_CATALOGO_MOTOR } from '@/mocks/handlers';
+import { descargarCatalogo } from '@/lib/catalogo/loader';
+import { descargarCatalogoMotor } from '@/lib/catalogo/loaderMotor';
 import { db, type OperacionPendiente } from '@/lib/db';
 import { comprimirFoto } from '@/lib/fotos/compressor';
+import type { RespuestaItemRaw } from '@/lib/types';
 import EjecutarEvaluacion from './EjecutarEvaluacion';
 
 // La compresión real necesita Image/OffscreenCanvas, que jsdom no provee
@@ -312,6 +315,46 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
     expect(screen.getByText('Subir Fotografías, Videos o Documentos')).toBeInTheDocument();
     expect(screen.getByText('Capturar Geolocalización GPS en Campo')).toBeInTheDocument();
     expect(screen.getByText(/Registra la ubicación geográfica específica de este criterio o hallazgo en formato GeoJSON/i)).toBeInTheDocument();
+  });
+});
+
+describe('EjecutarEvaluacion — vista previa local del motor de riesgo', () => {
+  const RESPUESTA_C_SERVIDOR: RespuestaItemRaw = {
+    id: 'r1', idEvaluacion: '1', idItemFicha: '2', idOpcionRespuesta: '1',
+    idCriticidad: null, valorAplicado: '1', pesoAplicado: '1',
+    excluidoDelCalculo: false, observacion: null, uuidLocal: 'uuid-srv-1', sincronizado: true,
+  };
+
+  it('muestra el % de cumplimiento calculado localmente (mismo motor que el servidor)', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id', () =>
+        HttpResponse.json({ ...MOCK_EVALUACION_DETALLE, respuestas: [RESPUESTA_C_SERVIDOR] })
+      ),
+      http.get('http://localhost:3000/api/v1/motor-riesgo/catalogo', () => HttpResponse.json(MOCK_CATALOGO_MOTOR))
+    );
+    await descargarCatalogo();
+    await descargarCatalogoMotor();
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
+
+    // Única respuesta es 'C' (valor 1) sobre el único ítem evaluable (peso 1) → 100%
+    await waitFor(() => expect(screen.getByText(/Cumplimiento BPM en vivo/)).toBeInTheDocument());
+    expect(screen.getByText(/100\.0%/)).toBeInTheDocument();
+  });
+
+  it('no muestra la vista previa si el catálogo del motor no se ha descargado todavía', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id', () =>
+        HttpResponse.json({ ...MOCK_EVALUACION_DETALLE, respuestas: [RESPUESTA_C_SERVIDOR] })
+      )
+    );
+    // No se llama a descargarCatalogo()/descargarCatalogoMotor(): primera sesión offline
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
+
+    expect(screen.queryByText('Cumplimiento BPM en vivo:')).not.toBeInTheDocument();
   });
 });
 
