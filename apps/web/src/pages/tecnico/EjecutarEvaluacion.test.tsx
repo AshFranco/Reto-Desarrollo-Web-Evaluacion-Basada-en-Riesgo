@@ -1,12 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/mocks/node';
 import { MOCK_EVALUACION_DETALLE, MOCK_EVIDENCIA } from '@/mocks/handlers';
-import { db } from '@/lib/db';
+import { db, type OperacionPendiente } from '@/lib/db';
+import { comprimirFoto } from '@/lib/fotos/compressor';
 import EjecutarEvaluacion from './EjecutarEvaluacion';
+
+// La compresión real necesita Image/OffscreenCanvas, que jsdom no provee
+// (ver src/lib/fotos/compressor.test.ts para esos mocks aparte). Acá solo
+// interesa confirmar que se LLAMA con el archivo original antes de subir.
+const BLOB_COMPRIMIDO = new Blob(['comprimida'], { type: 'image/jpeg' });
+vi.mock('@/lib/fotos/compressor', () => ({
+  comprimirFoto: vi.fn(async () => BLOB_COMPRIMIDO),
+}));
 
 beforeEach(async () => {
   await db.open();
@@ -112,6 +121,62 @@ describe('EjecutarEvaluacion — sin conexión', () => {
       expect(ops[0]?.payload).toMatchObject({ evaluacionServerId: '1' });
     });
     expect(llamadaAlServidor).toBe(false);
+  });
+
+  it('sin conexión, comprime la foto y encola la evidencia en vez de bloquear la subida', async () => {
+    ponerseOffline();
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Evidencia general de la evaluación (no ligada a un criterio puntual)')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adjuntar evidencia general' }));
+    await waitFor(() => expect(screen.getByText('Subir Fotografías, Videos o Documentos')).toBeInTheDocument());
+
+    const input = screen.getByLabelText('Seleccionar archivos desde el dispositivo', { selector: 'input' });
+    const foto = new File(['bytes-originales'], 'foto.jpg', { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [foto] } });
+
+    let pendientes: OperacionPendiente[] = [];
+    await waitFor(async () => {
+      pendientes = await db.cola_sync.where('tipo').equals('EVIDENCIA').toArray();
+      expect(pendientes).toHaveLength(1);
+    });
+    const payload = pendientes[0]?.payload as Record<string, unknown>;
+    expect(payload).toMatchObject({ evaluacionId: '1', tipo: 'FOTO', nombreArchivo: 'foto.jpg' });
+    // Confirma que la compresión corrió antes de encolar (no que se saltó el
+    // paso) -- no se puede verificar el contenido del blob después del
+    // round-trip por IndexedDB: fake-indexeddb (el shim usado en tests) no
+    // conserva Blobs anidados dentro de un objeto plano, los vuelve `{}`
+    // (mismo tipo de límite de entorno que el FormData en useEvidencias.test.tsx).
+    expect(comprimirFoto).toHaveBeenCalledTimes(1);
+    expect(comprimirFoto).toHaveBeenCalledWith(foto);
+
+    await waitFor(() => expect(screen.getByText('Evidencia guardada localmente — pendiente de sincronizar.')).toBeInTheDocument());
+  });
+
+  it('sin conexión, encola el punto GPS como evidencia sin comprimir (no es imagen)', async () => {
+    ponerseOffline();
+    const getCurrentPosition = vi.fn((success: PositionCallback) =>
+      success({ coords: { latitude: 18.4861, longitude: -69.9312 } } as GeolocationPosition)
+    );
+    Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Evidencia general de la evaluación (no ligada a un criterio puntual)')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adjuntar evidencia general' }));
+    await waitFor(() => expect(screen.getByText('Capturar Geolocalización GPS en Campo')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Capturar ubicación GPS' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar archivo GeoJSON' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar archivo GeoJSON' }));
+
+    await waitFor(() => expect(screen.getByText('Punto GPS guardado localmente — pendiente de sincronizar.')).toBeInTheDocument());
+
+    const pendientes = await db.cola_sync.where('tipo').equals('EVIDENCIA').toArray();
+    expect(pendientes).toHaveLength(1);
+    expect(pendientes[0]?.payload).toMatchObject({
+      evaluacionId: '1', tipo: 'DOCUMENTO', latitud: 18.4861, longitud: -69.9312,
+    });
   });
 
   it('muestra las operaciones que llegaron a estado error después de agotar los reintentos', async () => {
