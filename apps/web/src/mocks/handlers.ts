@@ -139,6 +139,28 @@ export const MOCK_ESTABLECIMIENTO = {
   activo: true,
 };
 
+export const MOCK_ALERTA_LAPCH = {
+  id: '1',
+  numeroAlerta: 'LAPCH-2026-001',
+  fecha: '2026-02-01T00:00:00.000Z',
+  producto: 'Leche en polvo',
+  descripcion: 'Contaminación detectada en lote 55.',
+  idEmpresa: null,
+  idEstablecimiento: '1',
+  resultado: null,
+};
+
+export const MOCK_DENUNCIA = {
+  id: '1',
+  tipoDenuncia: 'Condiciones sanitarias',
+  fechaRecepcion: '2026-02-05T00:00:00.000Z',
+  denunciante: 'Vecino del sector',
+  descripcion: 'Malos olores y presencia de plagas.',
+  idEmpresa: null,
+  idEstablecimiento: '1',
+  resultado: null,
+};
+
 export const MOCK_EVALUACION_DETALLE = {
   id: '1',
   idCaso: '1',
@@ -541,5 +563,17 @@ export const handlers = [
   http.patch(`${BASE}/api/v1/catalogos/tipos-establecimiento/:id`, () =>
     HttpResponse.json({ id: '1', nombre: 'Planta Modificada', descripcion: '', activo: true })
   ),
+  http.get(`${BASE}/api/v1/alertas-lapch`, () => HttpResponse.json([MOCK_ALERTA_LAPCH])),
+  http.post(`${BASE}/api/v1/alertas-lapch`, () => HttpResponse.json(MOCK_ALERTA_LAPCH, { status: 201 })),
+  http.patch(`${BASE}/api/v1/alertas-lapch/:id/resolver`, async ({ request }) => {
+    const body = (await request.json()) as { resultado: string };
+    return HttpResponse.json({ ...MOCK_ALERTA_LAPCH, resultado: body.resultado });
+  }),
+  http.get(`${BASE}/api/v1/denuncias`, () => HttpResponse.json([MOCK_DENUNCIA])),
+  http.post(`${BASE}/api/v1/denuncias`, () => HttpResponse.json(MOCK_DENUNCIA, { status: 201 })),
+  http.patch(`${BASE}/api/v1/denuncias/:id/resolver`, async ({ request }) => {
+    const body = (await request.json()) as { resultado: string };
+    return HttpResponse.json({ ...MOCK_DENUNCIA, resultado: body.resultado });
+  }),
 ];
 

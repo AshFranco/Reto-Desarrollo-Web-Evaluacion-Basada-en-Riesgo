@@ -22,6 +22,9 @@ const MAPA_COLOR_ESTADO: Record<string, 'success' | 'warning' | 'error' | 'defau
   Aprobado: 'success',
   Asignada: 'default',
   Asignado: 'default',
+  Procede: 'success',
+  'No procede': 'error',
+  Remisión: 'default',
 };
 
 function colorPorEstado(estado: string) {
