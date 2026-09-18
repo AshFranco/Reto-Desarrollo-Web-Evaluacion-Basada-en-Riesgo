@@ -25,6 +25,9 @@ obj/
 .env.*
 !.env.example
 
+# Git worktrees para desarrollo aislado por rama
+.worktrees/
+
 # Editores
 .vscode/*
 !.vscode/extensions.json

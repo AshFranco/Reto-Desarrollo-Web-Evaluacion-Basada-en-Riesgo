@@ -7,6 +7,31 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 const POLL_INTERVAL_MS = 30_000;
 
+/**
+ * Extraído como función pura testeable aparte: en el entorno de pruebas
+ * (jsdom + MSW/undici) el FormData no se serializa con el boundary
+ * multipart real al pasar por un fetch() interceptado, así que no se puede
+ * verificar su contenido inspeccionando la petición HTTP recibida (mismo
+ * límite documentado en useEvidencias.test.tsx). Se testea construyendo el
+ * FormData directo y leyendo sus campos con .get(), sin red de por medio.
+ */
+export function construirFormEvidencia(payload: Record<string, unknown>): FormData {
+  const form = new FormData();
+  form.append('evaluacionId', (payload['evaluacionId'] as string) ?? '');
+  if (payload['respuestaItemId']) form.append('respuestaItemId', payload['respuestaItemId'] as string);
+  form.append('tipo', (payload['tipo'] as string) ?? 'FOTO');
+  if (payload['latitud'] !== undefined && payload['latitud'] !== null) {
+    form.append('latitud', String(payload['latitud']));
+  }
+  if (payload['longitud'] !== undefined && payload['longitud'] !== null) {
+    form.append('longitud', String(payload['longitud']));
+  }
+  if (payload['blob'] instanceof Blob) {
+    form.append('archivo', payload['blob'] as Blob, (payload['nombreArchivo'] as string) ?? 'archivo');
+  }
+  return form;
+}
+
 export class SyncProcessor {
   private procesando = false;
   private intervaloId?: ReturnType<typeof setInterval>;
@@ -71,16 +96,11 @@ export class SyncProcessor {
           body: JSON.stringify({ respuestas: payload['respuestas'] ?? [] }),
         });
       } else if (op.tipo === 'EVIDENCIA') {
-        const form = new FormData();
-        form.append('evaluacionId', (payload['evaluacionId'] as string) ?? '');
-        if (payload['respuestaItemId']) form.append('respuestaItemId', payload['respuestaItemId'] as string);
-        form.append('tipo', 'FOTO');
-        if (payload['blob'] instanceof Blob) form.append('archivo', payload['blob'] as Blob, payload['nombreArchivo'] as string);
         const authHeader = headers['Authorization'];
         res = await fetch(`${API_BASE}/api/v1/evidencias`, {
           method: 'POST',
           headers: authHeader ? { Authorization: authHeader } : undefined,
-          body: form,
+          body: construirFormEvidencia(payload),
         });
       } else if (op.tipo === 'FINALIZAR_EVALUACION' && evalId) {
         res = await fetch(`${API_BASE}/api/v1/evaluaciones/${evalId}/finalizar`, {

@@ -62,6 +62,7 @@ import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEvaluacion';
 import { useResultadoEvaluacion } from '@/lib/motor/useResultadoEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
+import { comprimirFoto } from '@/lib/fotos/compressor';
 import { db } from '@/lib/db';
 import type { EvaluacionDetalle, Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo, AsignacionMia } from '@/lib/types';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
@@ -123,6 +124,17 @@ function tipoDeArchivo(archivo: File): 'FOTO' | 'VIDEO' | 'DOCUMENTO' {
   return 'DOCUMENTO';
 }
 
+/** Comprime una foto antes de subirla/encolarla; conserva el nombre original. */
+async function comprimirComoArchivo(archivo: File): Promise<File> {
+  const blob = await comprimirFoto(archivo);
+  return new File([blob], archivo.name, { type: blob.type });
+}
+
+/** useSubirEvidencia()/useResponderItem()/etc. resuelven así cuando fetch() falló y se encoló en cola_sync en vez de completarse contra el servidor. */
+function esResultadoEncolado(resultado: unknown): boolean {
+  return !!resultado && typeof resultado === 'object' && 'encolado' in resultado;
+}
+
 /**
  * Adjuntar evidencia (fotos, videos cortos, documentos y geolocalización).
  */
@@ -153,6 +165,7 @@ function SubirEvidencia({
   const eliminar = useEliminarEvidencia();
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [guardadoLocalMsg, setGuardadoLocalMsg] = useState<string | null>(null);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [evidenciaParaEliminar, setEvidenciaParaEliminar] = useState<Evidencia | null>(null);
 
@@ -182,9 +195,28 @@ function SubirEvidencia({
     );
   }
 
+  /**
+   * Sin conexión, encola directo (mismo criterio que guardarConDraft/
+   * handleFinalizar para RESPUESTAS/FINALIZAR_EVALUACION): evita intentar
+   * un fetch condenado cuando ya se sabe que no hay red. Si hay red mal
+   * reportada por el navegador y el fetch real igual falla, el hook
+   * (useSubirEvidencia) ya tiene su propio fallback a cola_sync.
+   */
+  async function subirOEncolar(archivo: File, tipo: 'FOTO' | 'VIDEO' | 'DOCUMENTO', latitud?: number, longitud?: number) {
+    if (!enLinea) {
+      await enqueue('EVIDENCIA', {
+        evaluacionId, tipo, respuestaItemId, latitud, longitud,
+        blob: archivo, nombreArchivo: archivo.name,
+      });
+      return { encolado: true as const };
+    }
+    return subir.mutateAsync({ evaluacionId, archivo, tipo, respuestaItemId, latitud, longitud });
+  }
+
   async function handleGuardarPuntoGps() {
     if (!coordsGps) return;
     setError(null);
+    setGuardadoLocalMsg(null);
     try {
       const geojsonContent = JSON.stringify(
         {
@@ -218,14 +250,10 @@ function SubirEvidencia({
           : `geolocalizacion_${Date.now()}.geojson`,
         { type: 'application/geo+json' }
       );
-      await subir.mutateAsync({
-        evaluacionId,
-        archivo,
-        tipo: 'DOCUMENTO',
-        respuestaItemId,
-        latitud: coordsGps.latitud,
-        longitud: coordsGps.longitud,
-      });
+      const resultado = await subirOEncolar(archivo, 'DOCUMENTO', coordsGps.latitud, coordsGps.longitud);
+      if (esResultadoEncolado(resultado)) {
+        setGuardadoLocalMsg('Punto GPS guardado localmente — pendiente de sincronizar.');
+      }
       setCoordsGps(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar el archivo de geolocalización');
@@ -237,16 +265,20 @@ function SubirEvidencia({
     e.target.value = '';
     if (archivos.length === 0) return;
     setError(null);
+    setGuardadoLocalMsg(null);
     try {
-      for (const archivo of archivos) {
-        await subir.mutateAsync({
-          evaluacionId,
-          archivo,
-          tipo: tipoDeArchivo(archivo),
-          respuestaItemId,
-          latitud: coordsGps?.latitud,
-          longitud: coordsGps?.longitud,
-        });
+      let algunaEncolada = false;
+      for (const archivoOriginal of archivos) {
+        const tipo = tipoDeArchivo(archivoOriginal);
+        // El compresor solo procesa imágenes; videos y documentos se
+        // suben tal cual (comprimirlos requeriría re-codificar video/PDF,
+        // fuera de alcance de este ajuste).
+        const archivo = tipo === 'FOTO' ? await comprimirComoArchivo(archivoOriginal) : archivoOriginal;
+        const resultado = await subirOEncolar(archivo, tipo, coordsGps?.latitud, coordsGps?.longitud);
+        if (esResultadoEncolado(resultado)) algunaEncolada = true;
+      }
+      if (algunaEncolada) {
+        setGuardadoLocalMsg('Evidencia guardada localmente — pendiente de sincronizar.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir el archivo');
@@ -265,13 +297,12 @@ function SubirEvidencia({
     }
   }
 
-  if (!enLinea) {
-    return (
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-        Sin conexión: adjuntar evidencia no está disponible ahora mismo.
-      </Typography>
-    );
-  }
+  // Antes se bloqueaba adjuntar evidencia por completo sin conexión.
+  // useSubirEvidencia() ahora encola en cola_sync cuando fetch() falla
+  // (ver useEvidencias.ts), así que ya no hace falta bloquear nada acá:
+  // si no hay red, el hook resuelve con { encolado: true } en vez de
+  // lanzar, y guardadoLocalMsg avisa al técnico (ver manejarArchivos /
+  // handleGuardarPuntoGps).
 
   return (
     <Box sx={{ mt: 1 }}>
@@ -441,6 +472,12 @@ function SubirEvidencia({
       {!permitirGps && error && (
         <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
           {error}
+        </Typography>
+      )}
+
+      {guardadoLocalMsg && (
+        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
+          {guardadoLocalMsg}
         </Typography>
       )}
 
@@ -654,8 +691,17 @@ function FilaCriterio({
     }
 
     try {
-      await responder.mutateAsync({ evaluacionId, ...respuesta });
-      setGuardado(true);
+      const resultado = await responder.mutateAsync({ evaluacionId, ...respuesta });
+      // navigator.onLine reportó conexión, pero el fetch real pudo fallar
+      // igual (wifi sin salida a internet) -- en ese caso el hook encoló en
+      // vez de perder la respuesta (ver useEvaluacion.ts), así que la UI
+      // debe avisar "guardado localmente", no "guardado" a secas.
+      if (resultado && typeof resultado === 'object' && 'encolado' in resultado) {
+        setGuardadoLocal(true);
+        onGuardadoOffline();
+      } else {
+        setGuardado(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar la respuesta');
     }
