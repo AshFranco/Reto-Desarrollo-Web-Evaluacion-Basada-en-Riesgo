@@ -19,6 +19,7 @@ import DashboardEmpresa from '@/pages/dashboard/DashboardEmpresa';
 import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
 import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento';
 import ConsultaHistorica from '@/pages/historico/ConsultaHistorica';
+import DenunciaPublica from '@/pages/publico/DenunciaPublica';
 import AlertasLapch from '@/pages/coordinador/AlertasLapch';
 import Denuncias from '@/pages/coordinador/Denuncias';
 
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
             <Route path="/registro" element={<Registro />} />
+            <Route path="/denuncia-publica" element={<DenunciaPublica />} />
             <Route path="/no-autorizado" element={<NoAutorizado />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
 
