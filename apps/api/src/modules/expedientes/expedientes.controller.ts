@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -17,6 +18,23 @@ import { RolUsuario } from '../../common/enums';
 @Controller({ path: 'expedientes', version: '1' })
 export class ExpedientesController {
   constructor(private readonly expedientesService: ExpedientesService) {}
+
+  @Get(':casoId/pdf')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.TECNICO_EVALUADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+    RolUsuario.USUARIO_DELEGADO,
+  )
+  @ApiOperation({ summary: 'Descargar el PDF consolidado del expediente del caso' })
+  @ApiResponse({ status: 200, description: 'Archivo PDF del expediente.' })
+  async descargarPdf(@Param('casoId') casoId: string, @Res() res: Response) {
+    const pdfBuffer = await this.expedientesService.generarPdf(casoId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=expediente_caso_${casoId}.pdf`);
+    res.send(pdfBuffer);
+  }
 
   @Patch(':casoId/cerrar')
   @Roles(RolUsuario.COORDINADOR, RolUsuario.ADMINISTRADOR)

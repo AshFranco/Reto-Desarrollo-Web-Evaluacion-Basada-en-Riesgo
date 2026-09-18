@@ -26,6 +26,12 @@ export class TokenService {
     });
   }
 
+  verifyAccessToken(token: string): JwtPayload {
+    return this.jwt.verify<JwtPayload>(token, {
+      secret: this.config.jwtAccessSecret,
+    });
+  }
+
   signPasswordResetToken(userId: string, passwordHashSlice: string): string {
     return this.jwt.sign(
       { sub: userId, pwh: passwordHashSlice, purpose: 'pwd_reset' },

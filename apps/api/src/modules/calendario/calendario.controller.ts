@@ -1,11 +1,11 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { IsDateString, IsNumberString, IsOptional } from 'class-validator';
+import { IsDateString, IsNumberString, IsOptional, IsString } from 'class-validator';
 import { CalendarioService } from './calendario.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -18,6 +18,15 @@ class RangoFechasQuery {
   // Solo lo usa el Coordinador/Administrador para ver el calendario de un
   // técnico específico (ej. al decidir a quién asignar una evaluación).
   @IsOptional() @IsNumberString() evaluadorId?: string;
+}
+
+class ReprogramarCitaDto {
+  @IsDateString() nuevaFecha: string;
+  @IsOptional() @IsString() comentario?: string;
+}
+
+class CancelarCitaDto {
+  @IsOptional() @IsString() motivo?: string;
 }
 
 /**
@@ -51,5 +60,17 @@ export class CalendarioController {
 
     const evaluadorId = esInterno ? query.evaluadorId! : user.sub;
     return this.calendarioService.obtenerCalendario(evaluadorId, query.desde, query.hasta);
+  }
+
+  @Patch(':id/reprogramar')
+  @Roles(RolUsuario.COORDINADOR, RolUsuario.ADMINISTRADOR)
+  reprogramar(@Param('id') id: string, @Body() dto: ReprogramarCitaDto) {
+    return this.calendarioService.reprogramar(id, dto.nuevaFecha, dto.comentario);
+  }
+
+  @Patch(':id/cancelar')
+  @Roles(RolUsuario.COORDINADOR, RolUsuario.ADMINISTRADOR)
+  cancelar(@Param('id') id: string, @Body() dto: CancelarCitaDto) {
+    return this.calendarioService.cancelar(id, dto.motivo);
   }
 }

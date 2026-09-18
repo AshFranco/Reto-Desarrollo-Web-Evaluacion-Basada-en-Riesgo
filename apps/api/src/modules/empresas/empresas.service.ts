@@ -89,6 +89,19 @@ export class EmpresasService {
     return this.serializar(empresa);
   }
 
+  async listarPublicas() {
+    const empresas = await this.prisma.empresa.findMany({
+      select: {
+        id: true,
+        razonSocial: true,
+        rnc: true,
+        nombreComercial: true,
+      },
+      orderBy: { razonSocial: 'asc' },
+    });
+    return empresas.map((e) => ({ ...e, id: e.id.toString() }));
+  }
+
   /** Convierte BigInt a string para que la respuesta JSON no falle. */
   private serializar(empresa: any) {
     return { ...empresa, id: empresa.id.toString(), idMunicipio: empresa.idMunicipio?.toString() ?? null };
