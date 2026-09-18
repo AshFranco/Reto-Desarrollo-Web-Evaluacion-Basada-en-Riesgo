@@ -60,6 +60,7 @@ async function seedCatalogosBase() {
     { codigo: 'APROBADA', nombre: 'Aprobada', esFinal: false, bloqueaDatos: true, orden: 5 },
     { codigo: 'DEVUELTA', nombre: 'Devuelta', esFinal: false, bloqueaDatos: false, orden: 6 },
     { codigo: 'CERRADA', nombre: 'Cerrada', esFinal: true, bloqueaDatos: true, orden: 7 },
+    { codigo: 'CANCELADA', nombre: 'Cancelada', esFinal: true, bloqueaDatos: true, orden: 8 },
   ];
   for (const e of estados) {
     await prisma.estadoEvaluacion.upsert({ where: { codigo: e.codigo }, create: e, update: e });
