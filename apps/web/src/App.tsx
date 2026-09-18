@@ -20,6 +20,8 @@ import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
 import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento';
 import ConsultaHistorica from '@/pages/historico/ConsultaHistorica';
 import DenunciaPublica from '@/pages/publico/DenunciaPublica';
+import AlertasLapch from '@/pages/coordinador/AlertasLapch';
+import Denuncias from '@/pages/coordinador/Denuncias';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +66,13 @@ export default function App() {
             <Route element={<RoleRoute rolesPermitidos={['COORDINADOR']} />}>
               <Route element={<AppLayout />}>
                 <Route path="/coordinador" element={<DashboardCoordinador />} />
+              </Route>
+            </Route>
+
+            <Route element={<RoleRoute rolesPermitidos={['ADMINISTRADOR', 'COORDINADOR']} />}>
+              <Route element={<AppLayout />}>
+                <Route path="/alertas-lapch" element={<AlertasLapch />} />
+                <Route path="/denuncias" element={<Denuncias />} />
               </Route>
             </Route>
 
