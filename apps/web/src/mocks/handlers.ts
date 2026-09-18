@@ -174,6 +174,17 @@ export const MOCK_REGISTRO_RESPONSE = {
   usuario: { id: '10', correoElectronico: 'nuevo@ebr.local', nombreCompleto: 'Usuario Nuevo' },
 };
 
+export const MOCK_DENUNCIA = {
+  id: '1',
+  tipoDenuncia: 'Condiciones sanitarias',
+  fechaRecepcion: '2026-02-05T00:00:00.000Z',
+  denunciante: 'Vecino del sector',
+  descripcion: 'Malos olores y presencia de plagas.',
+  idEmpresa: null,
+  idEstablecimiento: '1',
+  resultado: null,
+};
+
 export const MOCK_EVIDENCIA = {
   id: '1',
   uuidLocal: 'a4508e28-6731-4079-8e63-69ab1adc60bb',
@@ -442,6 +453,7 @@ export const handlers = [
   http.get(`${BASE}/api/v1/empresas/publicas`, () =>
     HttpResponse.json([{ id: '1', razonSocial: MOCK_EMPRESA.razonSocial, rnc: MOCK_EMPRESA.rnc, nombreComercial: null }])
   ),
+  http.post(`${BASE}/api/v1/denuncias`, () => HttpResponse.json(MOCK_DENUNCIA, { status: 201 })),
   http.get(`${BASE}/api/v1/empresas`, () => HttpResponse.json([MOCK_EMPRESA])),
   http.get(`${BASE}/api/v1/empresas/:id`, () => HttpResponse.json(MOCK_EMPRESA)),
   http.post(`${BASE}/api/v1/empresas`, () => HttpResponse.json(MOCK_EMPRESA)),

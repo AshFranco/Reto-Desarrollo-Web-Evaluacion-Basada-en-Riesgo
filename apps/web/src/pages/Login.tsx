@@ -242,6 +242,13 @@ export default function Login() {
                 Registrate
               </Link>
             </Typography>
+
+            <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
+              ¿Querés hacer una denuncia sin iniciar sesión?{' '}
+              <Link component={RouterLink} to="/denuncia-publica" underline="hover">
+                Denunciá acá
+              </Link>
+            </Typography>
           </>
         )}
       </Paper>
