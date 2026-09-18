@@ -169,6 +169,11 @@ export const MOCK_TECNICO = {
   correoElectronico: 'tecnico.prueba@ebr.local',
 };
 
+export const MOCK_REGISTRO_RESPONSE = {
+  mensaje: 'Registro recibido. Su cuenta quedará activa tras la validación del Administrador.',
+  usuario: { id: '10', correoElectronico: 'nuevo@ebr.local', nombreCompleto: 'Usuario Nuevo' },
+};
+
 export const MOCK_EVIDENCIA = {
   id: '1',
   uuidLocal: 'a4508e28-6731-4079-8e63-69ab1adc60bb',
@@ -335,6 +340,9 @@ export const handlers = [
   http.post(`${BASE}/api/v1/auth/login`, () =>
     HttpResponse.json(MOCK_LOGIN_RESPONSE)
   ),
+  http.post(`${BASE}/api/v1/auth/registro`, () =>
+    HttpResponse.json(MOCK_REGISTRO_RESPONSE, { status: 201 })
+  ),
   http.post(`${BASE}/api/v1/auth/refresh`, () =>
     HttpResponse.json({ accessToken: MOCK_ACCESS_TOKEN })
   ),
@@ -431,6 +439,9 @@ export const handlers = [
   }),
   http.get(`${BASE}/api/v1/motor-riesgo/catalogo`, () => HttpResponse.json(MOCK_CATALOGO_MOTOR_RIESGO)),
   http.post(`${BASE}/api/v1/motor-riesgo/calcular`, () => HttpResponse.json(MOCK_RESULTADO_RIESGO)),
+  http.get(`${BASE}/api/v1/empresas/publicas`, () =>
+    HttpResponse.json([{ id: '1', razonSocial: MOCK_EMPRESA.razonSocial, rnc: MOCK_EMPRESA.rnc, nombreComercial: null }])
+  ),
   http.get(`${BASE}/api/v1/empresas`, () => HttpResponse.json([MOCK_EMPRESA])),
   http.get(`${BASE}/api/v1/empresas/:id`, () => HttpResponse.json(MOCK_EMPRESA)),
   http.post(`${BASE}/api/v1/empresas`, () => HttpResponse.json(MOCK_EMPRESA)),
@@ -458,6 +469,9 @@ export const handlers = [
         id: '10',
         nombreCompleto: 'Juan Pérez',
         correoElectronico: 'juan@empresa.com',
+        cedulaPasaporte: '001-1234567-8',
+        telefono: '+18095551234',
+        cartaAutorizacionUrl: 'https://storage.example.com/cartas/carta-juan.pdf',
         fechaCreacion: '2026-03-01T10:00:00.000Z',
         roles: ['ADMINISTRADOR_EMPRESA'],
       },
@@ -480,17 +494,31 @@ export const handlers = [
         id: '1',
         nombreCompleto: 'Admin General',
         correoElectronico: 'admin@digemaps.gob.do',
-        activo: true,
+        telefono: null,
+        estado: 'APROBADO',
+        roles: [{ codigo: 'ADMINISTRADOR', nombre: 'Administrador' }],
+        empresa: null,
         fechaCreacion: '2026-01-01T00:00:00.000Z',
-        roles: ['ADMINISTRADOR'],
       },
       {
         id: '2',
         nombreCompleto: 'Carlos Técnico',
         correoElectronico: 'tecnico@digemaps.gob.do',
-        activo: true,
+        telefono: null,
+        estado: 'APROBADO',
+        roles: [{ codigo: 'TECNICO_EVALUADOR', nombre: 'Técnico Evaluador' }],
+        empresa: null,
         fechaCreacion: '2026-01-01T00:00:00.000Z',
-        roles: ['TECNICO'],
+      },
+      {
+        id: '3',
+        nombreCompleto: 'Rosa Delegada',
+        correoElectronico: 'delegado@empresa.com',
+        telefono: '+18095551234',
+        estado: 'BLOQUEADO',
+        roles: [{ codigo: 'ADMINISTRADOR_EMPRESA', nombre: 'Administrador de Empresa' }],
+        empresa: { razonSocial: 'Empresa Delegada SRL', rnc: '131-99988-7' },
+        fechaCreacion: '2026-01-02T00:00:00.000Z',
       },
     ])
   ),

@@ -41,6 +41,8 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
@@ -222,6 +224,31 @@ function DialogoRechazo({
   );
 }
 
+/** Enlace a la carta de autorización (RF-02) — el admin debe poder revisarla antes de aprobar/rechazar, no aprobar a ciegas. */
+function EnlaceCartaAutorizacion({ url }: { url: string | null }) {
+  if (!url) {
+    return (
+      <Typography variant="caption" color="text.secondary">
+        Sin carta de autorización adjunta
+      </Typography>
+    );
+  }
+  return (
+    <Button
+      size="small"
+      variant="text"
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      startIcon={<DescriptionOutlinedIcon fontSize="small" />}
+      endIcon={<OpenInNewOutlinedIcon fontSize="small" />}
+      sx={{ textTransform: 'none', px: 0.5 }}
+    >
+      Ver carta de autorización
+    </Button>
+  );
+}
+
 function TarjetaUsuarioPendiente({
   usuario,
   onAprobar,
@@ -250,8 +277,12 @@ function TarjetaUsuarioPendiente({
         {usuario.correoElectronico}
       </Typography>
       <Typography variant="caption" color="text.secondary">
+        Cédula/Pasaporte: {usuario.cedulaPasaporte} · Teléfono: {usuario.telefono ?? 'No indicado'}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
         Fecha solicitud: {new Date(usuario.fechaCreacion).toLocaleDateString()}
       </Typography>
+      <EnlaceCartaAutorizacion url={usuario.cartaAutorizacionUrl} />
       <Box sx={{ display: 'flex', gap: 1, mt: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
         <Button
           size="small"
@@ -346,6 +377,9 @@ function TablaUsuariosPendientes() {
               <TableRow>
                 <TableCell>Nombre completo</TableCell>
                 <TableCell>Correo electrónico</TableCell>
+                <TableCell>Cédula/Pasaporte</TableCell>
+                <TableCell>Teléfono</TableCell>
+                <TableCell>Carta de autorización</TableCell>
                 <TableCell>Rol solicitado</TableCell>
                 <TableCell>Fecha solicitud</TableCell>
                 <TableCell align="right">Acciones</TableCell>
@@ -356,6 +390,11 @@ function TablaUsuariosPendientes() {
                 <TableRow key={u.id}>
                   <TableCell><strong>{u.nombreCompleto}</strong></TableCell>
                   <TableCell>{u.correoElectronico}</TableCell>
+                  <TableCell>{u.cedulaPasaporte}</TableCell>
+                  <TableCell>{u.telefono ?? '—'}</TableCell>
+                  <TableCell>
+                    <EnlaceCartaAutorizacion url={u.cartaAutorizacionUrl} />
+                  </TableCell>
                   <TableCell>
                     <Chip
                       label={u.roles.join(', ') || 'Sin rol'}
