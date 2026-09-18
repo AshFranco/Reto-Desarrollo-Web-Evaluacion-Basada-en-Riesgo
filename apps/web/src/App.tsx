@@ -7,6 +7,7 @@ import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { theme } from '@/theme';
 import Login from '@/pages/Login';
 import RestablecerContrasena from '@/pages/RestablecerContrasena';
+import Registro from '@/pages/Registro';
 import NoAutorizado from '@/pages/NoAutorizado';
 import { RoleRoute } from '@/routes/RoleRoute';
 import { AppLayout } from '@/layouts/AppLayout';
@@ -48,6 +49,7 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
+            <Route path="/registro" element={<Registro />} />
             <Route path="/no-autorizado" element={<NoAutorizado />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
 
