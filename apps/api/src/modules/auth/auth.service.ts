@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { authenticator } from 'otplib';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -14,6 +15,9 @@ import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
 import { SolicitudRecuperacionDto, ResetContrasenaDto } from './dto/recuperacion-contrasena.dto';
 import { RecuperarContrasenaDto } from './dto/recuperar-contrasena.dto';
 import { RestablecerContrasenaDto } from './dto/restablecer-contrasena.dto';
+import { EmailService } from '../../common/services/email.service';
+import { EncryptionService } from '../../common/services/encryption.service';
+import { AppConfigService } from '../../config/app-config.service';
 
 export interface RequestMeta {
   ip?: string;
@@ -51,6 +55,9 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly loginThrottle: LoginThrottleService,
+    private readonly emailService: EmailService,
+    private readonly encryptionService: EncryptionService,
+    private readonly config: AppConfigService,
   ) {}
 
   async registrar(dto: RegistroUsuarioDto) {
@@ -129,10 +136,43 @@ export class AuthService {
     }
 
     if (usuario.dobleFactorActivo) {
-      if (!usuario.secretoTotp) {
-        throw new BadRequestException('El usuario tiene MFA marcado como activo pero no tiene un secreto TOTP configurado.');
+      if (!dto.codigoMfa) {
+        return {
+          requiereMfa: true,
+          mensaje:
+            'Verificación en dos pasos requerida. Ingrese el código de 6 dígitos de su aplicación autenticadora (Google Authenticator).',
+        };
       }
-      return { requiereMfa: true, mensaje: 'Ingrese su código de autenticación de dos factores.' };
+
+      const rows = await this.prisma.$queryRaw<{ secreto_totp: string | null }[]>`
+        SELECT secreto_totp FROM usuario WHERE id = ${usuario.id}
+      `;
+      const secretoCifrado = rows[0]?.secreto_totp;
+
+      if (!secretoCifrado) {
+        this.logger.error(
+          `Usuario ${usuario.id} (${usuario.correoElectronico}) tiene dobleFactorActivo pero no posee secreto_totp en BD.`,
+        );
+        throw new UnauthorizedException(
+          'Error en configuración de doble factor de seguridad. Contacte al Administrador.',
+        );
+      }
+
+      let secretoPlano: string;
+      try {
+        secretoPlano = this.encryptionService.decrypt(secretoCifrado);
+      } catch (err) {
+        this.logger.error(`Error descifrando secreto TOTP del usuario ${usuario.id}: ${err}`);
+        throw new UnauthorizedException('Error al procesar la clave de seguridad.');
+      }
+
+      const codigoLimpio = dto.codigoMfa.trim();
+      const esValido = authenticator.check(codigoLimpio, secretoPlano);
+
+      if (!esValido) {
+        await this.loginThrottle.registrarIntentoFallido(usuario.id);
+        throw new UnauthorizedException('Código de verificación de 6 dígitos incorrecto o expirado.');
+      }
     }
 
     await this.loginThrottle.registrarLoginExitoso(usuario.id);
@@ -197,24 +237,35 @@ export class AuthService {
       const correoLimpio = (correoInput || '').trim().toLowerCase();
       if (!correoLimpio) return { ok: true, mensaje: mensajeGenerico };
 
-      const usuario = await this.prisma.usuario.findFirst({
+      let usuario = await this.prisma.usuario.findUnique({
         where: { correoElectronico: correoLimpio },
       });
+      if (!usuario) {
+        usuario = await this.prisma.usuario.findFirst({
+          where: { correoElectronico: { equals: correoLimpio, mode: 'insensitive' } },
+        });
+      }
 
       if (!usuario) {
         return { ok: true, mensaje: mensajeGenerico };
       }
 
-      const resetToken = this.tokenService.signAccessToken({
-        sub: usuario.id.toString(),
-        rol: 'RESET_PASSWORD',
-        empresaId: null,
-      });
+      const resetToken = this.tokenService.signPasswordResetToken(
+        usuario.id.toString(),
+        usuario.contrasenaHash.slice(-10),
+      );
+
+      const enlace = `${this.config.frontendUrl}/restablecer-contrasena?token=${encodeURIComponent(resetToken)}`;
+      const resultadoEnvio = await this.emailService.enviarRecuperacionContrasena(
+        usuario.correoElectronico,
+        usuario.nombreCompleto,
+        enlace,
+      );
 
       return {
         ok: true,
         mensaje: mensajeGenerico,
-        token: resetToken,
+        previewUrl: resultadoEnvio.previewUrl ?? undefined,
       };
     } catch {
       return { ok: true, mensaje: mensajeGenerico };
@@ -222,33 +273,47 @@ export class AuthService {
   }
 
   async resetearContrasena(token: string, nuevaContrasena: string) {
-    let payload;
+    let payload: { sub: string; pwh: string; purpose: string };
     try {
-      payload = this.tokenService.verifyAccessToken(token);
+      payload = this.tokenService.verifyPasswordResetToken(token);
     } catch {
-      throw new BadRequestException('Token de recuperación inválido o expirado.');
+      throw new BadRequestException('El enlace de restablecimiento es inválido o ha expirado.');
     }
 
-    if (payload.rol !== 'RESET_PASSWORD') {
-      throw new BadRequestException('El token proporcionado no es un token de recuperación de contraseña.');
+    if (payload.purpose !== 'pwd_reset' || !payload.sub) {
+      throw new BadRequestException('Token de restablecimiento no válido.');
     }
 
     const usuario = await this.prisma.usuario.findUnique({
       where: { id: BigInt(payload.sub) },
     });
-    if (!usuario) {
-      throw new BadRequestException('Usuario no encontrado.');
+    if (!usuario || usuario.estado !== 'APROBADO') {
+      throw new BadRequestException('La cuenta asociada no está disponible o ha sido inhabilitada.');
+    }
+
+    if (usuario.contrasenaHash.slice(-10) !== payload.pwh) {
+      throw new BadRequestException(
+        'Este enlace de restablecimiento ya ha sido utilizado o ha quedado invalidado.',
+      );
+    }
+
+    const esMismaContrasena = await this.passwordService.verify(usuario.contrasenaHash, nuevaContrasena);
+    if (esMismaContrasena) {
+      throw new BadRequestException('La nueva contraseña no puede ser igual a la contraseña actual.');
     }
 
     const contrasenaHash = await this.passwordService.hash(nuevaContrasena);
     await this.prisma.usuario.update({
       where: { id: usuario.id },
-      data: { contrasenaHash, intentosFallidos: 0, bloqueadoHasta: null },
+      data: { contrasenaHash },
     });
 
     await this.tokenService.revokeAllForUser(usuario.id);
 
-    return { ok: true, mensaje: 'Contraseña restablecida exitosamente. Ya puede iniciar sesión con su nueva contraseña.' };
+    return {
+      ok: true,
+      mensaje: 'Su contraseña ha sido restablecida exitosamente. Ya puede iniciar sesión con su nueva clave.',
+    };
   }
 
   async restablecerContrasena(dto: RestablecerContrasenaDto | any) {
