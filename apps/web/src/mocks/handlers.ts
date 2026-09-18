@@ -107,6 +107,21 @@ export const MOCK_ASIGNACION_MIA = {
   },
 };
 
+export const MOCK_EVENTO_CALENDARIO = {
+  id: '1',
+  idEstado: 1,
+  fechaProgramada: '2026-03-01T00:00:00.000Z',
+  establecimiento: { nombre: 'Planta Piloto de Prueba', calle: 'Calle Falsa 123' },
+};
+
+export const MOCK_CALENDARIO_EQUIPO = [
+  {
+    evaluadorId: '2',
+    nombreCompleto: 'Juan Técnico',
+    evaluaciones: [MOCK_EVENTO_CALENDARIO],
+  },
+];
+
 export const MOCK_ASIGNACION = {
   id: '1',
   idCaso: '1',
@@ -483,7 +498,16 @@ export const handlers = [
   http.get(`${BASE}/api/v1/casos/historico`, () => HttpResponse.json([MOCK_CASO_HISTORICO])),
   http.get(`${BASE}/api/v1/casos/:id`, () => HttpResponse.json(MOCK_CASO_DETALLE)),
   http.post(`${BASE}/api/v1/asignaciones`, () => HttpResponse.json(MOCK_ASIGNACION)),
-  http.get(`${BASE}/api/v1/calendario`, () => HttpResponse.json([])),
+  http.get(`${BASE}/api/v1/calendario`, ({ request }) => {
+    const url = new URL(request.url);
+    if (url.searchParams.get('evaluadorId')) {
+      return HttpResponse.json([MOCK_EVENTO_CALENDARIO]);
+    }
+    return HttpResponse.json(MOCK_CALENDARIO_EQUIPO);
+  }),
+  http.patch(`${BASE}/api/v1/calendario/:id/reprogramar`, () =>
+    HttpResponse.json({ mensaje: 'Evaluación reprogramada exitosamente.' })
+  ),
   http.get(`${BASE}/api/v1/usuarios/por-rol/:codigoRol`, () => HttpResponse.json([MOCK_TECNICO])),
   http.get(`${BASE}/api/v1/usuarios/registros/pendientes`, () =>
     HttpResponse.json([
