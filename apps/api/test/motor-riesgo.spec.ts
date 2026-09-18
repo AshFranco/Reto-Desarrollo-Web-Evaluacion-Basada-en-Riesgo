@@ -113,6 +113,16 @@ describe('MotorRiesgoService', () => {
         deleteMany: jest.fn().mockResolvedValue({}),
         createMany: jest.fn().mockResolvedValue({}),
       },
+      programacionInstitucional: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 1n }),
+      },
+      origenCaso: {
+        findFirst: jest.fn().mockResolvedValue({ id: 4, codigo: 'PROGRAMACION_INSTITUCIONAL' }),
+      },
+      caso: {
+        create: jest.fn().mockResolvedValue({ id: 100n }),
+      },
     };
 
     const moduleRef = await Test.createTestingModule({

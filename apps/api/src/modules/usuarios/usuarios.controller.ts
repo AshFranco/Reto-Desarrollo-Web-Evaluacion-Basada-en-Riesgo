@@ -12,11 +12,9 @@ import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import { Activar2FaDto } from './dto/activar-2fa.dto';
 import { Desactivar2FaDto } from './dto/desactivar-2fa.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/token.service';
 import { RolUsuario } from '../../common/enums';
-
 
 @ApiTags('Usuarios')
 @ApiBearerAuth('access-token')
@@ -80,13 +78,20 @@ export class UsuariosController {
     return this.usuariosService.desactivar2Fa(user.sub, dto);
   }
 
-
   @Get('por-rol/:codigoRol')
   @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.COORDINADOR)
   @ApiOperation({ summary: 'Listar usuarios activos que poseen un rol determinado' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios filtrados por rol.' })
   listarPorRol(@Param('codigoRol') codigoRol: string) {
     return this.usuariosService.listarPorRol(codigoRol);
+  }
+
+  @Get('tecnicos')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.COORDINADOR)
+  @ApiOperation({ summary: 'Listar técnicos evaluadores con su carga de trabajo activa' })
+  @ApiResponse({ status: 200, description: 'Lista de técnicos con conteo de asignaciones activas.' })
+  listarTecnicos() {
+    return this.usuariosService.listarTecnicosConCarga();
   }
 
   @Get('todos')

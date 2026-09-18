@@ -1,10 +1,52 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
+import { PdfService } from '../../common/services/pdf.service';
 
 @Injectable()
 export class InformesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pdfService: PdfService,
+  ) {}
+
+  async generarPdf(evaluacionId: string): Promise<Buffer> {
+    const evaluacion = await this.prisma.evaluacion.findUnique({
+      where: { id: BigInt(evaluacionId) },
+      include: {
+        evaluador: true,
+        coordinador: true,
+        estado: true,
+        establecimiento: { include: { empresa: true } },
+        informe: true,
+        calculoRiesgo: true,
+      },
+    });
+
+    if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
+
+    const informe = evaluacion.informe;
+
+    return this.pdfService.generarDocumentoPdf({
+      titulo: 'INFORME DE EVALUACIÓN BASADA EN RIESGO',
+      subtitulo: `Establecimiento: ${evaluacion.establecimiento.nombre}`,
+      metadata: [
+        { etiqueta: 'ID Evaluacion', valor: evaluacion.id.toString() },
+        { etiqueta: 'Fecha Programada', valor: evaluacion.fechaProgramada?.toISOString().split('T')[0] ?? 'N/A' },
+        { etiqueta: 'Evaluador', valor: evaluacion.evaluador?.nombreCompleto ?? 'N/A' },
+        { etiqueta: 'Empresa', valor: evaluacion.establecimiento.empresa.razonSocial },
+        { etiqueta: 'RNC Empresa', valor: evaluacion.establecimiento.empresa.rnc },
+        { etiqueta: 'Estado Evaluacion', valor: evaluacion.estado?.nombre ?? 'N/A' },
+        { etiqueta: 'Calificacion Riesgo', valor: evaluacion.calculoRiesgo?.calificacionTexto ?? 'N/A' },
+      ],
+      secciones: [
+        { titulo: 'Resumen Ejecutivo', contenido: informe?.resumenEjecutivo ?? 'Sin resumen registrado.' },
+        { titulo: 'Hallazgos', contenido: informe?.hallazgos ?? 'Sin hallazgos registrados.' },
+        { titulo: 'No Conformidades', contenido: informe?.noConformidades ?? 'Sin no conformidades registradas.' },
+        { titulo: 'Recomendaciones', contenido: informe?.recomendaciones ?? 'Sin recomendaciones registradas.' },
+      ],
+    });
+  }
 
   async generar(dto: GenerarInformeDto, tecnicoId: string) {
     const evaluacion = await this.prisma.evaluacion.findUnique({ where: { id: BigInt(dto.evaluacionId) } });

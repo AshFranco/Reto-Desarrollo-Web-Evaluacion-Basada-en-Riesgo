@@ -84,6 +84,7 @@ model Usuario {
   contrasenaHash     String    @map("contrasena_hash") @db.VarChar(255)
   dobleFactorActivo  Boolean   @default(false) @map("doble_factor_activo")
   secretoTotp        String?   @map("secreto_totp") @db.VarChar(255)
+  cartaAutorizacionUrl String? @map("carta_autorizacion_url") @db.VarChar(500)
   estado             String    @default("PENDIENTE_VALIDACION") @db.VarChar(25)
   motivoRechazo      String?   @map("motivo_rechazo") @db.VarChar(400)
   intentosFallidos   Int       @default(0) @map("intentos_fallidos") @db.SmallInt
