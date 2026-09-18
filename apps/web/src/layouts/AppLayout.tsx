@@ -22,6 +22,8 @@ import { alpha, useTheme, type Theme } from '@mui/material/styles';
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
@@ -194,6 +196,34 @@ export function AppLayout() {
               primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
             />
           </ListItemButton>
+        )}
+        {(usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'COORDINADOR') && (
+          <>
+            <ListItemButton
+              component={RouterLink}
+              to="/alertas-lapch"
+              selected={location.pathname === '/alertas-lapch'}
+              sx={sxItemNav}
+              onClick={() => setMobileOpen(false)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <ReportProblemOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Alertas LAPCH" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+            </ListItemButton>
+            <ListItemButton
+              component={RouterLink}
+              to="/denuncias"
+              selected={location.pathname === '/denuncias'}
+              sx={sxItemNav}
+              onClick={() => setMobileOpen(false)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <GavelOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Denuncias" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+            </ListItemButton>
+          </>
         )}
       </List>
 
