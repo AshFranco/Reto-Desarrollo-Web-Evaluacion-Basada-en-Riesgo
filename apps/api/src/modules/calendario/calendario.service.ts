@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -76,7 +76,7 @@ export class CalendarioService {
     const evaluacion = await this.prisma.evaluacion.findUnique({
       where: { id: BigInt(evaluacionId) },
     });
-    if (!evaluacion) throw new (require('@nestjs/common').NotFoundException)('Evaluación no encontrada.');
+    if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
 
     const actualizada = await this.prisma.evaluacion.update({
       where: { id: BigInt(evaluacionId) },
@@ -93,16 +93,21 @@ export class CalendarioService {
     const evaluacion = await this.prisma.evaluacion.findUnique({
       where: { id: BigInt(evaluacionId) },
     });
-    if (!evaluacion) throw new (require('@nestjs/common').NotFoundException)('Evaluación no encontrada.');
+    if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
 
     const estadoCancelado = await this.prisma.estadoEvaluacion.findFirst({
       where: { codigo: { in: ['CANCELADA', 'CANCELADO'] } },
     });
+    if (!estadoCancelado) {
+      throw new InternalServerErrorException(
+        'No existe el estado CANCELADA en el catálogo estado_evaluacion. Ejecute el seed antes de cancelar.',
+      );
+    }
 
     const actualizada = await this.prisma.evaluacion.update({
       where: { id: BigInt(evaluacionId) },
       data: {
-        idEstado: estadoCancelado?.id ?? evaluacion.idEstado,
+        idEstado: estadoCancelado.id,
       },
     });
 
