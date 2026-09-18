@@ -44,3 +44,4 @@ tmp/
 .minio-data/
 uploads-local/
 storage/
+.worktrees/
