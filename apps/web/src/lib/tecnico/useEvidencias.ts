@@ -1,6 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/http/client';
+import { enqueue } from '@/lib/sync/queue';
 import type { Evidencia } from '@/lib/types';
+
+/**
+ * Resultado cuando la subida quedó encolada en cola_sync en vez de
+ * completarse contra el servidor (ver useEvaluacion.ts para el mismo
+ * patrón sobre respuestas/iniciar/finalizar).
+ */
+interface EvidenciaEncolada {
+  encolado: true;
+}
 
 export interface SubirEvidenciaInput {
   evaluacionId: string;
@@ -31,21 +41,36 @@ export interface SubirEvidenciaInput {
 export function useSubirEvidencia() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ evaluacionId, archivo, tipo, respuestaItemId, latitud, longitud }: SubirEvidenciaInput) => {
-      const formData = new FormData();
-      formData.append('evaluacionId', evaluacionId);
-      formData.append('tipo', tipo);
-      if (respuestaItemId) formData.append('respuestaItemId', respuestaItemId);
-      if (latitud !== undefined && latitud !== null) formData.append('latitud', String(latitud));
-      if (longitud !== undefined && longitud !== null) formData.append('longitud', String(longitud));
-      formData.append('archivo', archivo);
+    mutationFn: async ({
+      evaluacionId, archivo, tipo, respuestaItemId, latitud, longitud,
+    }: SubirEvidenciaInput): Promise<Evidencia | EvidenciaEncolada> => {
+      try {
+        const formData = new FormData();
+        formData.append('evaluacionId', evaluacionId);
+        formData.append('tipo', tipo);
+        if (respuestaItemId) formData.append('respuestaItemId', respuestaItemId);
+        if (latitud !== undefined && latitud !== null) formData.append('latitud', String(latitud));
+        if (longitud !== undefined && longitud !== null) formData.append('longitud', String(longitud));
+        formData.append('archivo', archivo);
 
-      const respuesta = await apiFetch('/api/v1/evidencias', { method: 'POST', body: formData });
-      const cuerpo = await respuesta.json().catch(() => null);
-      if (!respuesta.ok) {
-        throw new Error(cuerpo?.message ?? `Error al subir el archivo (${respuesta.status})`);
+        const respuesta = await apiFetch('/api/v1/evidencias', { method: 'POST', body: formData });
+        const cuerpo = await respuesta.json().catch(() => null);
+        if (!respuesta.ok) {
+          throw new Error(cuerpo?.message ?? `Error al subir el archivo (${respuesta.status})`);
+        }
+        return cuerpo as Evidencia;
+      } catch (err) {
+        // TypeError = fetch() no completó la petición (sin conexión o
+        // servidor inalcanzable) -- un error de negocio real (403 bloqueada,
+        // 400, etc.) llega como Error, nunca como TypeError, y se propaga
+        // igual que antes. Mismo criterio que useEvaluacion.ts.
+        if (!(err instanceof TypeError)) throw err;
+        await enqueue('EVIDENCIA', {
+          evaluacionId, tipo, respuestaItemId, latitud, longitud,
+          blob: archivo, nombreArchivo: archivo.name,
+        });
+        return { encolado: true };
       }
-      return cuerpo as Evidencia;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['evaluaciones', variables.evaluacionId] });

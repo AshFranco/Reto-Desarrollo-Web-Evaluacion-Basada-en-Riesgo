@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/mocks/node';
 import { db } from '@/lib/db';
 import { enqueue } from './queue';
-import { SyncProcessor } from './processor';
+import { SyncProcessor, construirFormEvidencia } from './processor';
 
 beforeEach(async () => {
   await db.open();
@@ -42,6 +42,67 @@ describe('SyncProcessor', () => {
     await proc.procesarCola();
 
     expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+  });
+
+  it('envía evidencia encolada (tipo DOCUMENTO con GPS) y la marca como enviada', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/evidencias', () => HttpResponse.json({ id: 'ev-1' }))
+    );
+
+    const uuid = await enqueue('EVIDENCIA', {
+      evaluacionId: '42',
+      tipo: 'DOCUMENTO',
+      blob: new Blob(['contenido'], { type: 'application/geo+json' }),
+      nombreArchivo: 'gps.geojson',
+      latitud: 18.4861,
+      longitud: -69.9312,
+    });
+
+    const proc = new SyncProcessor();
+    await proc.procesarCola();
+
+    expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+  });
+
+  describe('construirFormEvidencia', () => {
+    it('usa el tipo real del payload, no un FOTO fijo', () => {
+      const form = construirFormEvidencia({ evaluacionId: '42', tipo: 'DOCUMENTO' });
+      expect(form.get('tipo')).toBe('DOCUMENTO');
+    });
+
+    it('cae a FOTO si no se especifica tipo', () => {
+      const form = construirFormEvidencia({ evaluacionId: '42' });
+      expect(form.get('tipo')).toBe('FOTO');
+    });
+
+    it('incluye latitud y longitud cuando vienen en el payload', () => {
+      const form = construirFormEvidencia({
+        evaluacionId: '42', tipo: 'FOTO', latitud: 18.4861, longitud: -69.9312,
+      });
+      expect(form.get('latitud')).toBe('18.4861');
+      expect(form.get('longitud')).toBe('-69.9312');
+    });
+
+    it('no incluye latitud/longitud si no vienen en el payload', () => {
+      const form = construirFormEvidencia({ evaluacionId: '42', tipo: 'FOTO' });
+      expect(form.get('latitud')).toBeNull();
+      expect(form.get('longitud')).toBeNull();
+    });
+
+    it('incluye respuestaItemId solo si viene en el payload', () => {
+      const conItem = construirFormEvidencia({ evaluacionId: '42', respuestaItemId: '226' });
+      expect(conItem.get('respuestaItemId')).toBe('226');
+      const sinItem = construirFormEvidencia({ evaluacionId: '42' });
+      expect(sinItem.get('respuestaItemId')).toBeNull();
+    });
+
+    it('adjunta el blob con el nombre de archivo dado', () => {
+      const blob = new Blob(['contenido'], { type: 'image/jpeg' });
+      const form = construirFormEvidencia({ evaluacionId: '42', tipo: 'FOTO', blob, nombreArchivo: 'foto.jpg' });
+      const archivo = form.get('archivo') as File;
+      expect(archivo.name).toBe('foto.jpg');
+      expect(archivo.type).toBe('image/jpeg');
+    });
   });
 
   it('marca como error tras 10 intentos fallidos', async () => {

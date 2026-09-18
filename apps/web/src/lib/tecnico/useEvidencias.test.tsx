@@ -78,4 +78,32 @@ describe('useSubirEvidencia', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('La evaluación está bloqueada; no se pueden añadir evidencias.');
   });
+
+  it('sin conexión, encola la evidencia en vez de perderla', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/evidencias', () => HttpResponse.error())
+    );
+
+    const { result } = renderHook(() => useSubirEvidencia(), { wrapper: crearWrapper() });
+    result.current.mutate({
+      evaluacionId: '1',
+      archivo: archivoDePrueba(),
+      tipo: 'FOTO',
+      respuestaItemId: '226',
+      latitud: 18.4861,
+      longitud: -69.9312,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const pendientes = await db.cola_sync.where('tipo').equals('EVIDENCIA').toArray();
+    expect(pendientes).toHaveLength(1);
+    expect(pendientes[0]?.payload).toMatchObject({
+      evaluacionId: '1',
+      tipo: 'FOTO',
+      respuestaItemId: '226',
+      latitud: 18.4861,
+      longitud: -69.9312,
+      nombreArchivo: 'foto.png',
+    });
+  });
 });
