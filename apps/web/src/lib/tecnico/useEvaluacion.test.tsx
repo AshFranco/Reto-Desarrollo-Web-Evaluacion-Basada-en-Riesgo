@@ -61,6 +61,21 @@ describe('useIniciarEvaluacion', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('La evaluación ya fue iniciada o finalizada.');
   });
+
+  it('sin conexión, encola en vez de fallar', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/iniciar', () => HttpResponse.error())
+    );
+
+    const { result } = renderHook(() => useIniciarEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate('1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const pendientes = await db.cola_sync.where('tipo').equals('INICIAR_EVALUACION').toArray();
+    expect(pendientes).toHaveLength(1);
+    expect(pendientes[0]?.payload).toEqual({ evaluacionServerId: '1' });
+    expect(pendientes[0]?.estado).toBe('pendiente');
+  });
 });
 
 describe('useResponderItem', () => {
@@ -122,6 +137,24 @@ describe('useResponderItem', () => {
       'Debe indicar el nivel de criticidad (C/M/Me) para el ítem con hallazgo: 3'
     );
   });
+
+  it('sin conexión, encola la respuesta en vez de perderla', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => HttpResponse.error())
+    );
+
+    const { result } = renderHook(() => useResponderItem(), { wrapper: crearWrapper() });
+    result.current.mutate({ evaluacionId: '1', itemId: '2', codigoOpcion: 'C' });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const pendientes = await db.cola_sync.where('tipo').equals('RESPUESTAS').toArray();
+    expect(pendientes).toHaveLength(1);
+    expect(pendientes[0]?.payload).toEqual({
+      evaluacionServerId: '1',
+      respuestas: [{ itemId: '2', codigoOpcion: 'C' }],
+    });
+    expect(pendientes[0]?.estado).toBe('pendiente');
+  });
 });
 
 describe('useFinalizarEvaluacion', () => {
@@ -145,5 +178,20 @@ describe('useFinalizarEvaluacion', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('Faltan respuestas: 40/45 ítems respondidos.');
+  });
+
+  it('sin conexión, encola en vez de fallar', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/finalizar', () => HttpResponse.error())
+    );
+
+    const { result } = renderHook(() => useFinalizarEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate('1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const pendientes = await db.cola_sync.where('tipo').equals('FINALIZAR_EVALUACION').toArray();
+    expect(pendientes).toHaveLength(1);
+    expect(pendientes[0]?.payload).toEqual({ evaluacionServerId: '1' });
+    expect(pendientes[0]?.estado).toBe('pendiente');
   });
 });

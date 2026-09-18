@@ -72,6 +72,28 @@ describe('EjecutarEvaluacion — sin conexión', () => {
     });
   });
 
+  it('si navigator.onLine dice que hay red pero el POST falla igual, encola en vez de perder la respuesta', async () => {
+    // No se llama ponerseOffline(): el navegador reporta conexión (caso real
+    // de wifi conectado sin salida a internet), pero el fetch real falla.
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => HttpResponse.error())
+    );
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
+
+    await waitFor(() => expect(screen.getByText('Guardado localmente — pendiente de sincronizar.')).toBeInTheDocument());
+
+    const pendientes = await db.cola_sync.where('tipo').equals('RESPUESTAS').toArray();
+    expect(pendientes).toHaveLength(1);
+    expect(pendientes[0]?.payload).toMatchObject({
+      evaluacionServerId: '1',
+      respuestas: [{ itemId: '2', codigoOpcion: 'C' }],
+    });
+  });
+
   it('al iniciar la evaluación (estado PROGRAMADA) sin conexión, encola INICIAR_EVALUACION en vez de llamar al servidor', async () => {
     ponerseOffline();
     let llamadaAlServidor = false;
