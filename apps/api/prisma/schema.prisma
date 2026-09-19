@@ -85,6 +85,7 @@ model Usuario {
   dobleFactorActivo  Boolean   @default(false) @map("doble_factor_activo")
   secretoTotp        String?   @map("secreto_totp") @db.VarChar(255)
   cartaAutorizacionUrl String? @map("carta_autorizacion_url") @db.VarChar(500)
+  idCartaAutorizacion  BigInt?   @map("carta_autorizacion_id")
   estado             String    @default("PENDIENTE_VALIDACION") @db.VarChar(25)
   motivoRechazo      String?   @map("motivo_rechazo") @db.VarChar(400)
   intentosFallidos   Int       @default(0) @map("intentos_fallidos") @db.SmallInt
@@ -92,6 +93,7 @@ model Usuario {
   fechaCreacion      DateTime  @default(now()) @map("fecha_creacion")
 
   empresa Empresa? @relation(fields: [idEmpresa], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  cartaAutorizacion Documento? @relation("UsuarioCartaAutorizacion", fields: [idCartaAutorizacion], references: [id], onDelete: SetNull, onUpdate: Cascade)
   roles   UsuarioRol[]
   refreshTokens RefreshToken[]
 
@@ -104,6 +106,9 @@ model Usuario {
   notificaciones         Notificacion[]
   auditorias             Auditoria[]
   operacionesPendientes  OperacionPendiente[]
+  documentosSubidos      Documento[] @relation("DocumentoSubidoPor")
+  evaluacionesParticipadas EvaluacionParticipante[]
+  importacionesExcel     ImportacionExcel[]
 
   @@map("usuario")
 }
@@ -490,6 +495,7 @@ model ItemFicha {
   criticidad   NivelCriticidad? @relation(fields: [idCriticidad], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   respuestas RespuestaItem[]
+  literales  LiteralItem[]
 
   @@map("item_ficha")
 }
@@ -684,6 +690,7 @@ model Evaluacion {
   medidasCorrectivas   MedidaCorrectiva[]
   evidencias           Evidencia[]
   informe              InformeEvaluacion?
+  participantes        EvaluacionParticipante[]
 
   @@map("evaluacion")
 }
@@ -901,3 +908,90 @@ model OperacionPendiente {
 
   @@map("operacion_pendiente")
 }
+
+model ActividadEconomica {
+  id     Int    @id @default(autoincrement())
+  codigo String @unique @db.VarChar(20)
+  nombre String @db.VarChar(200)
+
+  @@map("actividad_economica")
+}
+
+model LiteralItem {
+  id          BigInt  @id @default(autoincrement())
+  idItemFicha BigInt  @map("item_ficha_id")
+  letra       String? @db.VarChar(5)
+  texto       String
+  orden       Int     @db.SmallInt
+
+  itemFicha ItemFicha @relation(fields: [idItemFicha], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([idItemFicha], map: "ix_literal_item")
+  @@map("literal_item")
+}
+
+model EvaluacionParticipante {
+  id                 BigInt    @id @default(autoincrement())
+  idEvaluacion       BigInt    @map("evaluacion_id")
+  tipo               String    @db.VarChar(30)
+  idUsuario          BigInt?   @map("usuario_id")
+  nombreCompleto     String    @map("nombre_completo") @db.VarChar(150)
+  documentoIdentidad String?   @map("documento_identidad") @db.VarChar(20)
+  firmaRuta          String?   @map("firma_ruta") @db.VarChar(500)
+  fechaFirma         DateTime? @map("fecha_firma")
+
+  evaluacion Evaluacion @relation(fields: [idEvaluacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  usuario    Usuario?   @relation(fields: [idUsuario], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("evaluacion_participante")
+}
+
+model Documento {
+  id                 BigInt   @id @default(autoincrement())
+  uuidLocal          String   @unique @default(dbgenerated("gen_random_uuid()")) @map("uuid_local") @db.Uuid
+  nombreArchivo      String   @map("nombre_archivo") @db.VarChar(250)
+  rutaAlmacenamiento String   @map("ruta_almacenamiento") @db.VarChar(500)
+  tipoMime           String?  @map("tipo_mime") @db.VarChar(100)
+  tamanoBytes        BigInt?  @map("tamano_bytes")
+  hashSha256         String?  @map("hash_sha256") @db.Char(64)
+  idSubidoPor        BigInt?  @map("subido_por_id")
+  fechaSubida        DateTime @default(now()) @map("fecha_subida")
+
+  subidoPor             Usuario?  @relation("DocumentoSubidoPor", fields: [idSubidoPor], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  usuariosCartasAutoriz Usuario[] @relation("UsuarioCartaAutorizacion")
+
+  @@map("documento")
+}
+
+model ImportacionExcel {
+  id              Int       @id @default(autoincrement())
+  tipoFuente      String    @map("tipo_fuente") @db.VarChar(40)
+  nombreArchivo   String    @map("nombre_archivo") @db.VarChar(250)
+  idUsuario       BigInt?   @map("usuario_id")
+  filasLeidas     Int       @default(0) @map("filas_leidas")
+  filasImportadas Int       @default(0) @map("filas_importadas")
+  filasRechazadas Int       @default(0) @map("filas_rechazadas")
+  estado          String    @default("EN_PROCESO") @db.VarChar(20)
+  fechaInicio     DateTime  @default(now()) @map("fecha_inicio")
+  fechaFin        DateTime? @map("fecha_fin")
+
+  usuario  Usuario?             @relation(fields: [idUsuario], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  detalles ImportacionDetalle[]
+
+  @@map("importacion_excel")
+}
+
+model ImportacionDetalle {
+  id              BigInt   @id @default(autoincrement())
+  idImportacion   Int      @map("importacion_id")
+  filaOrigen      Int      @map("fila_origen")
+  resultado       String   @db.VarChar(15)
+  motivo          String?  @db.VarChar(400)
+  datosOriginales Json?    @map("datos_originales") @db.JsonB
+
+  importacion ImportacionExcel @relation(fields: [idImportacion], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([idImportacion, resultado], map: "ix_imp_det")
+  @@map("importacion_detalle")
+}
+

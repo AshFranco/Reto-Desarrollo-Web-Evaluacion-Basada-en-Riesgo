@@ -15,8 +15,8 @@ import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
 import { SolicitudRecuperacionDto, ResetContrasenaDto } from './dto/recuperacion-contrasena.dto';
 import { RecuperarContrasenaDto } from './dto/recuperar-contrasena.dto';
 import { RestablecerContrasenaDto } from './dto/restablecer-contrasena.dto';
-import { EmailService } from '../../common/services/email.service';
 import { EncryptionService } from '../../common/services/encryption.service';
+import { EmailService } from '../../common/services/email.service';
 import { AppConfigService } from '../../config/app-config.service';
 
 export interface RequestMeta {
@@ -55,8 +55,8 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly loginThrottle: LoginThrottleService,
-    private readonly emailService: EmailService,
     private readonly encryptionService: EncryptionService,
+    private readonly emailService: EmailService,
     private readonly config: AppConfigService,
   ) {}
 

@@ -88,17 +88,6 @@ export class PdfService {
   private readonly logger = new Logger(PdfService.name);
   private readonly margin = 45;
 
-  /**
-   * Ruta del logo institucional embebido en el encabezado. Se resuelve en
-   * runtime (no en build) porque en desarrollo corre bajo ts-node
-   * (__dirname = src/common/services) y compilado corre bajo Node
-   * (__dirname = dist/common/services) -- en ambos casos el logo vive dos
-   * niveles arriba, en <raíz>/assets/logo.png, y nest-cli.json copia
-   * src/assets/** a dist/assets/** en cada build (ver "assets" en
-   * nest-cli.json). Si el archivo no existe todavía, se dibuja un
-   * placeholder vectorial en vez de fallar -- así el servicio nunca se
-   * cae por falta del logo real.
-   */
   private rutaLogo(): string | null {
     const candidatos = [
       join(__dirname, '..', '..', 'assets', 'logo.png'),

@@ -13,8 +13,12 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { EmpresasService } from './empresas.service';
-import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
-import { InvitarDelegadoDto, EstadoDelegadoDto } from './dto/delegados.dto';
+import {
+  CrearEmpresaDto,
+  ActualizarEmpresaDto,
+  InvitarDelegadoDto,
+  CambiarEstadoDelegadoDto,
+} from './dto/empresa.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -31,41 +35,6 @@ export class EmpresasController {
   @Get('publicas')
   listarPublicas() {
     return this.empresasService.listarPublicas();
-  }
-
-  // --- Gestión de Delegados ---
-  // IMPORTANTE: estas rutas estáticas deben declararse ANTES que @Get(':id') y
-  // @Patch(':id') para que Express/NestJS no las capture como parámetro dinámico.
-
-  @Get('delegados')
-  @Roles(RolUsuario.ADMINISTRADOR_EMPRESA)
-  @ApiOperation({ summary: 'Listar delegados de la empresa' })
-  @ApiResponse({ status: 200, description: 'Lista de usuarios delegados.' })
-  listarDelegados(@CurrentUser() user: JwtPayload) {
-    if (!user.empresaId) return [];
-    return this.empresasService.listarDelegados(user.empresaId);
-  }
-
-  @Post('delegados')
-  @Roles(RolUsuario.ADMINISTRADOR_EMPRESA)
-  @ApiOperation({ summary: 'Invitar a un nuevo delegado a la empresa' })
-  @ApiResponse({ status: 201, description: 'Delegado creado exitosamente.' })
-  invitarDelegado(@Body() dto: InvitarDelegadoDto, @CurrentUser() user: JwtPayload) {
-    if (!user.empresaId) return null;
-    return this.empresasService.invitarDelegado(user.empresaId, dto);
-  }
-
-  @Patch('delegados/:id/estado')
-  @Roles(RolUsuario.ADMINISTRADOR_EMPRESA)
-  @ApiOperation({ summary: 'Activar o desactivar a un delegado de la empresa' })
-  @ApiResponse({ status: 200, description: 'Estado actualizado.' })
-  cambiarEstadoDelegado(
-    @Param('id') id: string,
-    @Body() dto: EstadoDelegadoDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
-    if (!user.empresaId) return null;
-    return this.empresasService.cambiarEstadoDelegado(id, user.empresaId, dto.estado);
   }
 
   // --- CRUD de Empresa ---
@@ -113,4 +82,52 @@ export class EmpresasController {
   ) {
     return this.empresasService.actualizar(id, dto, user);
   }
+
+  @Post(':id/delegados')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+  )
+  @ApiOperation({ summary: 'Invitar/Registrar un usuario delegado para la empresa' })
+  @ApiResponse({ status: 201, description: 'Usuario delegado invitado exitosamente.' })
+  @ApiResponse({ status: 403, description: 'No tiene permisos para invitar delegados.' })
+  invitarDelegado(
+    @Param('id') id: string,
+    @Body() dto: InvitarDelegadoDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.empresasService.invitarDelegado(id, dto, user);
+  }
+
+  @Get(':id/delegados')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+    RolUsuario.USUARIO_DELEGADO,
+  )
+  @ApiOperation({ summary: 'Listar usuarios delegados de la empresa' })
+  @ApiResponse({ status: 200, description: 'Lista de delegados.' })
+  listarDelegados(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.empresasService.listarDelegados(id, user);
+  }
+
+  @Patch(':id/delegados/:delegadoId/estado')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+  )
+  @ApiOperation({ summary: 'Cambiar el estado de un usuario delegado (aprobar/inactivar/rechazar)' })
+  @ApiResponse({ status: 200, description: 'Estado del delegado actualizado exitosamente.' })
+  cambiarEstadoDelegado(
+    @Param('id') id: string,
+    @Param('delegadoId') delegadoId: string,
+    @Body() dto: CambiarEstadoDelegadoDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.empresasService.cambiarEstadoDelegado(id, delegadoId, dto, user);
+  }
 }
+
