@@ -35,8 +35,8 @@ describe('useAdjuntosSolicitud', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toHaveLength(1);
-    expect(result.current.data?.[0].tipo).toBe('CROQUIS');
-    expect(result.current.data?.[0].nombreArchivo).toBe('croquis_planta.pdf');
+    expect(result.current.data?.[0]?.tipo).toBe('CROQUIS');
+    expect(result.current.data?.[0]?.nombreArchivo).toBe('croquis_planta.pdf');
   });
 
   it('no dispara la query si solicitudId es null', () => {
