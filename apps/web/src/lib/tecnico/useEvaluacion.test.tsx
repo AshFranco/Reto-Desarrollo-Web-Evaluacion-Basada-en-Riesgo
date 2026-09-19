@@ -194,4 +194,42 @@ describe('useFinalizarEvaluacion', () => {
     expect(pendientes[0]?.payload).toEqual({ evaluacionServerId: '1' });
     expect(pendientes[0]?.estado).toBe('pendiente');
   });
+
+  it('tras finalizar con éxito, encadena POST /informes para que llegue a revisión', async () => {
+    let seLlamoInformes = false;
+    let cuerpoInformes: unknown = null;
+    server.use(
+      http.post('http://localhost:3000/api/v1/informes', async ({ request }) => {
+        seLlamoInformes = true;
+        cuerpoInformes = await request.json();
+        return HttpResponse.json({ id: '1', idEvaluacion: '1' }, { status: 201 });
+      })
+    );
+
+    const { result } = renderHook(() => useFinalizarEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate('1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(seLlamoInformes).toBe(true);
+    expect(cuerpoInformes).toEqual({ evaluacionId: '1' });
+    expect(result.current.data).not.toHaveProperty('advertenciaInforme');
+  });
+
+  it('si finalizar tuvo éxito pero POST /informes falla, no lo trata como error de finalizar', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/informes', () =>
+        HttpResponse.json({ message: 'Error interno al generar el informe.' }, { status: 500 })
+      )
+    );
+
+    const { result } = renderHook(() => useFinalizarEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate('1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.isError).toBe(false);
+    expect(result.current.data).toHaveProperty('advertenciaInforme');
+    expect((result.current.data as { advertenciaInforme?: string }).advertenciaInforme).toBe(
+      'Error interno al generar el informe.'
+    );
+  });
 });

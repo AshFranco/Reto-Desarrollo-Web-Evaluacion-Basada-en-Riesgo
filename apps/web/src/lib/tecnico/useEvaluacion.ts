@@ -141,16 +141,52 @@ export function useResponderItem() {
  * ficha tengan respuesta; si faltan, responde 400 con el conteo exacto
  * ("Faltan respuestas: X/Y ítems respondidos."). También falla si la
  * evaluación ya estaba bloqueada (ya se había finalizado antes).
+ *
+ * BUG REAL encontrado y corregido acá: `finalizar()` por sí solo deja la
+ * evaluación en FINALIZADA, NO en EN_REVISION -- confirmado en vivo que el
+ * Coordinador no puede revisarla hasta ese punto (PATCH /informes/:id/revisar
+ * responde 400 "La evaluación no está en revisión."). El paso que realmente
+ * mueve FINALIZADA -> EN_REVISION es `POST /informes` (informes.service.ts#generar).
+ * Antes de este fix, el frontend nunca llamaba a ese endpoint, así que
+ * ninguna evaluación llegaba jamás a la bandeja del Coordinador en un uso
+ * real de la app. Se encadena acá, después de que finalizar() confirma éxito.
+ *
+ * Si finalizar() tiene éxito pero la generación del informe falla (ej. un
+ * corte de red justo en el medio), NO se reintenta finalizar() -- ya
+ * quedó bloqueada=true en el servidor, y un segundo POST /finalizar
+ * respondería 403 "ya fue enviada previamente". POST /informes sí es
+ * seguro de reintentar (usa upsert en el backend), así que ese fallo se
+ * devuelve aparte (`advertenciaInforme`) para que la pantalla avise sin
+ * hacer parecer que finalizar falló.
  */
 export function useFinalizarEvaluacion() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (evaluacionId: string) =>
-      conFallbackOffline(
+    mutationFn: async (evaluacionId: string) => {
+      const resultado = await conFallbackOffline(
         () => apiFetchJson<EvaluacionDetalle>(`/api/v1/evaluaciones/${evaluacionId}/finalizar`, { method: 'POST' }),
         'FINALIZAR_EVALUACION',
         { evaluacionServerId: evaluacionId }
-      ),
+      );
+
+      if ('encolado' in resultado) {
+        // Sin conexión: SyncProcessor encadena la generación del informe
+        // automáticamente después de que FINALIZAR_EVALUACION se sincroniza
+        // (ver sync/processor.ts).
+        return resultado;
+      }
+
+      try {
+        await apiFetchJson(`/api/v1/informes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ evaluacionId }),
+        });
+        return resultado;
+      } catch (err) {
+        return { ...resultado, advertenciaInforme: err instanceof Error ? err.message : 'Error al generar el informe' };
+      }
+    },
     onSuccess: (_data, evaluacionId) => {
       queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
       queryClient.setQueryData<AsignacionMia[]>(['asignaciones', 'mias'], (prev) =>

@@ -433,6 +433,7 @@ export const handlers = [
     MOCK_EVALUACION_DETALLE.bloqueada = true;
     return HttpResponse.json({ ...MOCK_EVALUACION_DETALLE });
   }),
+  http.post(`${BASE}/api/v1/informes`, () => HttpResponse.json({ id: '1', idEvaluacion: '1' }, { status: 201 })),
   http.post(`${BASE}/api/v1/evidencias`, async ({ request }) => {
     try {
       const formData = await request.formData();
