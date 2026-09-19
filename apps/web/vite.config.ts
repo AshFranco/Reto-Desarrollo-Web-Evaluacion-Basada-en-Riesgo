@@ -15,11 +15,13 @@ export default defineConfig({
         swSrc: 'src/sw.ts',
         swDest: 'dist/sw.js',
         globDirectory: 'dist',
+        globIgnores: ['**/mockServiceWorker.js'],
       },
       manifest: {
         name: 'EBR — Evaluación Basada en Riesgo',
         short_name: 'EBR',
         description: 'Sistema de inspección BPM para DIGEMAPS',
+        lang: 'es',
         start_url: '/',
         display: 'standalone',
         background_color: '#ffffff',
