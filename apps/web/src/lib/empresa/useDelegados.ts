@@ -15,6 +15,11 @@ export interface InvitarDelegadoPayload {
   cedulaPasaporte: string;
 }
 
+export interface DelegadoInvitado extends Delegado {
+  /** Solo viene en la respuesta de la invitación; no se puede recuperar después. */
+  contrasenaTemporal: string;
+}
+
 export function useDelegados() {
   return useQuery({
     queryKey: ['delegados-empresa'],
@@ -27,7 +32,7 @@ export function useInvitarDelegado() {
 
   return useMutation({
     mutationFn: (payload: InvitarDelegadoPayload) =>
-      apiFetchJson<Delegado>('/api/v1/empresas/delegados', {
+      apiFetchJson<DelegadoInvitado>('/api/v1/empresas/delegados', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),

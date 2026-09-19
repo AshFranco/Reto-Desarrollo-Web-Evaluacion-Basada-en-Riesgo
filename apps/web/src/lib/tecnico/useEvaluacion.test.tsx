@@ -11,6 +11,8 @@ import {
   useIniciarEvaluacion,
   useResponderItem,
   useFinalizarEvaluacion,
+  useObservacionesEvaluacion,
+  useCorregirEvaluacion,
 } from './useEvaluacion';
 
 beforeEach(() => db.open());
@@ -193,5 +195,98 @@ describe('useFinalizarEvaluacion', () => {
     expect(pendientes).toHaveLength(1);
     expect(pendientes[0]?.payload).toEqual({ evaluacionServerId: '1' });
     expect(pendientes[0]?.estado).toBe('pendiente');
+  });
+
+  it('tras finalizar con éxito, encadena POST /informes para que llegue a revisión', async () => {
+    let seLlamoInformes = false;
+    let cuerpoInformes: unknown = null;
+    server.use(
+      http.post('http://localhost:3000/api/v1/informes', async ({ request }) => {
+        seLlamoInformes = true;
+        cuerpoInformes = await request.json();
+        return HttpResponse.json({ id: '1', idEvaluacion: '1' }, { status: 201 });
+      })
+    );
+
+    const { result } = renderHook(() => useFinalizarEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate('1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(seLlamoInformes).toBe(true);
+    expect(cuerpoInformes).toEqual({ evaluacionId: '1' });
+    expect(result.current.data).not.toHaveProperty('advertenciaInforme');
+  });
+
+  it('si finalizar tuvo éxito pero POST /informes falla, no lo trata como error de finalizar', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/informes', () =>
+        HttpResponse.json({ message: 'Error interno al generar el informe.' }, { status: 500 })
+      )
+    );
+
+    const { result } = renderHook(() => useFinalizarEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate('1');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.isError).toBe(false);
+    expect(result.current.data).toHaveProperty('advertenciaInforme');
+    expect((result.current.data as { advertenciaInforme?: string }).advertenciaInforme).toBe(
+      'Error interno al generar el informe.'
+    );
+  });
+});
+
+describe('useObservacionesEvaluacion', () => {
+  it('devuelve el historial de observaciones de la evaluación', async () => {
+    const { result } = renderHook(() => useObservacionesEvaluacion('1'), { wrapper: crearWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toHaveLength(1);
+    expect(result.current.data?.[0]).toMatchObject({
+      codigoEstado: 'DEVUELTA',
+      usuario: 'Coordinador Ejemplo',
+    });
+  });
+
+  it('no hace la petición si no se pasa evaluacionId', async () => {
+    const { result } = renderHook(() => useObservacionesEvaluacion(undefined), { wrapper: crearWrapper() });
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(result.current.fetchStatus).toBe('idle');
+  });
+});
+
+describe('useCorregirEvaluacion', () => {
+  it('llama a PATCH /evaluaciones/:id/corregir con las respuestas', async () => {
+    let cuerpoRecibido: unknown = null;
+    server.use(
+      http.patch('http://localhost:3000/api/v1/evaluaciones/:id/corregir', async ({ request }) => {
+        cuerpoRecibido = await request.json();
+        return HttpResponse.json({
+          mensaje: 'Correcciones registradas exitosamente.',
+          evaluacion: { ...MOCK_EVALUACION_DETALLE, bloqueada: false },
+        });
+      })
+    );
+
+    const { result } = renderHook(() => useCorregirEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate({ evaluacionId: '1', respuestas: [{ itemId: '2', codigoOpcion: 'C' }] });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(cuerpoRecibido).toEqual({ respuestas: [{ itemId: '2', codigoOpcion: 'C' }] });
+  });
+
+  it('propaga el error real si el backend rechaza la corrección', async () => {
+    server.use(
+      http.patch('http://localhost:3000/api/v1/evaluaciones/:id/corregir', () =>
+        HttpResponse.json({ message: 'Debe indicar el nivel de criticidad (C/M/Me).' }, { status: 400 })
+      )
+    );
+
+    const { result } = renderHook(() => useCorregirEvaluacion(), { wrapper: crearWrapper() });
+    result.current.mutate({ evaluacionId: '1', respuestas: [{ itemId: '3', codigoOpcion: 'IT' }] });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toBe('Debe indicar el nivel de criticidad (C/M/Me).');
   });
 });

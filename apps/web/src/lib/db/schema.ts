@@ -60,7 +60,7 @@ export interface EvidenciaLocal {
 
 export interface OperacionPendiente {
   uuidLocal: string;
-  tipo: 'INICIAR_EVALUACION' | 'RESPUESTAS' | 'EVIDENCIA' | 'FINALIZAR_EVALUACION';
+  tipo: 'INICIAR_EVALUACION' | 'RESPUESTAS' | 'EVIDENCIA' | 'FINALIZAR_EVALUACION' | 'GENERAR_INFORME';
   payload: object;
   timestamp: number;
   intentos: number;
