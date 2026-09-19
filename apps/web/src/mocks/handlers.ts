@@ -371,6 +371,17 @@ export const MOCK_EXPEDIENTE = {
   },
 };
 
+export const MOCK_ADJUNTO_SOLICITUD = {
+  id: '1',
+  idSolicitud: '1',
+  tipo: 'CROQUIS' as const,
+  nombreArchivo: 'croquis_planta.pdf',
+  rutaAlmacenamiento: 'uploads/abc123.pdf',
+  tipoMime: 'application/pdf',
+  tamanoBytes: '204800',
+  fechaCarga: '2026-01-01T00:00:00.000Z',
+};
+
 export const MOCK_NOTIFICACIONES = [
   {
     id: '1',
@@ -646,6 +657,20 @@ export const handlers = [
     const body = (await request.json()) as { resultado: string };
     return HttpResponse.json({ ...MOCK_DENUNCIA, resultado: body.resultado });
   }),
+  // Adjuntos de Solicitud BPM
+  http.get(`${BASE}/api/v1/solicitudes-bpm/:id/adjuntos`, () =>
+    HttpResponse.json([MOCK_ADJUNTO_SOLICITUD])
+  ),
+  http.post(`${BASE}/api/v1/solicitudes-bpm/:id/adjuntos`, () =>
+    HttpResponse.json({
+      ...MOCK_ADJUNTO_SOLICITUD,
+      id: '2',
+      nombreArchivo: 'nuevo_adjunto.pdf',
+    }, { status: 201 })
+  ),
+  http.delete(`${BASE}/api/v1/solicitudes-bpm/adjuntos/:adjuntoId`, () =>
+    HttpResponse.json({ mensaje: 'Adjunto eliminado correctamente.' })
+  ),
   http.get(`${BASE}/api/v1/notificaciones/mias`, () => HttpResponse.json(MOCK_NOTIFICACIONES)),
   http.patch(`${BASE}/api/v1/notificaciones/:id/leer`, ({ params }) => {
     const notificacion = MOCK_NOTIFICACIONES.find((n) => n.id === params.id);
