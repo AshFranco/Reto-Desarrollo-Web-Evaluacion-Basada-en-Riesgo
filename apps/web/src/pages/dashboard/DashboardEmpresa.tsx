@@ -492,12 +492,13 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
   const [correoElectronico, setCorreoElectronico] = useState('');
   const [cedulaPasaporte, setCedulaPasaporte] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [contrasenaGenerada, setContrasenaGenerada] = useState<string | null>(null);
 
   async function handleInvitar() {
     setError(null);
     try {
-      await invitar.mutateAsync({ nombreCompleto, correoElectronico, cedulaPasaporte });
-      handleClose();
+      const resultado = await invitar.mutateAsync({ nombreCompleto, correoElectronico, cedulaPasaporte });
+      setContrasenaGenerada(resultado.contrasenaTemporal);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al invitar al delegado');
     }
@@ -508,7 +509,28 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
     setCorreoElectronico('');
     setCedulaPasaporte('');
     setError(null);
+    setContrasenaGenerada(null);
     onClose();
+  }
+
+  if (contrasenaGenerada) {
+    return (
+      <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
+        <DialogTitle>Delegado invitado</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Esta contraseña temporal solo se muestra una vez. Compártela con el delegado por un canal seguro (no queda guardada en ningún otro lugar).
+          </Alert>
+          <DialogContentText sx={{ mb: 1 }}>Contraseña temporal:</DialogContentText>
+          <Typography variant="h6" fontFamily="monospace" sx={{ userSelect: 'all', wordBreak: 'break-all' }}>
+            {contrasenaGenerada}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} variant="contained">Listo</Button>
+        </DialogActions>
+      </Dialog>
+    );
   }
 
   return (
@@ -516,7 +538,7 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
       <DialogTitle>Invitar nuevo delegado</DialogTitle>
       <DialogContent>
         <DialogContentText sx={{ mb: 2 }}>
-          Ingresa los datos del nuevo usuario delegado. La contraseña por defecto será <strong>Digemaps2026!</strong>.
+          Ingresa los datos del nuevo usuario delegado. Se generará una contraseña temporal aleatoria que se mostrará una sola vez al confirmar.
         </DialogContentText>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         <TextField

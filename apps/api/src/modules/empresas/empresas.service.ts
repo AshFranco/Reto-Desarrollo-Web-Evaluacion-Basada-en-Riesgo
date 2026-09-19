@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
 import { InvitarDelegadoDto, EstadoDelegadoDto } from './dto/delegados.dto';
@@ -150,8 +151,13 @@ export class EmpresasService {
     });
     if (!rolDelegado) throw new NotFoundException('Rol de delegado no encontrado en el sistema.');
 
-    const contrasenaGenerica = 'Digemaps2026!';
-    const contrasenaHash = await this.passwordService.hash(contrasenaGenerica);
+    // Contraseña temporal aleatoria por invitación -- una constante fija aquí
+    // sería una credencial universal conocida para CUALQUIER delegado de
+    // CUALQUIER empresa del sistema. Se devuelve una única vez en la
+    // respuesta para que el Admin Empresa la comunique por un canal seguro;
+    // no se puede recuperar después (solo su hash queda almacenado).
+    const contrasenaTemporal = randomBytes(9).toString('base64url');
+    const contrasenaHash = await this.passwordService.hash(contrasenaTemporal);
 
     const nuevoDelegado = await this.prisma.usuario.create({
       data: {
@@ -172,6 +178,7 @@ export class EmpresasService {
       nombreCompleto: nuevoDelegado.nombreCompleto,
       correoElectronico: nuevoDelegado.correoElectronico,
       estado: nuevoDelegado.estado,
+      contrasenaTemporal,
     };
   }
 

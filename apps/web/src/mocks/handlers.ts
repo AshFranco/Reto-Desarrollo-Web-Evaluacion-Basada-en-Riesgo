@@ -708,6 +708,7 @@ export const handlers = [
       correoElectronico: body.correoElectronico,
       estado: 'APROBADO',
       fechaCreacion: new Date().toISOString(),
+      contrasenaTemporal: 'MockPass123',
     };
     return HttpResponse.json(nuevo, { status: 201 });
   }),
