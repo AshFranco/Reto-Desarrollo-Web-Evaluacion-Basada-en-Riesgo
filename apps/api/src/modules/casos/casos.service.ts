@@ -120,7 +120,7 @@ export class CasosService {
         alerta: true,
         denuncia: true,
         programacion: true,
-        evaluaciones: true,
+        evaluaciones: { include: { estado: true, calculoRiesgo: { include: { nivelRiesgo: true } }, informe: true } },
         asignaciones: { where: { estado: 'Asignado' }, include: { evaluador: true } },
         expediente: true,
       },
@@ -149,6 +149,17 @@ export class CasosService {
       evaluaciones: c.evaluaciones?.map((e: any) => ({
         ...e,
         id: e.id?.toString(),
+        informe: e.informe ? {
+          ...e.informe,
+          id: e.informe.id?.toString(),
+          idEvaluacion: e.informe.idEvaluacion?.toString()
+        } : undefined,
+        calculoRiesgo: e.calculoRiesgo ? {
+          ...e.calculoRiesgo,
+          id: e.calculoRiesgo.id?.toString(),
+          idEvaluacion: e.calculoRiesgo.idEvaluacion?.toString(),
+          porcentajeCumplimientoBpm: e.calculoRiesgo.porcentajeCumplimientoBpm?.toString()
+        } : undefined
       })),
     };
   }

@@ -23,7 +23,6 @@ export class EstablecimientosController {
     RolUsuario.ADMINISTRADOR,
     RolUsuario.COORDINADOR,
     RolUsuario.ADMINISTRADOR_EMPRESA,
-    RolUsuario.USUARIO_DELEGADO,
   )
   @ApiOperation({ summary: 'Registrar un nuevo establecimiento sanitario' })
   @ApiResponse({ status: 201, description: 'Establecimiento creado exitosamente.' })
@@ -52,7 +51,6 @@ export class EstablecimientosController {
     RolUsuario.ADMINISTRADOR,
     RolUsuario.COORDINADOR,
     RolUsuario.ADMINISTRADOR_EMPRESA,
-    RolUsuario.USUARIO_DELEGADO,
   )
   @ApiOperation({ summary: 'Actualizar información de un establecimiento' })
   @ApiResponse({ status: 200, description: 'Establecimiento actualizado exitosamente.' })

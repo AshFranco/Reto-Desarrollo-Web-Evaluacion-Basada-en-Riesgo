@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import PDFDocument from 'pdfkit';
 
 export interface SeccionPdf {
   titulo: string;
@@ -10,18 +13,82 @@ export interface MetadatoPdf {
   valor: string;
 }
 
+export type GravedadNoConformidad = 'CRITICA' | 'MAYOR' | 'MENOR';
+
+export interface FilaNoConformidad {
+  item: string;
+  gravedad: GravedadNoConformidad;
+  calificacion: string;
+  observacion: string;
+}
+
+export interface ResultadoDestacadoPdf {
+  cumplimientoPct: number;
+  ncCriticas: number;
+  ncMayores: number;
+  ncMenores: number;
+  nivelRiesgo: string;
+  frecuencia?: string;
+  aprueba: boolean;
+}
+
 export interface DocumentoPdfData {
   titulo: string;
   subtitulo?: string;
+  /** Código de expediente/documento, se muestra junto a la fecha en el encabezado. Opcional. */
+  codigo?: string;
+  /** Versión del documento/ficha, se muestra junto al código. Opcional. */
+  version?: string;
+  /**
+   * Se mantiene como el arreglo genérico de datos que ya construían
+   * informes.service.ts y expedientes.service.ts -- no se les pide que
+   * separen establecimiento vs. control interno, así que por defecto
+   * sigue rotulándose "DATOS GENERALES" como antes. `metadataTitulo`
+   * permite que un caller futuro (no tocado en esta migración) use el
+   * rótulo real del diseño nuevo ("Datos del establecimiento y contactos").
+   */
   metadata: MetadatoPdf[];
+  metadataTitulo?: string;
+  /** Segunda grilla opcional -- ej. "Datos de control interno" del diseño nuevo. */
+  metadataControl?: MetadatoPdf[];
+  metadataControlTitulo?: string;
+  /** Caja de resultado destacada (cumplimiento, NC, nivel de riesgo, Aprueba/No aprueba). Opcional. */
+  resultado?: ResultadoDestacadoPdf;
+  /** Tabla de no conformidades con pill de gravedad. Opcional. */
+  noConformidades?: FilaNoConformidad[];
   secciones: SeccionPdf[];
 }
 
+const AZUL_INSTITUCIONAL = '#2A6DB0';
+const AZUL_OSCURO = '#0F172A';
+const GRIS_TEXTO = '#334155';
+const GRIS_CLARO = '#64748B';
+const FONDO_GRIS = '#F1F5F9';
+const BORDE_GRIS = '#CBD5E1';
+const VERDE_APRUEBA = '#16A34A';
+const ROJO_NO_APRUEBA = '#DC2626';
+const ROJO_CRITICA = '#DC2626';
+const AMBAR_MAYOR = '#D97706';
+const GRIS_MENOR = '#6B7280';
+
+const COLOR_GRAVEDAD: Record<GravedadNoConformidad, string> = {
+  CRITICA: ROJO_CRITICA,
+  MAYOR: AMBAR_MAYOR,
+  MENOR: GRIS_MENOR,
+};
+
+const ETIQUETA_GRAVEDAD: Record<GravedadNoConformidad, string> = {
+  CRITICA: 'Crítica',
+  MAYOR: 'Mayor',
+  MENOR: 'Menor',
+};
+
 @Injectable()
 export class PdfService {
-  generarDocumentoPdf(doc: DocumentoPdfData): Buffer {
-    const lineas: string[] = [];
+  private readonly logger = new Logger(PdfService.name);
+  private readonly margin = 45;
 
+<<<<<<< HEAD
     // --- MÁRGENES Y DIMENSIONES (Letter 612 x 792 pt) ---
     const marginX = 45;
     const contentWidth = 522; // 612 - 45*2
@@ -209,58 +276,402 @@ export class PdfService {
 
     const streamContent = lineas.join('\n');
     return this.ensamblarPdfBuffer(streamContent);
+=======
+  /**
+   * Ruta del logo institucional embebido en el encabezado. Se resuelve en
+   * runtime (no en build) porque en desarrollo corre bajo ts-node
+   * (__dirname = src/common/services) y compilado corre bajo Node
+   * (__dirname = dist/common/services) -- en ambos casos el logo vive dos
+   * niveles arriba, en <raíz>/assets/logo.png, y nest-cli.json copia
+   * src/assets/** a dist/assets/** en cada build (ver "assets" en
+   * nest-cli.json). Si el archivo no existe todavía, se dibuja un
+   * placeholder vectorial en vez de fallar -- así el servicio nunca se
+   * cae por falta del logo real.
+   */
+  private rutaLogo(): string | null {
+    const candidatos = [
+      join(__dirname, '..', '..', 'assets', 'logo.png'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo.png'),
+    ];
+    for (const ruta of candidatos) {
+      if (existsSync(ruta)) return ruta;
+    }
+    return null;
+>>>>>>> origin/develop
   }
 
-  private renderMetadatoItem(lineas: string[], item: MetadatoPdf, labelX: number, valueX: number, rowY: number) {
-    lineas.push('BT');
-    lineas.push('/F2 8.5 Tf');
-    lineas.push('0.30 0.35 0.45 rg'); // Etiqueta gris azulado #475569
-    lineas.push(`${labelX} ${rowY} Td`);
-    lineas.push(`(${this.escapePdfText(item.etiqueta)}:) Tj`);
-    lineas.push('ET');
+  async generarDocumentoPdf(data: DocumentoPdfData): Promise<Buffer> {
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margins: { top: this.margin, bottom: this.margin, left: this.margin, right: this.margin },
+      bufferPages: true,
+    });
 
-    const esDestacado =
-      item.etiqueta.includes('Estado') ||
-      item.etiqueta.includes('Calificacion') ||
-      item.etiqueta.includes('Resultado');
+    const chunks: Buffer[] = [];
+    const listo = new Promise<Buffer>((resolve, reject) => {
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+    });
 
-    if (esDestacado) {
-      // Badge sutil verde/azul para resaltar el valor del estado/calificación
-      const esPositivo =
-        item.valor.includes('Aprobada') ||
-        item.valor.includes('Cerrado') ||
-        item.valor.includes('Bajo') ||
-        item.valor.includes('Satisfactorio') ||
-        item.valor.includes('Aprueba');
+    this.dibujarEncabezado(doc, data);
 
-      lineas.push('q');
-      if (esPositivo) {
-        lineas.push('0.92 0.98 0.95 rg'); // Fondo verde sutil #ECFDF5
-      } else {
-        lineas.push('0.94 0.96 1.0 rg'); // Fondo azul sutil #EFF6FF
-      }
-      const anchoBadge = Math.min(item.valor.length * 5 + 10, 150);
-      lineas.push(`${valueX - 3} ${rowY - 2} ${anchoBadge} 12 re f`);
-      lineas.push('Q');
-
-      lineas.push('BT');
-      lineas.push('/F2 8.5 Tf');
-      if (esPositivo) {
-        lineas.push('0.02 0.37 0.27 rg'); // Texto verde oscuro #065F46
-      } else {
-        lineas.push('0.12 0.25 0.69 rg'); // Texto azul #1E40AF
-      }
-      lineas.push(`${valueX} ${rowY} Td`);
-      lineas.push(`(${this.escapePdfText(item.valor)}) Tj`);
-      lineas.push('ET');
-    } else {
-      lineas.push('BT');
-      lineas.push('/F1 8.5 Tf');
-      lineas.push('0.06 0.09 0.16 rg'); // Texto negro corporativo
-      lineas.push(`${valueX} ${rowY} Td`);
-      lineas.push(`(${this.escapePdfText(item.valor)}) Tj`);
-      lineas.push('ET');
+    const tituloMetadata = data.metadataTitulo ?? 'DATOS GENERALES';
+    if (data.metadata.length > 0) {
+      this.dibujarGrilla(doc, tituloMetadata, data.metadata);
     }
+
+    if (data.metadataControl && data.metadataControl.length > 0) {
+      this.dibujarGrilla(doc, data.metadataControlTitulo ?? 'DATOS DE CONTROL INTERNO', data.metadataControl);
+    }
+
+    if (data.resultado) {
+      this.dibujarResultadoDestacado(doc, data.resultado);
+    }
+
+    if (data.noConformidades && data.noConformidades.length > 0) {
+      this.dibujarTablaNoConformidades(doc, data.noConformidades);
+    }
+
+    for (const seccion of data.secciones) {
+      this.dibujarSeccion(doc, seccion);
+    }
+
+    this.dibujarPiePaginaEnTodas(doc);
+
+    doc.end();
+    return listo;
+  }
+
+  // --- Utilidad de paginación: pdfkit no corta el contenido en silencio
+  // como hacía el generador manual (que abandonaba secciones si
+  // currentY < 120) -- acá se mide el alto real que va a ocupar el
+  // siguiente bloque y, si no cabe en lo que queda de página, se agrega
+  // una página nueva ANTES de dibujar, en vez de truncar.
+  private asegurarEspacio(doc: PDFKit.PDFDocument, altoNecesario: number) {
+    const limiteInferior = doc.page.height - doc.page.margins.bottom;
+    if (doc.y + altoNecesario > limiteInferior) {
+      doc.addPage();
+    }
+  }
+
+  private anchoContenido(doc: PDFKit.PDFDocument): number {
+    return doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  }
+
+  private dibujarEncabezado(doc: PDFKit.PDFDocument, data: DocumentoPdfData) {
+    const x = doc.page.margins.left;
+    const anchoContenido = this.anchoContenido(doc);
+    const yInicio = doc.y;
+    const logo = this.rutaLogo();
+    const logoTam = 40;
+    // Siempre hay un logo dibujado en este espacio -- el real si existe
+    // logo.png, si no un placeholder vectorial (ver dibujarLogoPlaceholder) --
+    // así que el texto SIEMPRE arranca desplazado, nunca pegado a x.
+    const textoX = x + logoTam + 12;
+
+    if (logo) {
+      try {
+        doc.image(logo, x, yInicio, { fit: [logoTam, logoTam] });
+      } catch (err) {
+        this.logger.warn(`No se pudo embeber el logo (${logo}): ${err instanceof Error ? err.message : err}`);
+        this.dibujarLogoPlaceholder(doc, x, yInicio, logoTam);
+      }
+    } else {
+      this.dibujarLogoPlaceholder(doc, x, yInicio, logoTam);
+    }
+
+    // Título + subtítulo, a la derecha del logo, usando casi todo el ancho
+    // disponible -- el bloque de código/versión/fecha va en una fila propia
+    // DEBAJO (no a la derecha, en la misma fila) para que nunca compita
+    // horizontalmente con el título ni fuerce un wrap que choque con el alto
+    // fijo del logo.
+    const anchoTitulo = anchoContenido - logoTam - 12;
+    doc
+      .fillColor(AZUL_OSCURO)
+      .font('Helvetica-Bold')
+      .fontSize(15)
+      .text(data.titulo, textoX, yInicio, { width: anchoTitulo });
+
+    if (data.subtitulo) {
+      doc
+        .fillColor(GRIS_TEXTO)
+        .font('Helvetica')
+        .fontSize(10)
+        .text(data.subtitulo, textoX, doc.y + 2, { width: anchoTitulo });
+    }
+
+    doc.y = Math.max(doc.y, yInicio + logoTam) + 6;
+
+    // Fila propia para código/versión/fecha, alineada a la derecha, debajo
+    // del título -- así nunca se superpone con él sin importar cuántas
+    // líneas ocupe el título.
+    const fecha = new Date().toISOString().split('T')[0];
+    const lineasDerecha = [
+      data.codigo ? `Código: ${data.codigo}` : null,
+      data.version ? `Versión: ${data.version}` : null,
+      `Fecha de emisión: ${fecha}`,
+    ]
+      .filter((l): l is string => !!l)
+      .join('   ·   ');
+
+    doc
+      .fillColor(GRIS_CLARO)
+      .fontSize(8)
+      .font('Helvetica')
+      .text(lineasDerecha, x, doc.y, { width: anchoContenido, align: 'right' });
+
+    doc.y += 4;
+    doc
+      .moveTo(x, doc.y)
+      .lineTo(x + anchoContenido, doc.y)
+      .lineWidth(2)
+      .strokeColor(AZUL_INSTITUCIONAL)
+      .stroke();
+    doc.y += 16;
+    doc.x = x;
+  }
+
+  /** Placeholder vectorial (escudo simple) usado mientras no exista un logo.png real. */
+  private dibujarLogoPlaceholder(doc: PDFKit.PDFDocument, x: number, y: number, tam: number) {
+    doc.save();
+    doc.roundedRect(x, y, tam, tam, 6).fill(AZUL_INSTITUCIONAL);
+    doc
+      .fillColor('#FFFFFF')
+      .font('Helvetica-Bold')
+      .fontSize(16)
+      .text('EBR', x, y + tam / 2 - 7, { width: tam, align: 'center' });
+    doc.restore();
+  }
+
+  private dibujarGrilla(doc: PDFKit.PDFDocument, titulo: string, items: MetadatoPdf[]) {
+    const x = doc.page.margins.left;
+    const anchoContenido = this.anchoContenido(doc);
+    const filas = Math.ceil(items.length / 2);
+    const altoFila = 20;
+    const altoCaja = filas * altoFila + 16;
+
+    this.asegurarEspacio(doc, altoCaja + 24);
+
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .text(titulo, x, doc.y);
+    doc.y += 14;
+
+    const cajaY = doc.y;
+    doc.save();
+    doc.rect(x, cajaY, anchoContenido, altoCaja).fill(FONDO_GRIS);
+    doc.rect(x, cajaY, anchoContenido, altoCaja).lineWidth(1).stroke(BORDE_GRIS);
+    doc.restore();
+
+    const colAncho = anchoContenido / 2;
+    for (let i = 0; i < items.length; i++) {
+      const fila = Math.floor(i / 2);
+      const col = i % 2;
+      const itemX = x + 10 + col * colAncho;
+      const itemY = cajaY + 10 + fila * altoFila;
+
+      doc
+        .fillColor(GRIS_TEXTO)
+        .font('Helvetica-Bold')
+        .fontSize(8.5)
+        .text(`${items[i].etiqueta}:`, itemX, itemY, { width: colAncho - 100, continued: false });
+      doc
+        .fillColor(AZUL_OSCURO)
+        .font('Helvetica')
+        .fontSize(8.5)
+        .text(items[i].valor || 'N/A', itemX + 120, itemY, { width: colAncho - 130 });
+    }
+
+    doc.y = cajaY + altoCaja + 20;
+    doc.x = x;
+  }
+
+  private dibujarResultadoDestacado(doc: PDFKit.PDFDocument, resultado: ResultadoDestacadoPdf) {
+    const x = doc.page.margins.left;
+    const anchoContenido = this.anchoContenido(doc);
+    const altoCaja = 90;
+
+    this.asegurarEspacio(doc, altoCaja + 20);
+    const cajaY = doc.y;
+
+    const colorAprueba = resultado.aprueba ? VERDE_APRUEBA : ROJO_NO_APRUEBA;
+
+    doc.save();
+    doc.rect(x, cajaY, anchoContenido, altoCaja).fill('#FFFFFF');
+    doc.rect(x, cajaY, anchoContenido, altoCaja).lineWidth(1).stroke(BORDE_GRIS);
+    doc.rect(x, cajaY, 4, altoCaja).fill(colorAprueba);
+    doc.restore();
+
+    // Columna 1: % de cumplimiento, en grande
+    const col1X = x + 20;
+    doc
+      .fillColor(GRIS_CLARO)
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('CUMPLIMIENTO BPM', col1X, cajaY + 14, { width: 130 });
+    doc
+      .fillColor(AZUL_OSCURO)
+      .font('Helvetica-Bold')
+      .fontSize(28)
+      .text(`${resultado.cumplimientoPct.toFixed(1)}%`, col1X, cajaY + 26, { width: 130 });
+
+    // Columna 2: desglose de NC + nivel de riesgo + frecuencia
+    const col2X = x + 190;
+    doc
+      .fillColor(GRIS_CLARO)
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('NO CONFORMIDADES', col2X, cajaY + 14, { width: 220 });
+    doc
+      .fillColor(GRIS_TEXTO)
+      .font('Helvetica')
+      .fontSize(9)
+      .text(
+        `Críticas: ${resultado.ncCriticas}   Mayores: ${resultado.ncMayores}   Menores: ${resultado.ncMenores}`,
+        col2X,
+        cajaY + 27,
+        { width: 260 },
+      );
+    doc
+      .fillColor(GRIS_TEXTO)
+      .font('Helvetica')
+      .fontSize(9)
+      .text(
+        `Nivel de riesgo: ${resultado.nivelRiesgo}` + (resultado.frecuencia ? `   ·   Frecuencia: ${resultado.frecuencia}` : ''),
+        col2X,
+        cajaY + 42,
+        { width: 300 },
+      );
+
+    // Columna 3: Aprueba / No aprueba, en grande y coloreado, a la derecha
+    const col3Ancho = 140;
+    const col3X = x + anchoContenido - col3Ancho - 15;
+    doc
+      .fillColor(colorAprueba)
+      .font('Helvetica-Bold')
+      .fontSize(20)
+      .text(resultado.aprueba ? 'APRUEBA' : 'NO APRUEBA', col3X, cajaY + 32, { width: col3Ancho, align: 'right' });
+
+    doc.y = cajaY + altoCaja + 20;
+    doc.x = x;
+  }
+
+  private dibujarTablaNoConformidades(doc: PDFKit.PDFDocument, filas: FilaNoConformidad[]) {
+    const x = doc.page.margins.left;
+    const anchoContenido = this.anchoContenido(doc);
+
+    const colItem = anchoContenido * 0.3;
+    const colGravedad = anchoContenido * 0.14;
+    const colCalificacion = anchoContenido * 0.16;
+    const colObservacion = anchoContenido * 0.4;
+
+    this.asegurarEspacio(doc, 40);
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .text('NO CONFORMIDADES DETECTADAS', x, doc.y);
+    doc.y += 14;
+
+    const dibujarEncabezadoTabla = () => {
+      const filaY = doc.y;
+      doc.save();
+      doc.rect(x, filaY, anchoContenido, 20).fill(FONDO_GRIS);
+      doc.restore();
+      doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(8.5);
+      doc.text('Ítem evaluado', x + 6, filaY + 6, { width: colItem - 6 });
+      doc.text('Gravedad', x + colItem, filaY + 6, { width: colGravedad });
+      doc.text('Calificación', x + colItem + colGravedad, filaY + 6, { width: colCalificacion });
+      doc.text('Observación', x + colItem + colGravedad + colCalificacion, filaY + 6, { width: colObservacion - 6 });
+      doc.y = filaY + 20;
+    };
+
+    dibujarEncabezadoTabla();
+
+    doc.font('Helvetica').fontSize(8.5);
+    for (const fila of filas) {
+      const altoObservacion = doc.heightOfString(fila.observacion || 'N/A', { width: colObservacion - 10 });
+      const altoItem = doc.heightOfString(fila.item, { width: colItem - 10 });
+      const altoFila = Math.max(altoObservacion, altoItem, 16) + 10;
+
+      this.asegurarEspacio(doc, altoFila + 20);
+      if (doc.y === doc.page.margins.top) {
+        // Se agregó página nueva dentro del loop -- repetir encabezado de tabla
+        dibujarEncabezadoTabla();
+      }
+
+      const filaY = doc.y;
+      doc.save();
+      doc.rect(x, filaY, anchoContenido, altoFila).lineWidth(0.5).stroke(BORDE_GRIS);
+      doc.restore();
+
+      doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(8.5);
+      doc.text(fila.item, x + 6, filaY + 6, { width: colItem - 6 });
+
+      const colorGravedad = COLOR_GRAVEDAD[fila.gravedad];
+      const pillAncho = 52;
+      const pillX = x + colItem + (colGravedad - pillAncho) / 2;
+      doc.save();
+      doc.roundedRect(pillX, filaY + 4, pillAncho, 14, 7).fill(colorGravedad);
+      doc
+        .fillColor('#FFFFFF')
+        .font('Helvetica-Bold')
+        .fontSize(7.5)
+        .text(ETIQUETA_GRAVEDAD[fila.gravedad], pillX, filaY + 7.5, { width: pillAncho, align: 'center' });
+      doc.restore();
+
+      doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(8.5);
+      doc.text(fila.calificacion, x + colItem + colGravedad, filaY + 6, { width: colCalificacion });
+      doc.text(fila.observacion || 'N/A', x + colItem + colGravedad + colCalificacion, filaY + 6, {
+        width: colObservacion - 10,
+      });
+
+      doc.y = filaY + altoFila;
+      doc.x = x;
+    }
+
+    doc.y += 16;
+    doc.x = x;
+  }
+
+  private dibujarSeccion(doc: PDFKit.PDFDocument, seccion: SeccionPdf) {
+    const x = doc.page.margins.left;
+    const anchoContenido = this.anchoContenido(doc);
+    const texto = this.normalizarTextoSeccion(seccion.contenido);
+    const esEstadoVacio = texto === 'Sin información registrada.';
+
+    const anchoTexto = anchoContenido - 20;
+    doc.font('Helvetica').fontSize(9.5);
+    const altoTexto = doc.heightOfString(texto, { width: anchoTexto });
+    const altoCaja = altoTexto + 24;
+
+    this.asegurarEspacio(doc, altoCaja + 34);
+
+    doc
+      .fillColor(AZUL_OSCURO)
+      .font('Helvetica-Bold')
+      .fontSize(10.5)
+      .text(seccion.titulo, x, doc.y);
+    doc.y += 14;
+
+    const cajaY = doc.y;
+    doc.save();
+    doc.rect(x, cajaY, anchoContenido, altoCaja).fill(esEstadoVacio ? '#FAFAFA' : '#FFFFFF');
+    doc.rect(x, cajaY, 2, altoCaja).fill(BORDE_GRIS);
+    doc.rect(x, cajaY, anchoContenido, altoCaja).lineWidth(1).stroke(BORDE_GRIS);
+    doc.restore();
+
+    doc
+      .fillColor(esEstadoVacio ? GRIS_CLARO : GRIS_TEXTO)
+      .font('Helvetica')
+      .fontSize(9.5)
+      .text(texto, x + 10, cajaY + 10, { width: anchoTexto });
+
+    doc.y = cajaY + altoCaja + 16;
+    doc.x = x;
   }
 
   private normalizarTextoSeccion(contenido: string): string {
@@ -270,97 +681,40 @@ export class PdfService {
     return contenido.trim();
   }
 
-  private escapePdfText(str: string): string {
-    if (!str) return '';
+  /** Pie de página institucional, dibujado en TODAS las páginas (incluidas las que pdfkit agregó solo por desborde de contenido). */
+  private dibujarPiePaginaEnTodas(doc: PDFKit.PDFDocument) {
+    const rango = doc.bufferedPageRange();
+    const fechaHoy = new Date().toISOString().split('T')[0];
 
-    const escapado = str
-      .replace(/\\/g, '\\\\')
-      .replace(/\(/g, '\\(')
-      .replace(/\)/g, '\\)');
+    for (let i = rango.start; i < rango.start + rango.count; i++) {
+      doc.switchToPage(i);
+      const x = doc.page.margins.left;
+      const anchoContenido = this.anchoContenido(doc);
+      const y = doc.page.height - doc.page.margins.bottom + 12;
 
-    const mapaWinAnsi: Record<string, string> = {
-      'á': '\\341', 'é': '\\351', 'í': '\\355', 'ó': '\\363', 'ú': '\\372',
-      'Á': '\\301', 'É': '\\311', 'Í': '\\315', 'Ó': '\\323', 'Ú': '\\332',
-      'ñ': '\\361', 'Ñ': '\\321',
-      'ü': '\\374', 'Ü': '\\334',
-      '¿': '\\277', '¡': '\\241',
-    };
-
-    return escapado.replace(/[áéíóúÁÉÍÓÚñÑüÜ¿¡]/g, (m) => mapaWinAnsi[m] ?? m);
-  }
-
-  private wrapText(text: string, maxCharsPerLine: number): string[] {
-    if (!text) return ['Sin información registrada.'];
-    const result: string[] = [];
-    const paragraphs = text.split('\n');
-
-    for (const p of paragraphs) {
-      if (!p.trim()) continue;
-      const words = p.split(' ');
-      let currentLine = '';
-
-      for (const word of words) {
-        if ((currentLine + ' ' + word).trim().length <= maxCharsPerLine) {
-          currentLine = (currentLine + ' ' + word).trim();
-        } else {
-          if (currentLine) result.push(currentLine);
-          currentLine = word;
-        }
-      }
-      if (currentLine) result.push(currentLine);
+      doc.save();
+      doc
+        .moveTo(x, y - 6)
+        .lineTo(x + anchoContenido, y - 6)
+        .lineWidth(0.5)
+        .strokeColor(BORDE_GRIS)
+        .stroke();
+      doc
+        .fillColor(GRIS_CLARO)
+        .font('Helvetica')
+        .fontSize(7.5)
+        .text('DIGEMAPS | Sistema de Evaluación Basada en Riesgo - EBR/BPM | Documento oficial', x, y, {
+          width: anchoContenido - 100,
+        });
+      doc
+        .fillColor(GRIS_CLARO)
+        .font('Helvetica')
+        .fontSize(7.5)
+        .text(`${fechaHoy}  ·  Página ${i - rango.start + 1} de ${rango.count}`, x, y, {
+          width: anchoContenido,
+          align: 'right',
+        });
+      doc.restore();
     }
-    return result.length > 0 ? result : ['Sin información registrada.'];
-  }
-
-  private ensamblarPdfBuffer(streamContent: string): Buffer {
-    const streamBuffer = Buffer.from(streamContent, 'utf-8');
-    const streamLength = streamBuffer.length;
-
-    const obj1 = '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
-    const obj2 = '2 0 obj\n<< /Type /Pages /Kids [5 0 R] /Count 1 >>\nendobj\n';
-    const obj3 = '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n';
-    const obj4 = '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n';
-    const obj5 = `5 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>\nendobj\n`;
-    const obj6Header = `6 0 obj\n<< /Length ${streamLength} >>\nstream\n`;
-    const obj6Footer = `\nendstream\nendobj\n`;
-
-    const header = '%PDF-1.4\n%\xFF\xFF\xFF\xFF\n';
-
-    const parts = [
-      Buffer.from(header, 'binary'),
-      Buffer.from(obj1, 'utf-8'),
-      Buffer.from(obj2, 'utf-8'),
-      Buffer.from(obj3, 'utf-8'),
-      Buffer.from(obj4, 'utf-8'),
-      Buffer.from(obj5, 'utf-8'),
-      Buffer.from(obj6Header, 'utf-8'),
-      streamBuffer,
-      Buffer.from(obj6Footer, 'utf-8'),
-    ];
-
-    let offset = 0;
-    const offsets: number[] = [0];
-
-    for (let i = 0; i < parts.length; i++) {
-      if (i === 1) offsets[1] = offset;
-      if (i === 2) offsets[2] = offset;
-      if (i === 3) offsets[3] = offset;
-      if (i === 4) offsets[4] = offset;
-      if (i === 5) offsets[5] = offset;
-      if (i === 6) offsets[6] = offset;
-      offset += parts[i].length;
-    }
-
-    const startXref = offset;
-    let xref = `xref\n0 7\n0000000000 65535 f \n`;
-    for (let i = 1; i <= 6; i++) {
-      xref += `${offsets[i].toString().padStart(10, '0')} 00000 n \n`;
-    }
-    const trailer = `trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n${startXref}\n%%EOF\n`;
-
-    parts.push(Buffer.from(xref, 'utf-8'));
-    parts.push(Buffer.from(trailer, 'utf-8'));
-
-    return Buffer.concat(parts);
   }
 }

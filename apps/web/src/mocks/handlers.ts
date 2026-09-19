@@ -107,6 +107,21 @@ export const MOCK_ASIGNACION_MIA = {
   },
 };
 
+export const MOCK_EVENTO_CALENDARIO = {
+  id: '1',
+  idEstado: 1,
+  fechaProgramada: '2026-03-01T00:00:00.000Z',
+  establecimiento: { nombre: 'Planta Piloto de Prueba', calle: 'Calle Falsa 123' },
+};
+
+export const MOCK_CALENDARIO_EQUIPO = [
+  {
+    evaluadorId: '2',
+    nombreCompleto: 'Juan Técnico',
+    evaluaciones: [MOCK_EVENTO_CALENDARIO],
+  },
+];
+
 export const MOCK_ASIGNACION = {
   id: '1',
   idCaso: '1',
@@ -139,6 +154,28 @@ export const MOCK_ESTABLECIMIENTO = {
   activo: true,
 };
 
+export const MOCK_ALERTA_LAPCH = {
+  id: '1',
+  numeroAlerta: 'LAPCH-2026-001',
+  fecha: '2026-02-01T00:00:00.000Z',
+  producto: 'Leche en polvo',
+  descripcion: 'Contaminación detectada en lote 55.',
+  idEmpresa: null,
+  idEstablecimiento: '1',
+  resultado: null,
+};
+
+export const MOCK_DENUNCIA = {
+  id: '1',
+  tipoDenuncia: 'Condiciones sanitarias',
+  fechaRecepcion: '2026-02-05T00:00:00.000Z',
+  denunciante: 'Vecino del sector',
+  descripcion: 'Malos olores y presencia de plagas.',
+  idEmpresa: null,
+  idEstablecimiento: '1',
+  resultado: null,
+};
+
 export const MOCK_EVALUACION_DETALLE = {
   id: '1',
   idCaso: '1',
@@ -167,6 +204,11 @@ export const MOCK_TECNICO = {
   id: '2',
   nombreCompleto: 'Juan Técnico',
   correoElectronico: 'tecnico.prueba@ebr.local',
+};
+
+export const MOCK_REGISTRO_RESPONSE = {
+  mensaje: 'Registro recibido. Su cuenta quedará activa tras la validación del Administrador.',
+  usuario: { id: '10', correoElectronico: 'nuevo@ebr.local', nombreCompleto: 'Usuario Nuevo' },
 };
 
 export const MOCK_EVIDENCIA = {
@@ -329,11 +371,67 @@ export const MOCK_EXPEDIENTE = {
   },
 };
 
+export const MOCK_ADJUNTO_SOLICITUD = {
+  id: '1',
+  idSolicitud: '1',
+  tipo: 'CROQUIS' as const,
+  nombreArchivo: 'croquis_planta.pdf',
+  rutaAlmacenamiento: 'uploads/abc123.pdf',
+  tipoMime: 'application/pdf',
+  tamanoBytes: '204800',
+  fechaCarga: '2026-01-01T00:00:00.000Z',
+};
+
+export const MOCK_NOTIFICACIONES = [
+  {
+    id: '1',
+    idUsuario: '1',
+    tipo: 'ASIGNACION_EVALUACION',
+    titulo: 'Nueva evaluación asignada',
+    mensaje: 'Se le ha asignado una nueva evaluación para Planta Piloto de Prueba.',
+    entidad: null,
+    idEntidad: null,
+    leida: false,
+    fechaCreacion: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    idUsuario: '1',
+    tipo: 'INFORME_APROBADO',
+    titulo: 'Informe aprobado',
+    mensaje: 'Su informe para el caso #1 ha sido aprobado.',
+    entidad: null,
+    idEntidad: null,
+    leida: true,
+    fechaCreacion: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+  }
+];
+
+export const MOCK_DELEGADOS = [
+  {
+    id: '100',
+    nombreCompleto: 'Delegado Prueba Uno',
+    correoElectronico: 'delegado1@prueba.com',
+    estado: 'APROBADO',
+    fechaCreacion: '2026-01-01T10:00:00.000Z',
+  },
+  {
+    id: '101',
+    nombreCompleto: 'Delegado Prueba Dos',
+    correoElectronico: 'delegado2@prueba.com',
+    estado: 'INACTIVO',
+    fechaCreacion: '2026-01-02T10:00:00.000Z',
+  }
+];
+
 const BASE = 'http://localhost:3000';
 
 export const handlers = [
   http.post(`${BASE}/api/v1/auth/login`, () =>
     HttpResponse.json(MOCK_LOGIN_RESPONSE)
+  ),
+  http.post(`${BASE}/api/v1/auth/registro`, () =>
+    HttpResponse.json(MOCK_REGISTRO_RESPONSE, { status: 201 })
   ),
   http.post(`${BASE}/api/v1/auth/refresh`, () =>
     HttpResponse.json({ accessToken: MOCK_ACCESS_TOKEN })
@@ -388,6 +486,28 @@ export const handlers = [
     MOCK_EVALUACION_DETALLE.bloqueada = true;
     return HttpResponse.json({ ...MOCK_EVALUACION_DETALLE });
   }),
+  http.post(`${BASE}/api/v1/informes`, () => HttpResponse.json({ id: '1', idEvaluacion: '1' }, { status: 201 })),
+  http.get(`${BASE}/api/v1/evaluaciones/:id/observaciones`, () =>
+    HttpResponse.json([
+      {
+        id: '1',
+        estado: 'Devuelta',
+        codigoEstado: 'DEVUELTA',
+        usuario: 'Coordinador Ejemplo',
+        comentario: '[SOLICITAR_CORRECCION] Falta evidencia fotográfica en el área de almacenamiento.',
+        fechaHora: '2026-03-02T10:00:00.000Z',
+      },
+    ])
+  ),
+  http.patch(`${BASE}/api/v1/evaluaciones/:id/corregir`, () => {
+    MOCK_EVALUACION_DETALLE.idEstado = 2;
+    MOCK_EVALUACION_DETALLE.bloqueada = false;
+    MOCK_EVALUACION_DETALLE.estado = { id: 2, codigo: 'EN_CURSO', nombre: 'En Curso', esFinal: false, bloqueaDatos: false, orden: 2 };
+    return HttpResponse.json({
+      mensaje: 'Correcciones registradas exitosamente.',
+      evaluacion: { ...MOCK_EVALUACION_DETALLE },
+    });
+  }),
   http.post(`${BASE}/api/v1/evidencias`, async ({ request }) => {
     try {
       const formData = await request.formData();
@@ -431,6 +551,9 @@ export const handlers = [
   }),
   http.get(`${BASE}/api/v1/motor-riesgo/catalogo`, () => HttpResponse.json(MOCK_CATALOGO_MOTOR_RIESGO)),
   http.post(`${BASE}/api/v1/motor-riesgo/calcular`, () => HttpResponse.json(MOCK_RESULTADO_RIESGO)),
+  http.get(`${BASE}/api/v1/empresas/publicas`, () =>
+    HttpResponse.json([{ id: '1', razonSocial: MOCK_EMPRESA.razonSocial, rnc: MOCK_EMPRESA.rnc, nombreComercial: null }])
+  ),
   http.get(`${BASE}/api/v1/empresas`, () => HttpResponse.json([MOCK_EMPRESA])),
   http.get(`${BASE}/api/v1/empresas/:id`, () => HttpResponse.json(MOCK_EMPRESA)),
   http.post(`${BASE}/api/v1/empresas`, () => HttpResponse.json(MOCK_EMPRESA)),
@@ -450,7 +573,16 @@ export const handlers = [
   http.get(`${BASE}/api/v1/casos/historico`, () => HttpResponse.json([MOCK_CASO_HISTORICO])),
   http.get(`${BASE}/api/v1/casos/:id`, () => HttpResponse.json(MOCK_CASO_DETALLE)),
   http.post(`${BASE}/api/v1/asignaciones`, () => HttpResponse.json(MOCK_ASIGNACION)),
-  http.get(`${BASE}/api/v1/calendario`, () => HttpResponse.json([])),
+  http.get(`${BASE}/api/v1/calendario`, ({ request }) => {
+    const url = new URL(request.url);
+    if (url.searchParams.get('evaluadorId')) {
+      return HttpResponse.json([MOCK_EVENTO_CALENDARIO]);
+    }
+    return HttpResponse.json(MOCK_CALENDARIO_EQUIPO);
+  }),
+  http.patch(`${BASE}/api/v1/calendario/:id/reprogramar`, () =>
+    HttpResponse.json({ mensaje: 'Evaluación reprogramada exitosamente.' })
+  ),
   http.get(`${BASE}/api/v1/usuarios/por-rol/:codigoRol`, () => HttpResponse.json([MOCK_TECNICO])),
   http.get(`${BASE}/api/v1/usuarios/registros/pendientes`, () =>
     HttpResponse.json([
@@ -458,6 +590,9 @@ export const handlers = [
         id: '10',
         nombreCompleto: 'Juan Pérez',
         correoElectronico: 'juan@empresa.com',
+        cedulaPasaporte: '001-1234567-8',
+        telefono: '+18095551234',
+        cartaAutorizacionUrl: 'https://storage.example.com/cartas/carta-juan.pdf',
         fechaCreacion: '2026-03-01T10:00:00.000Z',
         roles: ['ADMINISTRADOR_EMPRESA'],
       },
@@ -480,17 +615,31 @@ export const handlers = [
         id: '1',
         nombreCompleto: 'Admin General',
         correoElectronico: 'admin@digemaps.gob.do',
-        activo: true,
+        telefono: null,
+        estado: 'APROBADO',
+        roles: [{ codigo: 'ADMINISTRADOR', nombre: 'Administrador' }],
+        empresa: null,
         fechaCreacion: '2026-01-01T00:00:00.000Z',
-        roles: ['ADMINISTRADOR'],
       },
       {
         id: '2',
         nombreCompleto: 'Carlos Técnico',
         correoElectronico: 'tecnico@digemaps.gob.do',
-        activo: true,
+        telefono: null,
+        estado: 'APROBADO',
+        roles: [{ codigo: 'TECNICO_EVALUADOR', nombre: 'Técnico Evaluador' }],
+        empresa: null,
         fechaCreacion: '2026-01-01T00:00:00.000Z',
-        roles: ['TECNICO'],
+      },
+      {
+        id: '3',
+        nombreCompleto: 'Rosa Delegada',
+        correoElectronico: 'delegado@empresa.com',
+        telefono: '+18095551234',
+        estado: 'BLOQUEADO',
+        roles: [{ codigo: 'ADMINISTRADOR_EMPRESA', nombre: 'Administrador de Empresa' }],
+        empresa: { razonSocial: 'Empresa Delegada SRL', rnc: '131-99988-7' },
+        fechaCreacion: '2026-01-02T00:00:00.000Z',
       },
     ])
   ),
@@ -513,5 +662,60 @@ export const handlers = [
   http.patch(`${BASE}/api/v1/catalogos/tipos-establecimiento/:id`, () =>
     HttpResponse.json({ id: '1', nombre: 'Planta Modificada', descripcion: '', activo: true })
   ),
+  http.get(`${BASE}/api/v1/alertas-lapch`, () => HttpResponse.json([MOCK_ALERTA_LAPCH])),
+  http.post(`${BASE}/api/v1/alertas-lapch`, () => HttpResponse.json(MOCK_ALERTA_LAPCH, { status: 201 })),
+  http.patch(`${BASE}/api/v1/alertas-lapch/:id/resolver`, async ({ request }) => {
+    const body = (await request.json()) as { resultado: string };
+    return HttpResponse.json({ ...MOCK_ALERTA_LAPCH, resultado: body.resultado });
+  }),
+  http.get(`${BASE}/api/v1/denuncias`, () => HttpResponse.json([MOCK_DENUNCIA])),
+  http.post(`${BASE}/api/v1/denuncias`, () => HttpResponse.json(MOCK_DENUNCIA, { status: 201 })),
+  http.patch(`${BASE}/api/v1/denuncias/:id/resolver`, async ({ request }) => {
+    const body = (await request.json()) as { resultado: string };
+    return HttpResponse.json({ ...MOCK_DENUNCIA, resultado: body.resultado });
+  }),
+  // Adjuntos de Solicitud BPM
+  http.get(`${BASE}/api/v1/solicitudes-bpm/:id/adjuntos`, () =>
+    HttpResponse.json([MOCK_ADJUNTO_SOLICITUD])
+  ),
+  http.post(`${BASE}/api/v1/solicitudes-bpm/:id/adjuntos`, () =>
+    HttpResponse.json({
+      ...MOCK_ADJUNTO_SOLICITUD,
+      id: '2',
+      nombreArchivo: 'nuevo_adjunto.pdf',
+    }, { status: 201 })
+  ),
+  http.delete(`${BASE}/api/v1/solicitudes-bpm/adjuntos/:adjuntoId`, () =>
+    HttpResponse.json({ mensaje: 'Adjunto eliminado correctamente.' })
+  ),
+  http.get(`${BASE}/api/v1/notificaciones/mias`, () => HttpResponse.json(MOCK_NOTIFICACIONES)),
+  http.patch(`${BASE}/api/v1/notificaciones/:id/leer`, ({ params }) => {
+    const notificacion = MOCK_NOTIFICACIONES.find((n) => n.id === params.id);
+    if (notificacion) {
+      notificacion.leida = true;
+    }
+    return HttpResponse.json(notificacion ?? { id: params.id, leida: true });
+  }),
+  // Gestión de Delegados (Empresa)
+  http.get(`${BASE}/api/v1/empresas/delegados`, () =>
+    HttpResponse.json(MOCK_DELEGADOS)
+  ),
+  http.post(`${BASE}/api/v1/empresas/delegados`, async ({ request }) => {
+    const body = (await request.json()) as any;
+    const nuevo = {
+      id: Math.random().toString().slice(2, 6),
+      nombreCompleto: body.nombreCompleto,
+      correoElectronico: body.correoElectronico,
+      estado: 'APROBADO',
+      fechaCreacion: new Date().toISOString(),
+      contrasenaTemporal: 'MockPass123',
+    };
+    return HttpResponse.json(nuevo, { status: 201 });
+  }),
+  http.patch(`${BASE}/api/v1/empresas/delegados/:id/estado`, async ({ request, params }) => {
+    const body = (await request.json()) as { estado: string };
+    return HttpResponse.json({ id: params.id, estado: body.estado });
+  }),
 ];
+
 

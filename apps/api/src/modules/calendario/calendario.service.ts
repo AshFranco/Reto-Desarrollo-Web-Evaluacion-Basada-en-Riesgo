@@ -1,9 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class CalendarioService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificaciones: NotificacionesService,
+  ) {}
 
   async obtenerCalendario(evaluadorId: string, desde?: string, hasta?: string) {
     const evaluaciones = await this.prisma.evaluacion.findMany({
@@ -76,11 +80,20 @@ export class CalendarioService {
     const evaluacion = await this.prisma.evaluacion.findUnique({
       where: { id: BigInt(evaluacionId) },
     });
-    if (!evaluacion) throw new (require('@nestjs/common').NotFoundException)('Evaluación no encontrada.');
+    if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
 
     const actualizada = await this.prisma.evaluacion.update({
       where: { id: BigInt(evaluacionId) },
       data: { fechaProgramada: new Date(nuevaFecha) },
+    });
+
+    await this.notificaciones.crear({
+      idUsuario: actualizada.idEvaluador,
+      tipo: 'CITA_REPROGRAMADA',
+      titulo: 'Cita de evaluación reprogramada',
+      mensaje: `Su evaluación #${evaluacionId} fue reprogramada para ${actualizada.fechaProgramada?.toISOString().split('T')[0]}.${comentario ? ` Comentario: ${comentario}` : ''}`,
+      entidad: 'evaluacion',
+      idEntidad: actualizada.id,
     });
 
     return {
@@ -93,17 +106,31 @@ export class CalendarioService {
     const evaluacion = await this.prisma.evaluacion.findUnique({
       where: { id: BigInt(evaluacionId) },
     });
-    if (!evaluacion) throw new (require('@nestjs/common').NotFoundException)('Evaluación no encontrada.');
+    if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
 
     const estadoCancelado = await this.prisma.estadoEvaluacion.findFirst({
       where: { codigo: { in: ['CANCELADA', 'CANCELADO'] } },
     });
+    if (!estadoCancelado) {
+      throw new InternalServerErrorException(
+        'No existe el estado CANCELADA en el catálogo estado_evaluacion. Ejecute el seed antes de cancelar.',
+      );
+    }
 
     const actualizada = await this.prisma.evaluacion.update({
       where: { id: BigInt(evaluacionId) },
       data: {
-        idEstado: estadoCancelado?.id ?? evaluacion.idEstado,
+        idEstado: estadoCancelado.id,
       },
+    });
+
+    await this.notificaciones.crear({
+      idUsuario: actualizada.idEvaluador,
+      tipo: 'CITA_CANCELADA',
+      titulo: 'Cita de evaluación cancelada',
+      mensaje: `Su evaluación #${evaluacionId} fue cancelada.${motivo ? ` Motivo: ${motivo}` : ''}`,
+      entidad: 'evaluacion',
+      idEntidad: actualizada.id,
     });
 
     return {

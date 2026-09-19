@@ -8,6 +8,7 @@ import { Desactivar2FaDto } from './dto/desactivar-2fa.dto';
 import { PasswordService } from '../auth/password.service';
 import { TokenService } from '../auth/token.service';
 import { EncryptionService } from '../../common/services/encryption.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import * as qrcode from 'qrcode';
 import { authenticator } from 'otplib';
 
@@ -23,6 +24,7 @@ export class UsuariosService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly encryptionService: EncryptionService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
 
@@ -68,6 +70,19 @@ export class UsuariosService {
       where: { id: BigInt(usuarioId) },
       data: { estado: dto.decision, motivoRechazo: dto.motivoRechazo },
     });
+
+    const esAprobado = dto.decision === 'APROBADO';
+    await this.notificaciones.crear({
+      idUsuario: actualizado.id,
+      tipo: esAprobado ? 'REGISTRO_APROBADO' : 'REGISTRO_RECHAZADO',
+      titulo: esAprobado ? 'Registro aprobado' : 'Registro rechazado',
+      mensaje: esAprobado
+        ? 'Su registro fue aprobado. Ya puede iniciar sesión.'
+        : `Su registro fue rechazado.${dto.motivoRechazo ? ` Motivo: ${dto.motivoRechazo}` : ''}`,
+      entidad: 'usuario',
+      idEntidad: actualizado.id,
+    });
+
     return { ...actualizado, id: actualizado.id.toString(), idEmpresa: actualizado.idEmpresa?.toString() ?? null };
   }
 

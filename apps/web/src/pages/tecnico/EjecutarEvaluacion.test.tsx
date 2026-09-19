@@ -318,6 +318,74 @@ describe('EjecutarEvaluacion — en línea (comportamiento existente sin romper)
   });
 });
 
+describe('EjecutarEvaluacion — devuelta por el Coordinador (RF-18)', () => {
+  const EVALUACION_DEVUELTA = {
+    ...MOCK_EVALUACION_DETALLE,
+    idEstado: 6,
+    bloqueada: true,
+    estado: { id: 6, codigo: 'DEVUELTA', nombre: 'Devuelta', esFinal: false, bloqueaDatos: true, orden: 6 },
+  };
+
+  it('muestra las observaciones del Coordinador de forma visible, no escondidas', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id', () => HttpResponse.json(EVALUACION_DEVUELTA)),
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id/observaciones', () =>
+        HttpResponse.json([
+          {
+            id: '1', estado: 'Devuelta', codigoEstado: 'DEVUELTA', usuario: 'Coordinadora Ana',
+            comentario: '[SOLICITAR_CORRECCION] Falta evidencia fotográfica en almacenamiento.',
+            fechaHora: '2026-03-02T10:00:00.000Z',
+          },
+        ])
+      )
+    );
+
+    renderPantalla();
+
+    await waitFor(() => expect(screen.getByText('Evaluación devuelta por el Coordinador')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Falta evidencia fotográfica en almacenamiento\./)).toBeInTheDocument());
+    expect(screen.getByText(/Coordinadora Ana/)).toBeInTheDocument();
+    // No debe caer en la vista bloqueada de solo lectura que se usa para FINALIZADA/EN_REVISION
+    expect(screen.queryByText('Visualizando Ficha BPM (Modo solo lectura)')).not.toBeInTheDocument();
+  });
+
+  it('al guardar la primera respuesta llama a corregir() para reactivar la evaluación', async () => {
+    let seLlamoCorregir = false;
+    let cuerpoCorregir: unknown = null;
+    let seLlamoRespuestasNormal = false;
+    server.use(
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id', () => HttpResponse.json(EVALUACION_DEVUELTA)),
+      http.get('http://localhost:3000/api/v1/evaluaciones/:id/observaciones', () => HttpResponse.json([])),
+      http.patch('http://localhost:3000/api/v1/evaluaciones/:id/corregir', async ({ request }) => {
+        seLlamoCorregir = true;
+        cuerpoCorregir = await request.json();
+        return HttpResponse.json({
+          mensaje: 'Correcciones registradas exitosamente.',
+          evaluacion: {
+            ...EVALUACION_DEVUELTA,
+            idEstado: 2,
+            bloqueada: false,
+            estado: { id: 2, codigo: 'EN_CURSO', nombre: 'En Curso', esFinal: false, bloqueaDatos: false, orden: 2 },
+          },
+        });
+      }),
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => {
+        seLlamoRespuestasNormal = true;
+        return HttpResponse.json({ mensaje: 'Avance guardado.' });
+      })
+    );
+
+    renderPantalla();
+    await waitFor(() => expect(screen.getByText('Evaluación devuelta por el Coordinador')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
+
+    await waitFor(() => expect(seLlamoCorregir).toBe(true));
+    expect(cuerpoCorregir).toEqual({ respuestas: [{ itemId: '2', codigoOpcion: 'C' }] });
+    expect(seLlamoRespuestasNormal).toBe(false);
+  });
+});
+
 describe('EjecutarEvaluacion — vista previa local del motor de riesgo', () => {
   const RESPUESTA_C_SERVIDOR: RespuestaItemRaw = {
     id: 'r1', idEvaluacion: '1', idItemFicha: '2', idOpcionRespuesta: '1',

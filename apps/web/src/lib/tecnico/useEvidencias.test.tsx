@@ -36,6 +36,15 @@ function archivoDePrueba() {
  */
 describe('useSubirEvidencia', () => {
   it('sube el archivo y devuelve la evidencia creada', async () => {
+    // Se fija el handler explicitamente (en vez de depender del handler por
+    // defecto) porque request.formData() del lado del handler puede o no
+    // fallar al parsear el FormData de jsdom segun la version de Node/undici
+    // (ver nota de archivo mas arriba) -- sin esto el test es no determinista
+    // entre entornos (paso en local, fallo en CI con Node 22 en Linux).
+    server.use(
+      http.post('http://localhost:3000/api/v1/evidencias', () => HttpResponse.json(MOCK_EVIDENCIA))
+    );
+
     const { result } = renderHook(() => useSubirEvidencia(), { wrapper: crearWrapper() });
     result.current.mutate({ evaluacionId: '1', archivo: archivoDePrueba(), tipo: 'FOTO' });
 

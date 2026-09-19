@@ -59,7 +59,13 @@ No verificado si existen pruebas unitarias en `apps/api`. Prioridad de cobertura
 
 ### 3.4 Pruebas de frontend / móviles
 
-**No aplicable todavía** — no existe frontend en ninguna rama del repositorio. Este plan deberá ampliarse cuando `apps/web` empiece a construirse, cubriendo como mínimo: instalación PWA, funcionamiento offline, sincronización de `operacion_pendiente`, y captura de ficha BPM en dispositivo real.
+`apps/web` ya tiene 25 pantallas construidas (dashboards por rol, wizard de inspección del técnico, portal público, calendario de coordinador). Pendiente de definir un plan de pruebas de frontend equivalente a §3.1-3.3.
+
+**RNF-05 — Compatibilidad de navegadores/SO (asignado a QA/Rowlis):** Ash verificó en Chrome desktop (build de producción, `localhost:4173`) que el Service Worker registra correctamente, el manifest es válido (iconos, `display: standalone`, `lang: es`) y el app shell se precachea para uso offline. **Falta cubrir, a cargo de QA:**
+- Firefox, Safari y Edge de escritorio — instalación (o su equivalente, ya que Firefox/Safari no soportan instalación de PWA igual que Chrome) y funcionamiento del Service Worker.
+- Android (Chrome) — instalación real ("Agregar a pantalla de inicio"), GPS real y cámara real en el flujo de evidencias.
+- iOS (Safari) — soporte PWA limitado en iOS; validar que al menos cargue y el Service Worker no rompa el flujo.
+- Sincronización real: guardar una evaluación sin conexión y confirmar que se sincroniza al reconectar (hoy solo hay una prueba unitaria del hook `useSyncStatus`, no un escenario real de pérdida de conexión).
 
 ### 3.5 Pruebas de seguridad
 

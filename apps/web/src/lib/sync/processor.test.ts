@@ -105,6 +105,36 @@ describe('SyncProcessor', () => {
     });
   });
 
+  it('FINALIZAR_EVALUACION por sí solo NO llama a POST /informes -- generar el informe es una operación aparte', async () => {
+    let seLlamoInformes = false;
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/finalizar', () => HttpResponse.json({ idEstado: 3 })),
+      http.post('http://localhost:3000/api/v1/informes', () => {
+        seLlamoInformes = true;
+        return HttpResponse.json({ id: '1' }, { status: 201 });
+      })
+    );
+
+    const uuid = await enqueue('FINALIZAR_EVALUACION', { evaluacionServerId: '42', observacionesFinales: undefined });
+    const proc = new SyncProcessor();
+    await proc.procesarCola();
+
+    expect(seLlamoInformes).toBe(false);
+    expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+  });
+
+  it('reintenta GENERAR_INFORME encolado hasta que el backend lo acepta', async () => {
+    server.use(
+      http.post('http://localhost:3000/api/v1/informes', () => HttpResponse.json({ id: '1' }, { status: 201 }))
+    );
+
+    const uuid = await enqueue('GENERAR_INFORME', { evaluacionServerId: '42' });
+    const proc = new SyncProcessor();
+    await proc.procesarCola();
+
+    expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+  });
+
   it('marca como error tras 10 intentos fallidos', async () => {
     server.use(
       http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () =>

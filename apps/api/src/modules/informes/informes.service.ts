@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
 import { PdfService } from '../../common/services/pdf.service';
+import { mapearResultadoDestacado, mapearNoConformidades } from '../../common/utils/informe-pdf-mapper';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 import { AuditoriaService } from '../auditoria/auditoria.service';
 
@@ -10,7 +12,11 @@ export class InformesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
+<<<<<<< HEAD
     private readonly auditoriaService: AuditoriaService,
+=======
+    private readonly notificaciones: NotificacionesService,
+>>>>>>> origin/develop
   ) {}
 
   async generarPdf(evaluacionId: string): Promise<Buffer> {
@@ -22,7 +28,10 @@ export class InformesService {
         estado: true,
         establecimiento: { include: { empresa: true } },
         informe: true,
-        calculoRiesgo: true,
+        calculoRiesgo: { include: { nivelRiesgo: true } },
+        respuestas: {
+          include: { itemFicha: true, opcionRespuesta: true, criticidad: true },
+        },
       },
     });
 
@@ -42,6 +51,8 @@ export class InformesService {
         { etiqueta: 'Estado Evaluacion', valor: evaluacion.estado?.nombre ?? 'N/A' },
         { etiqueta: 'Calificacion Riesgo', valor: evaluacion.calculoRiesgo?.calificacionTexto ?? 'N/A' },
       ],
+      resultado: mapearResultadoDestacado(evaluacion.calculoRiesgo),
+      noConformidades: mapearNoConformidades(evaluacion.respuestas),
       secciones: [
         { titulo: 'Resumen Ejecutivo', contenido: informe?.resumenEjecutivo ?? 'Sin resumen registrado.' },
         { titulo: 'Hallazgos', contenido: informe?.hallazgos ?? 'Sin hallazgos registrados.' },
@@ -139,6 +150,19 @@ export class InformesService {
         data: { idEstado: nuevoEstado.id, idCoordinador: BigInt(coordinadorId), fechaRevision: new Date() },
       });
       return { ...actualizada, id: actualizada.id.toString(), accion: dto.accion };
+    }).then(async (resultado) => {
+      const esAprobacion = dto.accion === 'APROBAR';
+      await this.notificaciones.crear({
+        idUsuario: evaluacion.idEvaluador,
+        tipo: esAprobacion ? 'INFORME_APROBADO' : 'INFORME_DEVUELTO',
+        titulo: esAprobacion ? 'Informe aprobado' : 'Informe devuelto para corrección',
+        mensaje: esAprobacion
+          ? `Su informe de la evaluación #${evaluacionId} fue aprobado.`
+          : `Su informe de la evaluación #${evaluacionId} fue devuelto.${dto.observaciones ? ` Observaciones: ${dto.observaciones}` : ''}`,
+        entidad: 'evaluacion',
+        idEntidad: evaluacionId,
+      });
+      return resultado;
     });
 
     await this.auditoriaService.registrar({

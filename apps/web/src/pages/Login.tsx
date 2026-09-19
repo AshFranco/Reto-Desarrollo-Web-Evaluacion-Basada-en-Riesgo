@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -9,17 +9,18 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link,
   Paper,
   TextField,
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { useQueryClient } from '@tanstack/react-query';
 import { login } from '@/lib/auth/login';
 import { solicitarRecuperacionContrasena } from '@/lib/auth/recuperacion';
 import { rutaPorRol } from '@/routes/rutaPorRol';
+import logo from '@/assets/logo.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -104,26 +105,17 @@ export default function Login() {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
           <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <ShieldOutlinedIcon fontSize="medium" />
-          </Box>
+            component="img"
+            src={logo}
+            alt="SINEC"
+            sx={{ width: 48, height: 48, flexShrink: 0, objectFit: 'contain' }}
+          />
           <Box>
             <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              EBR / BPM
+              SINEC
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Evaluación Basada en Riesgo
+              Sistema de Evaluación y BPM
             </Typography>
           </Box>
         </Box>
@@ -234,6 +226,20 @@ export default function Login() {
                 ¿Olvidaste tu contraseña?
               </Button>
             </Box>
+
+            <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
+              ¿No tenés cuenta?{' '}
+              <Link component={RouterLink} to="/registro" underline="hover">
+                Registrate
+              </Link>
+            </Typography>
+
+            <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
+              ¿Querés hacer una denuncia sin iniciar sesión?{' '}
+              <Link component={RouterLink} to="/denuncia-publica" underline="hover">
+                Denunciá acá
+              </Link>
+            </Typography>
           </>
         )}
       </Paper>

@@ -1,4 +1,4 @@
-import { getPendientes, marcarEnviada, marcarError } from './queue';
+import { getPendientes, marcarEnviada, marcarError, enqueue } from './queue';
 import { isTokenValid, getSession } from '@/lib/auth/session';
 import { silentRefresh } from '@/lib/auth/refresh';
 import type { OperacionPendiente } from '@/lib/db';
@@ -106,6 +106,11 @@ export class SyncProcessor {
         res = await fetch(`${API_BASE}/api/v1/evaluaciones/${evalId}/finalizar`, {
           method: 'POST', headers,
           body: JSON.stringify({ observacionesFinales: payload['observacionesFinales'] }),
+        });
+      } else if (op.tipo === 'GENERAR_INFORME' && evalId) {
+        res = await fetch(`${API_BASE}/api/v1/informes`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ evaluacionId: evalId }),
         });
       } else {
         await marcarError(op.uuidLocal, 'tipo desconocido o falta evaluacionServerId');
