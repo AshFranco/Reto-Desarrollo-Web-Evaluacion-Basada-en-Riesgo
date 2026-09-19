@@ -132,6 +132,25 @@ export interface SolicitudBpm {
   fechaEnvio: string | null;
 }
 
+/**
+ * Forma de GET /api/v1/solicitudes-bpm/:id/adjuntos y de la respuesta de
+ * POST /api/v1/solicitudes-bpm/:id/adjuntos — confirmada contra
+ * serializarAdjunto() en solicitudes-bpm.service.ts.
+ * `tamanoBytes` llega como string porque es BigInt en Prisma.
+ * Tipos válidos confirmados en SubirAdjuntoSolicitudDto: CROQUIS,
+ * MEMORIA_DESCRIPTIVA, OTRO.
+ */
+export interface AdjuntoSolicitudBpm {
+  id: string;
+  idSolicitud: string;
+  tipo: 'CROQUIS' | 'MEMORIA_DESCRIPTIVA' | 'OTRO';
+  nombreArchivo: string;
+  rutaAlmacenamiento: string;
+  tipoMime: string;
+  tamanoBytes: string | null;
+  fechaCarga: string;
+}
+
 /** id: corregido a number — es un Int en el esquema (catálogo chico), no un BigInt; confirmado en vivo (`"id":1`, sin comillas). */
 export interface OrigenCaso {
   id: number;
