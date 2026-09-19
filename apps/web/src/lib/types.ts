@@ -504,3 +504,15 @@ export interface FiltrosCasosHistorico {
   fechaCreacionDesde?: string;
   fechaCreacionHasta?: string;
 }
+
+export interface Notificacion {
+  id: string;
+  idUsuario: string;
+  tipo: string;
+  titulo: string;
+  mensaje: string;
+  entidad: string | null;
+  idEntidad: string | null;
+  leida: boolean;
+  fechaCreacion: string;
+}

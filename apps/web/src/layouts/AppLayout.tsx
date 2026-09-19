@@ -33,6 +33,7 @@ import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useFotoPerfil } from '@/lib/perfil/useFotoPerfil';
 import type { UsuarioLocal } from '@/lib/types';
 import { DialogPerfil } from '@/pages/perfil/DialogPerfil';
+import { NotificacionesMenu } from './NotificacionesMenu';
 
 
 /** Estilo compartido de los ítems de navegación -- ítem activo con fondo teñido, texto/ícono en color primario y una barra de acento a la izquierda. */
@@ -229,9 +230,9 @@ export function AppLayout() {
 
       <Divider />
 
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {usuario && (
-          <Tooltip title="Abrir opciones de cuenta" placement="top">
+          <>
             <Box
               onClick={abrirMenuUsuario}
               sx={{
@@ -260,7 +261,8 @@ export function AppLayout() {
                 </Typography>
               </Box>
             </Box>
-          </Tooltip>
+            <NotificacionesMenu />
+          </>
         )}
       </Box>
     </Box>
@@ -309,8 +311,10 @@ export function AppLayout() {
               EBR / BPM
             </Typography>
             {usuario && (
-              <Tooltip title="Opciones de cuenta">
-                <IconButton size="small" onClick={abrirMenuUsuario} sx={{ p: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <NotificacionesMenu />
+                <Tooltip title="Opciones de cuenta">
+                  <IconButton size="small" onClick={abrirMenuUsuario} sx={{ p: 0 }}>
                   <Avatar
                     src={fotoPerfil ?? undefined}
                     sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.75rem' }}
@@ -318,7 +322,8 @@ export function AppLayout() {
                     {iniciales}
                   </Avatar>
                 </IconButton>
-              </Tooltip>
+                </Tooltip>
+              </Box>
             )}
 
           </Toolbar>
