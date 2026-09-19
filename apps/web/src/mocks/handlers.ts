@@ -371,6 +371,31 @@ export const MOCK_EXPEDIENTE = {
   },
 };
 
+export const MOCK_NOTIFICACIONES = [
+  {
+    id: '1',
+    idUsuario: '1',
+    tipo: 'ASIGNACION_EVALUACION',
+    titulo: 'Nueva evaluación asignada',
+    mensaje: 'Se le ha asignado una nueva evaluación para Planta Piloto de Prueba.',
+    entidad: null,
+    idEntidad: null,
+    leida: false,
+    fechaCreacion: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    idUsuario: '1',
+    tipo: 'INFORME_APROBADO',
+    titulo: 'Informe aprobado',
+    mensaje: 'Su informe para el caso #1 ha sido aprobado.',
+    entidad: null,
+    idEntidad: null,
+    leida: true,
+    fechaCreacion: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+  }
+];
+
 const BASE = 'http://localhost:3000';
 
 export const handlers = [
@@ -621,5 +646,14 @@ export const handlers = [
     const body = (await request.json()) as { resultado: string };
     return HttpResponse.json({ ...MOCK_DENUNCIA, resultado: body.resultado });
   }),
+  http.get(`${BASE}/api/v1/notificaciones/mias`, () => HttpResponse.json(MOCK_NOTIFICACIONES)),
+  http.patch(`${BASE}/api/v1/notificaciones/:id/leer`, ({ params }) => {
+    const notificacion = MOCK_NOTIFICACIONES.find((n) => n.id === params.id);
+    if (notificacion) {
+      notificacion.leida = true;
+    }
+    return HttpResponse.json(notificacion ?? { id: params.id, leida: true });
+  }),
 ];
+
 
