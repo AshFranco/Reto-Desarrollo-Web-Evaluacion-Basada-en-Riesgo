@@ -120,7 +120,7 @@ export class CasosService {
         alerta: true,
         denuncia: true,
         programacion: true,
-        evaluaciones: { include: { estado: true, calculoRiesgo: true, informe: true } },
+        evaluaciones: { include: { estado: true, calculoRiesgo: { include: { nivelRiesgo: true } }, informe: true } },
         asignaciones: { where: { estado: 'Asignado' }, include: { evaluador: true } },
         expediente: true,
       },

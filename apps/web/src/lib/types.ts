@@ -448,6 +448,11 @@ export interface ResultadoRiesgo {
   id: string;
   idEvaluacion: string;
   idNivelRiesgo: number | null;
+  nivelRiesgo?: {
+    id: number;
+    codigo: string;
+    nombre: string;
+  } | null;
   idSubcategoriaRp: string | null;
   idRangoCalificacion: string | null;
   porcentajeCumplimiento: string | null;

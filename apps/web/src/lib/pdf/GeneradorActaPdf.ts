@@ -27,9 +27,9 @@ function generarHtmlOriginal(caso: any): string {
 
   // Leer cálculo de riesgo (o parsear del resultado final del expediente para casos históricos antiguos de prueba)
   const calculoRiesgo = ultimaEvaluacion?.calculoRiesgo;
-  let nivelRiesgo = calculoRiesgo?.nivelRiesgo;
-  let cumplimiento = calculoRiesgo?.porcentajeCumplimientoBpm != null 
-    ? `${Number(calculoRiesgo.porcentajeCumplimientoBpm).toFixed(2)}%` 
+  let nivelRiesgo = calculoRiesgo?.nivelRiesgo?.codigo;
+  let cumplimiento = calculoRiesgo?.porcentajeCumplimiento != null 
+    ? `${Number(calculoRiesgo.porcentajeCumplimiento).toFixed(2)}%` 
     : null;
 
   // Respaldo (Fallback) para la data de prueba que solo tiene texto en caso.expediente.resultadoFinal

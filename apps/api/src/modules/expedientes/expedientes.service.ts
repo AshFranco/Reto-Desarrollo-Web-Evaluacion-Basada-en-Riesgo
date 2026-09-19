@@ -20,7 +20,7 @@ export class ExpedientesService {
       include: {
         establecimiento: { include: { empresa: true } },
         expediente: true,
-        evaluaciones: { include: { estado: true, calculoRiesgo: true, informe: true } },
+        evaluaciones: { include: { estado: true, calculoRiesgo: { include: { nivelRiesgo: true } }, informe: true } },
         origen: true,
       },
     });
@@ -81,12 +81,16 @@ export class ExpedientesService {
         create: {
           idCaso: BigInt(casoId),
           estado: 'Cerrado',
-          resultadoFinal: calculo?.calificacionTexto,
+          resultadoFinal: calculo?.calificacionTexto && calculo.porcentajeCumplimiento
+            ? `${calculo.calificacionTexto} (${Number(calculo.porcentajeCumplimiento).toFixed(2)}%)`
+            : calculo?.calificacionTexto,
           fechaCierre: new Date(),
         },
         update: {
           estado: 'Cerrado',
-          resultadoFinal: calculo?.calificacionTexto,
+          resultadoFinal: calculo?.calificacionTexto && calculo.porcentajeCumplimiento
+            ? `${calculo.calificacionTexto} (${Number(calculo.porcentajeCumplimiento).toFixed(2)}%)`
+            : calculo?.calificacionTexto,
           fechaCierre: new Date(),
         },
       });
