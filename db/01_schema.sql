@@ -920,22 +920,22 @@ CREATE POLICY establecimiento_select_policy ON establecimiento
   FOR SELECT
   USING (
     current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'EVALUADOR', 'TECNICO')
-    OR id_empresa::text = current_setting('app.current_empresa_id', true)
+    OR empresa_id::text = current_setting('app.current_empresa_id', true)
   );
 
 CREATE POLICY solicitud_bpm_select_policy ON solicitud_bpm
   FOR SELECT
   USING (
     current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'EVALUADOR', 'TECNICO')
-    OR id_empresa::text = current_setting('app.current_empresa_id', true)
+    OR empresa_id::text = current_setting('app.current_empresa_id', true)
   );
 
 CREATE POLICY caso_select_policy ON caso
   FOR SELECT
   USING (
     current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'EVALUADOR', 'TECNICO')
-    OR id_establecimiento IN (
-      SELECT id FROM establecimiento WHERE id_empresa::text = current_setting('app.current_empresa_id', true)
+    OR establecimiento_id IN (
+      SELECT id FROM establecimiento WHERE empresa_id::text = current_setting('app.current_empresa_id', true)
     )
   );
 
@@ -947,8 +947,8 @@ CREATE POLICY evaluacion_select_policy ON evaluacion
       current_setting('app.current_user_role', true) IN ('EVALUADOR', 'TECNICO')
       AND id_evaluador::text = current_setting('app.current_user_id', true)
     )
-    OR id_establecimiento IN (
-      SELECT id FROM establecimiento WHERE id_empresa::text = current_setting('app.current_empresa_id', true)
+    OR establecimiento_id IN (
+      SELECT id FROM establecimiento WHERE empresa_id::text = current_setting('app.current_empresa_id', true)
     )
   );
 
