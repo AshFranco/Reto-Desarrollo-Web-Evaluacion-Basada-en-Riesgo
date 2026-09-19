@@ -945,7 +945,7 @@ CREATE POLICY evaluacion_select_policy ON evaluacion
     current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR')
     OR (
       current_setting('app.current_user_role', true) IN ('EVALUADOR', 'TECNICO')
-      AND id_evaluador::text = current_setting('app.current_user_id', true)
+      AND evaluador_id::text = current_setting('app.current_user_id', true)
     )
     OR establecimiento_id IN (
       SELECT id FROM establecimiento WHERE empresa_id::text = current_setting('app.current_empresa_id', true)
