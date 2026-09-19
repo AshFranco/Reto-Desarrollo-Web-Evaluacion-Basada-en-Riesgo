@@ -753,8 +753,7 @@ CREATE TABLE auditoria (
     id                BIGSERIAL PRIMARY KEY,
     entidad           VARCHAR(60) NOT NULL,
     entidad_id        VARCHAR(40),
-    accion            VARCHAR(20) NOT NULL
-                      CHECK (accion IN ('INSERT','UPDATE','DELETE','LOGIN','LOGOUT','DOWNLOAD','SYNC','IMPORT')),
+    accion            VARCHAR(60) NOT NULL,
     usuario_id        INT REFERENCES usuario(id),
     ip                INET,
     user_agent        VARCHAR(400),

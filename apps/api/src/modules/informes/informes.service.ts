@@ -12,11 +12,8 @@ export class InformesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
-<<<<<<< HEAD
     private readonly auditoriaService: AuditoriaService,
-=======
     private readonly notificaciones: NotificacionesService,
->>>>>>> origin/develop
   ) {}
 
   async generarPdf(evaluacionId: string): Promise<Buffer> {

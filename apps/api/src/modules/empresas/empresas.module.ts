@@ -1,13 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { EmpresasService } from './empresas.service';
 import { EmpresasController } from './empresas.controller';
-<<<<<<< HEAD
-
 import { PasswordService } from '../auth/password.service';
-
-=======
 import { AuthModule } from '../auth/auth.module';
->>>>>>> origin/develop
 @Module({
   imports: [forwardRef(() => AuthModule)],
   controllers: [EmpresasController],

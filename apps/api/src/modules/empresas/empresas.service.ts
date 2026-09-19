@@ -1,16 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-<<<<<<< HEAD
 import { PasswordService } from '../auth/password.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { CrearEmpresaDto, ActualizarEmpresaDto, InvitarDelegadoDto, CambiarEstadoDelegadoDto } from './dto/empresa.dto';
-=======
-import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
-import { InvitarDelegadoDto, EstadoDelegadoDto } from './dto/delegados.dto';
->>>>>>> origin/develop
 import { JwtPayload } from '../auth/token.service';
-import { PasswordService } from '../auth/password.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 const ROLES_EMPRESA = ['ADMINISTRADOR_EMPRESA'];
@@ -20,10 +14,7 @@ export class EmpresasService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
-<<<<<<< HEAD
     private readonly auditoriaService: AuditoriaService,
-=======
->>>>>>> origin/develop
   ) {}
 
   /**
@@ -120,7 +111,6 @@ export class EmpresasService {
     return empresas.map((e) => ({ ...e, id: e.id.toString() }));
   }
 
-<<<<<<< HEAD
   /**
    * Invitar / Crear un nuevo Usuario Delegado vinculado a una Empresa
    */
@@ -141,48 +131,11 @@ export class EmpresasService {
     });
     if (existeDoc) {
       throw new BadRequestException('Ya existe un usuario con este documento de identidad.');
-=======
-  // --- Gestión de Delegados ---
-
-  async listarDelegados(empresaId: string) {
-    const delegados = await this.prisma.usuario.findMany({
-      where: {
-        idEmpresa: BigInt(empresaId),
-        roles: { some: { rol: { codigo: 'USUARIO_DELEGADO' } } },
-      },
-      select: {
-        id: true,
-        nombreCompleto: true,
-        correoElectronico: true,
-        estado: true,
-        fechaCreacion: true,
-      },
-      orderBy: { fechaCreacion: 'desc' },
-    });
-    return delegados.map(d => ({
-      ...d,
-      id: d.id.toString(),
-    }));
-  }
-
-  async invitarDelegado(empresaId: string, dto: InvitarDelegadoDto) {
-    const existente = await this.prisma.usuario.findFirst({
-      where: {
-        OR: [
-          { correoElectronico: dto.correoElectronico },
-          { cedulaPasaporte: dto.cedulaPasaporte },
-        ],
-      },
-    });
-    if (existente) {
-      throw new BadRequestException('Ya existe un usuario con este correo o cédula/pasaporte.');
->>>>>>> origin/develop
     }
 
     const rolDelegado = await this.prisma.rol.findUnique({
       where: { codigo: 'USUARIO_DELEGADO' },
     });
-<<<<<<< HEAD
     if (!rolDelegado) {
       throw new NotFoundException('El rol USUARIO_DELEGADO no existe en el catálogo.');
     }
@@ -203,33 +156,10 @@ export class EmpresasService {
           create: {
             idRol: rolDelegado.id,
           },
-=======
-    if (!rolDelegado) throw new NotFoundException('Rol de delegado no encontrado en el sistema.');
-
-    // Contraseña temporal aleatoria por invitación -- una constante fija aquí
-    // sería una credencial universal conocida para CUALQUIER delegado de
-    // CUALQUIER empresa del sistema. Se devuelve una única vez en la
-    // respuesta para que el Admin Empresa la comunique por un canal seguro;
-    // no se puede recuperar después (solo su hash queda almacenado).
-    const contrasenaTemporal = randomBytes(9).toString('base64url');
-    const contrasenaHash = await this.passwordService.hash(contrasenaTemporal);
-
-    const nuevoDelegado = await this.prisma.usuario.create({
-      data: {
-        nombreCompleto: dto.nombreCompleto,
-        correoElectronico: dto.correoElectronico,
-        cedulaPasaporte: dto.cedulaPasaporte,
-        contrasenaHash,
-        idEmpresa: BigInt(empresaId),
-        estado: 'APROBADO', // Nace aprobado por el admin de su empresa
-        roles: {
-          create: { idRol: rolDelegado.id },
->>>>>>> origin/develop
         },
       },
     });
 
-<<<<<<< HEAD
     await this.auditoriaService.registrar({
       entidad: 'Usuario',
       idEntidad: usuarioDelegado.id.toString(),
@@ -296,23 +226,7 @@ export class EmpresasService {
       where: {
         id: BigInt(delegadoId),
         idEmpresa: BigInt(empresaId),
-=======
-    return {
-      id: nuevoDelegado.id.toString(),
-      nombreCompleto: nuevoDelegado.nombreCompleto,
-      correoElectronico: nuevoDelegado.correoElectronico,
-      estado: nuevoDelegado.estado,
-      contrasenaTemporal,
-    };
-  }
-
-  async cambiarEstadoDelegado(id: string, empresaId: string, estado: string) {
-    const delegado = await this.prisma.usuario.findFirst({
-      where: {
-        id: BigInt(id),
-        idEmpresa: BigInt(empresaId),
         roles: { some: { rol: { codigo: 'USUARIO_DELEGADO' } } },
->>>>>>> origin/develop
       },
     });
 
@@ -321,7 +235,6 @@ export class EmpresasService {
     }
 
     const actualizado = await this.prisma.usuario.update({
-<<<<<<< HEAD
       where: { id: BigInt(delegadoId) },
       data: { estado: dto.estado.toUpperCase() },
     });
@@ -333,18 +246,11 @@ export class EmpresasService {
       idUsuario: currentUser.sub,
       valoresAnteriores: { estado: delegado.estado },
       valoresNuevos: { estado: actualizado.estado },
-=======
-      where: { id: BigInt(id) },
-      data: { estado },
->>>>>>> origin/develop
     });
 
     return {
       id: actualizado.id.toString(),
-<<<<<<< HEAD
       nombreCompleto: actualizado.nombreCompleto,
-=======
->>>>>>> origin/develop
       estado: actualizado.estado,
     };
   }

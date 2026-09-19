@@ -15,9 +15,10 @@ describe('InformesService', () => {
       $transaction: jest.fn().mockImplementation((cb) => cb(prismaMock)),
     };
     pdfServiceMock = { generarDocumentoPdf: jest.fn() };
+    const auditoriaMock = { registrar: jest.fn().mockResolvedValue(null) };
     notificacionesMock = { crear: jest.fn() };
 
-    service = new InformesService(prismaMock, pdfServiceMock, notificacionesMock);
+    service = new InformesService(prismaMock, pdfServiceMock, auditoriaMock as any, notificacionesMock);
   });
 
   const EVALUACION_ID = '50';

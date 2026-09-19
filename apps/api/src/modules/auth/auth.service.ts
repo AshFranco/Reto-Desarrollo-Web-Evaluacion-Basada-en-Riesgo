@@ -15,14 +15,8 @@ import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
 import { SolicitudRecuperacionDto, ResetContrasenaDto } from './dto/recuperacion-contrasena.dto';
 import { RecuperarContrasenaDto } from './dto/recuperar-contrasena.dto';
 import { RestablecerContrasenaDto } from './dto/restablecer-contrasena.dto';
-<<<<<<< HEAD
-import { authenticator } from 'otplib';
 import { EncryptionService } from '../../common/services/encryption.service';
 import { EmailService } from '../../common/services/email.service';
-=======
-import { EmailService } from '../../common/services/email.service';
-import { EncryptionService } from '../../common/services/encryption.service';
->>>>>>> origin/develop
 import { AppConfigService } from '../../config/app-config.service';
 
 export interface RequestMeta {
@@ -61,13 +55,8 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly loginThrottle: LoginThrottleService,
-<<<<<<< HEAD
     private readonly encryptionService: EncryptionService,
     private readonly emailService: EmailService,
-=======
-    private readonly emailService: EmailService,
-    private readonly encryptionService: EncryptionService,
->>>>>>> origin/develop
     private readonly config: AppConfigService,
   ) {}
 
@@ -184,22 +173,6 @@ export class AuthService {
         await this.loginThrottle.registrarIntentoFallido(usuario.id);
         throw new UnauthorizedException('Código de verificación de 6 dígitos incorrecto o expirado.');
       }
-<<<<<<< HEAD
-
-      if (!dto.codigoMfa) {
-        return { requiereMfa: true, mensaje: 'Ingrese su código de autenticación de dos factores.' };
-      }
-
-      const secretoDesencriptado = this.encryptionService.decrypt(usuario.secretoTotp);
-      authenticator.options = { window: 4 };
-      const isValid = authenticator.check(dto.codigoMfa.trim(), secretoDesencriptado);
-
-      if (!isValid) {
-        await this.loginThrottle.registrarIntentoFallido(usuario.id);
-        throw new UnauthorizedException('Código de autenticación inválido.');
-      }
-=======
->>>>>>> origin/develop
     }
 
     await this.loginThrottle.registrarLoginExitoso(usuario.id);
@@ -289,20 +262,10 @@ export class AuthService {
         enlace,
       );
 
-      const enlace = `${this.config.frontendUrl}/restablecer-contrasena?token=${resetToken}`;
-      await this.emailService.enviarRecuperacionContrasena(
-        usuario.correoElectronico,
-        usuario.nombreCompleto,
-        enlace
-      );
-
       return {
         ok: true,
         mensaje: mensajeGenerico,
-<<<<<<< HEAD
-=======
         previewUrl: resultadoEnvio.previewUrl ?? undefined,
->>>>>>> origin/develop
       };
     } catch {
       return { ok: true, mensaje: mensajeGenerico };
