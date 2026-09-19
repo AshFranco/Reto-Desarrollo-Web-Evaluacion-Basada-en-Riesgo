@@ -53,7 +53,7 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
     botonVariant = 'outlined';
     botonIcono = <VisibilityOutlinedIcon fontSize="small" />;
   } else if (estadoEvaluacion === 'DEVUELTA') {
-    botonTexto = 'Corregir evaluación';
+    botonTexto = 'Ver observaciones y corregir';
     botonVariant = 'contained';
     botonIcono = <EditOutlinedIcon fontSize="small" />;
   } else if (estadoEvaluacion === 'EN_CURSO') {
@@ -75,7 +75,7 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
     <Button
       size="small"
       variant={botonVariant}
-      color="primary"
+      color={estadoEvaluacion === 'DEVUELTA' ? 'error' : 'primary'}
       startIcon={botonIcono}
       disabled={!asignacion.evaluacionId || bloqueadoSinConexion}
       onClick={() => navigate(`/tecnico/evaluaciones/${asignacion.evaluacionId}`)}
@@ -90,6 +90,9 @@ function FilaAsignacion({ asignacion }: { asignacion: AsignacionMia }) {
       <TableCell>{new Date(asignacion.fechaAsignacion).toLocaleDateString()}</TableCell>
       <TableCell>
         <EstadoChip estado={asignacion.caso.estado} />
+      </TableCell>
+      <TableCell>
+        {estadoEvaluacion === 'DEVUELTA' ? <EstadoChip estado="Devuelta" /> : '—'}
       </TableCell>
       <TableCell>
         {bloqueadoSinConexion ? (
@@ -126,7 +129,7 @@ function TarjetaAsignacionTecnico({ asignacion }: { asignacion: AsignacionMia })
     botonVariant = 'outlined';
     botonIcono = <VisibilityOutlinedIcon fontSize="small" />;
   } else if (estadoEvaluacion === 'DEVUELTA') {
-    botonTexto = 'Corregir evaluación';
+    botonTexto = 'Ver observaciones y corregir';
     botonVariant = 'contained';
     botonIcono = <EditOutlinedIcon fontSize="small" />;
   } else if (estadoEvaluacion === 'EN_CURSO') {
@@ -149,7 +152,7 @@ function TarjetaAsignacionTecnico({ asignacion }: { asignacion: AsignacionMia })
       fullWidth
       size="small"
       variant={botonVariant}
-      color="primary"
+      color={estadoEvaluacion === 'DEVUELTA' ? 'error' : 'primary'}
       startIcon={botonIcono}
       disabled={!asignacion.evaluacionId || bloqueadoSinConexion}
       onClick={() => navigate(`/tecnico/evaluaciones/${asignacion.evaluacionId}`)}
@@ -169,7 +172,10 @@ function TarjetaAsignacionTecnico({ asignacion }: { asignacion: AsignacionMia })
             Asignado el {new Date(asignacion.fechaAsignacion).toLocaleDateString()}
           </Typography>
         </Box>
-        <EstadoChip estado={asignacion.caso.estado} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
+          <EstadoChip estado={asignacion.caso.estado} />
+          {estadoEvaluacion === 'DEVUELTA' && <EstadoChip estado="Devuelta" />}
+        </Box>
       </Box>
 
       {bloqueadoSinConexion ? (
@@ -226,6 +232,7 @@ function TablaAsignaciones() {
             <TableCell>Establecimiento</TableCell>
             <TableCell>Fecha de asignación</TableCell>
             <TableCell>Estado</TableCell>
+            <TableCell>Evaluación</TableCell>
             <TableCell>Acción</TableCell>
           </TableRow>
         </TableHead>
