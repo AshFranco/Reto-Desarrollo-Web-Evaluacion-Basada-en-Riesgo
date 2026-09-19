@@ -3,10 +3,11 @@
  * Utiliza el API nativa del navegador (window.print) para asegurar compatibilidad
  * sin dependencias externas y un peso mínimo en el bundle.
  */
+import logo from '@/assets/logo.png';
 
 function generarHtmlOriginal(caso: any): string {
   // 1. Extracción y validación de datos
-  const numeroExpediente = `EBR-${String(caso.id || 0).padStart(6, '0')}`;
+  const numeroExpediente = `SINEC-${String(caso.id || 0).padStart(6, '0')}`;
   const fechaReporte = new Date().toLocaleDateString('es-DO', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit'
@@ -112,6 +113,11 @@ function generarHtmlOriginal(caso: any): string {
       border-bottom: 2px solid #0f172a;
       padding-bottom: 15px;
       margin-bottom: 25px;
+    }
+    .header-logo {
+      height: 42px;
+      width: auto;
+      margin-bottom: 8px;
     }
     .header-section h1 {
       font-size: 16px;
@@ -242,6 +248,7 @@ function generarHtmlOriginal(caso: any): string {
   <div class="document-wrapper">
     
     <div class="header-section">
+      <img class="header-logo" src="${logo}" alt="SINEC" />
       <h1>MINISTERIO DE SALUD PÚBLICA</h1>
       <h2>DIRECCIÓN GENERAL DE MEDICAMENTOS, ALIMENTOS Y PRODUCTOS SANITARIOS</h2>
       
@@ -313,7 +320,7 @@ function generarHtmlOriginal(caso: any): string {
     </div>
 
     <div class="footer">
-      Documento generado a través del Sistema de Evaluación Basada en Riesgos (EBR/BPM).<br>
+      Documento generado a través de SINEC — Sistema de Evaluación y BPM.<br>
       Cualquier alteración a la información impresa en este certificado invalida su autenticidad legal.
     </div>
 
@@ -398,7 +405,7 @@ export function generarActaPdf(caso: any) {
     previewWindow.document.open();
     previewWindow.document.write(finalHtml);
     previewWindow.document.close();
-    previewWindow.document.title = `Acta_Inspeccion_EBR_${caso.id}`;
+    previewWindow.document.title = `Acta_Inspeccion_SINEC_${caso.id}`;
   } else {
     alert('El navegador bloqueó la apertura de la nueva pestaña. Por favor permite las ventanas emergentes (pop-ups) para ver el acta.');
   }

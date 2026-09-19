@@ -15,8 +15,8 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import { denunciaPublica, listarEmpresasPublicas, type DatosDenunciaPublica } from '@/lib/publico/denunciaPublica';
+import logo from '@/assets/logo.png';
 
 const DATOS_VACIOS: DatosDenunciaPublica = {
   tipoDenuncia: '',
@@ -83,23 +83,14 @@ export default function DenunciaPublica() {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
           <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <GavelOutlinedIcon fontSize="medium" />
-          </Box>
+            component="img"
+            src={logo}
+            alt="SINEC"
+            sx={{ width: 48, height: 48, flexShrink: 0, objectFit: 'contain' }}
+          />
           <Box>
             <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              EBR / BPM
+              SINEC
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Portal ciudadano de denuncias

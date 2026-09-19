@@ -25,7 +25,6 @@ import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import { useQueryClient } from '@tanstack/react-query';
 import { clearSession, getSession } from '@/lib/auth/session';
@@ -33,6 +32,7 @@ import { useFotoPerfil } from '@/lib/perfil/useFotoPerfil';
 import type { UsuarioLocal } from '@/lib/types';
 import { DialogPerfil } from '@/pages/perfil/DialogPerfil';
 import { NotificacionesMenu } from './NotificacionesMenu';
+import logo from '@/assets/logo.png';
 
 const sxItemNav = {
   borderRadius: 2,
@@ -81,7 +81,7 @@ export function AppLayout() {
     getSession().then((sesion) => {
       if (!cancelado) setUsuario(sesion?.usuario ?? null);
     });
-    return () => cancelado = true;
+    return () => { cancelado = true; };
   }, [location.pathname]);
 
   useEffect(() => {
@@ -219,33 +219,24 @@ export function AppLayout() {
               <MenuOutlinedIcon />
             </IconButton>
           )}
-          
+
           <Box
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: 1.5,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <ShieldOutlinedIcon sx={{ fontSize: '1.2rem' }} />
-          </Box>
+            component="img"
+            src={logo}
+            alt="SINEC"
+            sx={{ width: 32, height: 32, flexShrink: 0, objectFit: 'contain' }}
+          />
           <Box sx={{ flexGrow: 1 }}>
             <Typography variant="subtitle1" fontWeight={700} color="primary.main" sx={{ lineHeight: 1.1 }}>
-              EBR / BPM
+              SINEC
             </Typography>
             {!isMobile && (
               <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                Evaluación basada en riesgo
+                Sistema de Evaluación y BPM
               </Typography>
             )}
           </Box>
-          
+
           {usuario && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <NotificacionesMenu />

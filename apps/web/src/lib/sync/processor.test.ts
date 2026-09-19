@@ -105,13 +105,12 @@ describe('SyncProcessor', () => {
     });
   });
 
-  it('tras FINALIZAR_EVALUACION exitoso, encadena POST /informes para llegar a revisión', async () => {
+  it('FINALIZAR_EVALUACION por sí solo NO llama a POST /informes -- generar el informe es una operación aparte', async () => {
     let seLlamoInformes = false;
     server.use(
       http.post('http://localhost:3000/api/v1/evaluaciones/:id/finalizar', () => HttpResponse.json({ idEstado: 3 })),
-      http.post('http://localhost:3000/api/v1/informes', async ({ request }) => {
+      http.post('http://localhost:3000/api/v1/informes', () => {
         seLlamoInformes = true;
-        expect(await request.json()).toEqual({ evaluacionId: '42' });
         return HttpResponse.json({ id: '1' }, { status: 201 });
       })
     );
@@ -120,26 +119,8 @@ describe('SyncProcessor', () => {
     const proc = new SyncProcessor();
     await proc.procesarCola();
 
-    expect(seLlamoInformes).toBe(true);
+    expect(seLlamoInformes).toBe(false);
     expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
-  });
-
-  it('si POST /informes falla tras finalizar, encola GENERAR_INFORME aparte en vez de reintentar finalizar', async () => {
-    server.use(
-      http.post('http://localhost:3000/api/v1/evaluaciones/:id/finalizar', () => HttpResponse.json({ idEstado: 3 })),
-      http.post('http://localhost:3000/api/v1/informes', () =>
-        HttpResponse.json({ message: 'Error interno' }, { status: 500 })
-      )
-    );
-
-    const uuid = await enqueue('FINALIZAR_EVALUACION', { evaluacionServerId: '42', observacionesFinales: undefined });
-    const proc = new SyncProcessor();
-    await proc.procesarCola();
-
-    expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
-    const pendientesInforme = await db.cola_sync.where('tipo').equals('GENERAR_INFORME').toArray();
-    expect(pendientesInforme).toHaveLength(1);
-    expect(pendientesInforme[0]?.payload).toEqual({ evaluacionServerId: '42' });
   });
 
   it('reintenta GENERAR_INFORME encolado hasta que el backend lo acepta', async () => {

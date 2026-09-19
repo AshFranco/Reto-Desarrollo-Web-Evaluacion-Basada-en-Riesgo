@@ -12,9 +12,9 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import { registro, type DatosRegistro, type RolRegistrable } from '@/lib/auth/registro';
 import { useEmpresasPublicas } from '@/lib/empresa/useEmpresas';
+import logo from '@/assets/logo.png';
 
 const ROLES: { valor: RolRegistrable; etiqueta: string }[] = [
   { valor: 'ADMINISTRADOR_EMPRESA', etiqueta: 'Administrador de empresa' },
@@ -78,26 +78,17 @@ export default function Registro() {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
           <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <ShieldOutlinedIcon fontSize="medium" />
-          </Box>
+            component="img"
+            src={logo}
+            alt="SINEC"
+            sx={{ width: 48, height: 48, flexShrink: 0, objectFit: 'contain' }}
+          />
           <Box>
             <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              EBR / BPM
+              SINEC
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Evaluación Basada en Riesgo
+              Sistema de Evaluación y BPM
             </Typography>
           </Box>
         </Box>

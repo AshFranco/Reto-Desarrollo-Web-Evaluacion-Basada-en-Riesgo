@@ -26,7 +26,7 @@ function renderPantalla() {
 describe('DenunciaPublica', () => {
   it('NO tiene la barra de navegación (sin sesión, sin AppLayout)', () => {
     renderPantalla();
-    expect(screen.queryByText('EBR / BPM')).toBeInTheDocument();
+    expect(screen.queryByText('SINEC')).toBeInTheDocument();
     // AppLayout siempre incluye "Cerrar sesión" en el menú de usuario -- si apareciera acá sería una fuga del layout autenticado.
     expect(screen.queryByText('Cerrar sesión')).not.toBeInTheDocument();
   });

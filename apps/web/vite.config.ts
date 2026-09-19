@@ -18,8 +18,8 @@ export default defineConfig({
         globIgnores: ['**/mockServiceWorker.js'],
       },
       manifest: {
-        name: 'EBR — Evaluación Basada en Riesgo',
-        short_name: 'EBR',
+        name: 'SINEC — Sistema de Evaluación y BPM',
+        short_name: 'SINEC',
         description: 'Sistema de inspección BPM para DIGEMAPS',
         lang: 'es',
         start_url: '/',

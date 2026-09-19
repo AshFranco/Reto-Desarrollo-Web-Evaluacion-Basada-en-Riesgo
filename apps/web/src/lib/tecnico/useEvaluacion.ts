@@ -142,24 +142,16 @@ export function useResponderItem() {
  * ("Faltan respuestas: X/Y ítems respondidos."). También falla si la
  * evaluación ya estaba bloqueada (ya se había finalizado antes).
  *
- * BUG REAL encontrado y corregido acá: `finalizar()` por sí solo deja la
- * evaluación en FINALIZADA, NO en EN_REVISION -- confirmado en vivo que el
- * Coordinador no puede revisarla hasta ese punto (PATCH /informes/:id/revisar
- * responde 400 "La evaluación no está en revisión."). El paso que realmente
- * mueve FINALIZADA -> EN_REVISION es `POST /informes` (informes.service.ts#generar).
- * Antes de este fix, el frontend nunca llamaba a ese endpoint, así que
- * ninguna evaluación llegaba jamás a la bandeja del Coordinador en un uso
- * real de la app. Se encadena acá, después de que finalizar() confirma éxito.
- *
- * Si finalizar() tiene éxito pero la generación del informe falla (ej. un
- * corte de red justo en el medio), NO se reintenta finalizar() -- ya
- * quedó bloqueada=true en el servidor, y un segundo POST /finalizar
- * respondería 403 "ya fue enviada previamente". POST /informes sí es
- * seguro de reintentar (usa upsert en el backend), así que ese fallo se
- * devuelve aparte (`advertenciaInforme`) para que la pantalla avise sin
- * hacer parecer que finalizar falló.
+ * BUG REAL que existió en algún momento: `finalizar()` por sí solo deja la
+ * evaluación en FINALIZADA, NO en EN_REVISION -- el paso que realmente
+ * mueve FINALIZADA -> EN_REVISION es `POST /informes`
+ * (informes.service.ts#generar). Este hook YA NO encadena esa llamada:
+ * finalizar() deja la evaluación bloqueada/calculada, y generar el informe
+ * es un paso explícito y separado que el técnico dispara desde la pantalla
+ * de resultado (ver `useGenerarInforme` más abajo), para que pueda revisar
+ * el cálculo de riesgo antes de mandarlo al Coordinador.
  */
-  export function useFinalizarEvaluacion() {
+export function useFinalizarEvaluacion() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (evaluacionId: string) => {
