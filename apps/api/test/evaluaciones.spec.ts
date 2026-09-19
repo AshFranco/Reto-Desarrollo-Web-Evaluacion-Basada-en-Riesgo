@@ -4,6 +4,7 @@ import { EvaluacionesService } from '../src/modules/evaluaciones/evaluaciones.se
 describe('EvaluacionesService', () => {
   let service: EvaluacionesService;
   let prismaMock: any;
+  let notificacionesMock: any;
 
   beforeEach(() => {
     prismaMock = {
@@ -37,7 +38,9 @@ describe('EvaluacionesService', () => {
       $transaction: jest.fn().mockImplementation(async (fns) => Promise.all(fns)),
     };
 
-    service = new EvaluacionesService(prismaMock);
+    notificacionesMock = { crear: jest.fn() };
+
+    service = new EvaluacionesService(prismaMock, notificacionesMock);
   });
 
   const EVALUADOR_ID = '10';
@@ -208,6 +211,46 @@ describe('EvaluacionesService', () => {
         }),
       });
       expect(prismaMock.historialEstado.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('corregir', () => {
+    it('notifica al coordinador cuando el técnico reenvía correcciones', async () => {
+      prismaMock.evaluacion.findUnique.mockResolvedValue({
+        id: 50n,
+        idEvaluador: 10n,
+        bloqueada: false,
+        idVersionFicha: 1n,
+        idEstado: 6,
+      });
+      prismaMock.evaluacion.update.mockResolvedValue({ id: 50n, idEvaluador: 10n, idCoordinador: 20n, idEstado: 2 });
+      prismaMock.opcionRespuesta.findMany.mockResolvedValue([]);
+      prismaMock.nivelCriticidad.findMany.mockResolvedValue([]);
+      prismaMock.estadoEvaluacion.findUniqueOrThrow.mockResolvedValue({ id: 2, codigo: 'EN_CURSO' });
+
+      await service.corregir(EVALUACION_ID, EVALUADOR_ID, { respuestas: [] });
+
+      expect(notificacionesMock.crear).toHaveBeenCalledWith(
+        expect.objectContaining({ idUsuario: 20n, tipo: 'CORRECCION_REENVIADA' }),
+      );
+    });
+
+    it('no notifica si la evaluación no tiene coordinador asignado', async () => {
+      prismaMock.evaluacion.findUnique.mockResolvedValue({
+        id: 50n,
+        idEvaluador: 10n,
+        bloqueada: false,
+        idVersionFicha: 1n,
+        idEstado: 6,
+      });
+      prismaMock.evaluacion.update.mockResolvedValue({ id: 50n, idEvaluador: 10n, idCoordinador: null, idEstado: 2 });
+      prismaMock.opcionRespuesta.findMany.mockResolvedValue([]);
+      prismaMock.nivelCriticidad.findMany.mockResolvedValue([]);
+      prismaMock.estadoEvaluacion.findUniqueOrThrow.mockResolvedValue({ id: 2, codigo: 'EN_CURSO' });
+
+      await service.corregir(EVALUACION_ID, EVALUADOR_ID, { respuestas: [] });
+
+      expect(notificacionesMock.crear).not.toHaveBeenCalled();
     });
   });
 });

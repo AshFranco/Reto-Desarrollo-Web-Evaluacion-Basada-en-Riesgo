@@ -4,6 +4,7 @@ import { CalendarioService } from '../src/modules/calendario/calendario.service'
 describe('CalendarioService', () => {
   let service: CalendarioService;
   let prismaMock: any;
+  let notificacionesMock: any;
 
   beforeEach(() => {
     prismaMock = {
@@ -15,8 +16,9 @@ describe('CalendarioService', () => {
         findFirst: jest.fn(),
       },
     };
+    notificacionesMock = { crear: jest.fn() };
 
-    service = new CalendarioService(prismaMock);
+    service = new CalendarioService(prismaMock, notificacionesMock);
   });
 
   const EVALUACION_ID = '50';
@@ -48,6 +50,35 @@ describe('CalendarioService', () => {
         data: { idEstado: 8n },
       });
       expect(resultado.evaluacion.idEstado).toBe(8n);
+    });
+
+    it('notifica al técnico evaluador tras cancelar', async () => {
+      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 1n, idEvaluador: 10n });
+      prismaMock.estadoEvaluacion.findFirst.mockResolvedValue({ id: 8n, codigo: 'CANCELADA' });
+      prismaMock.evaluacion.update.mockResolvedValue({ id: 50n, idEstado: 8n, idEvaluador: 10n });
+
+      await service.cancelar(EVALUACION_ID, 'Cliente no disponible');
+
+      expect(notificacionesMock.crear).toHaveBeenCalledWith(
+        expect.objectContaining({ idUsuario: 10n, tipo: 'CITA_CANCELADA' }),
+      );
+    });
+  });
+
+  describe('reprogramar', () => {
+    it('notifica al técnico evaluador tras reprogramar', async () => {
+      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEvaluador: 10n });
+      prismaMock.evaluacion.update.mockResolvedValue({
+        id: 50n,
+        idEvaluador: 10n,
+        fechaProgramada: new Date('2026-10-01'),
+      });
+
+      await service.reprogramar(EVALUACION_ID, '2026-10-01');
+
+      expect(notificacionesMock.crear).toHaveBeenCalledWith(
+        expect.objectContaining({ idUsuario: 10n, tipo: 'CITA_REPROGRAMADA' }),
+      );
     });
   });
 });
