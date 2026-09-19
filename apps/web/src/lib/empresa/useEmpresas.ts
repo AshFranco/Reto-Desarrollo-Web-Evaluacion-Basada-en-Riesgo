@@ -24,6 +24,26 @@ export function useEmpresas() {
   });
 }
 
+/** Forma real de GET /empresas/publicas (empresas.service.ts#listarPublicas) — id, razonSocial, rnc, nombreComercial, nada más. */
+export interface EmpresaPublica {
+  id: string;
+  razonSocial: string;
+  rnc: string;
+  nombreComercial: string | null;
+}
+
+/**
+ * GET /empresas/publicas — ruta @Public() (empresas.controller.ts), no
+ * requiere sesión. Es lo que usa la pantalla de registro (sin login) para
+ * ofrecer un selector real de empresa en vez de pedir el ID a mano.
+ */
+export function useEmpresasPublicas() {
+  return useQuery({
+    queryKey: ['empresas', 'publicas'],
+    queryFn: () => apiFetchJson<EmpresaPublica[]>('/api/v1/empresas/publicas'),
+  });
+}
+
 /** GET /empresas/:id — es el único que trae `establecimientos` incluidos. */
 export function useEmpresa(id: string | null | undefined) {
   return useQuery({

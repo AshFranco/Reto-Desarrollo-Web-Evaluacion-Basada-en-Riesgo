@@ -10,6 +10,7 @@ import {
   FinalizarEvaluacionDto,
 } from './dto/registrar-respuestas.dto';
 import { RolUsuario } from '../../common/enums';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 
 /**
@@ -23,7 +24,10 @@ import { RolUsuario } from '../../common/enums';
  */
 @Injectable()
 export class EvaluacionesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificaciones: NotificacionesService,
+  ) {}
 
   /** RF-04 (Dashboard Técnico) / RF-11 (Calendario): lista las evaluaciones del técnico. */
   async listarMias(tecnicoId: string) {
@@ -282,6 +286,17 @@ export class EvaluacionesService {
     });
 
     await this.registrarHistorial(evaluacion.id, evaluacion.idEstado, estadoEnCurso.id, tecnicoId);
+
+    if (actualizada.idCoordinador) {
+      await this.notificaciones.crear({
+        idUsuario: actualizada.idCoordinador,
+        tipo: 'CORRECCION_REENVIADA',
+        titulo: 'Corrección reenviada',
+        mensaje: `El técnico reenvió correcciones de la evaluación #${evaluacionId} para su revisión.`,
+        entidad: 'evaluacion',
+        idEntidad: actualizada.id,
+      });
+    }
 
     return { mensaje: 'Correcciones registradas exitosamente.', evaluacion: this.serializar(actualizada) };
   }

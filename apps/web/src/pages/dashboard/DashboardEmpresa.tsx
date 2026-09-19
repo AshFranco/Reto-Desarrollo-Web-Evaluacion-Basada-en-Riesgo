@@ -7,7 +7,13 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Paper,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -21,6 +27,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import DomainOutlinedIcon from '@mui/icons-material/DomainOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import { useSesion } from '@/lib/auth/useSesion';
 import { silentRefresh } from '@/lib/auth/refresh';
 import {
@@ -31,6 +38,11 @@ import {
 } from '@/lib/empresa/useEmpresas';
 import { useSolicitudesPropias } from '@/lib/empresa/useSolicitudes';
 import { useEstablecimientos } from '@/lib/empresa/useEstablecimientos';
+import {
+  useDelegados,
+  useInvitarDelegado,
+  useCambiarEstadoDelegado,
+} from '@/lib/empresa/useDelegados';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { EstadoVacio } from '@/components/ui/EstadoVacio';
@@ -474,6 +486,136 @@ function ListaEstablecimientos() {
   );
 }
 
+function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const invitar = useInvitarDelegado();
+  const [nombreCompleto, setNombreCompleto] = useState('');
+  const [correoElectronico, setCorreoElectronico] = useState('');
+  const [cedulaPasaporte, setCedulaPasaporte] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleInvitar() {
+    setError(null);
+    try {
+      await invitar.mutateAsync({ nombreCompleto, correoElectronico, cedulaPasaporte });
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al invitar al delegado');
+    }
+  }
+
+  function handleClose() {
+    setNombreCompleto('');
+    setCorreoElectronico('');
+    setCedulaPasaporte('');
+    setError(null);
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Invitar nuevo delegado</DialogTitle>
+      <DialogContent>
+        <DialogContentText sx={{ mb: 2 }}>
+          Ingresa los datos del nuevo usuario delegado. La contraseña por defecto será <strong>Digemaps2026!</strong>.
+        </DialogContentText>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <TextField
+          autoFocus
+          margin="dense"
+          label="Nombre completo"
+          fullWidth
+          required
+          value={nombreCompleto}
+          onChange={(e) => setNombreCompleto(e.target.value)}
+          disabled={invitar.isPending}
+        />
+        <TextField
+          margin="dense"
+          label="Correo electrónico"
+          type="email"
+          fullWidth
+          required
+          value={correoElectronico}
+          onChange={(e) => setCorreoElectronico(e.target.value)}
+          disabled={invitar.isPending}
+        />
+        <TextField
+          margin="dense"
+          label="Cédula o pasaporte"
+          fullWidth
+          required
+          value={cedulaPasaporte}
+          onChange={(e) => setCedulaPasaporte(e.target.value)}
+          disabled={invitar.isPending}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={invitar.isPending}>Cancelar</Button>
+        <Button
+          onClick={handleInvitar}
+          variant="contained"
+          disabled={invitar.isPending || !nombreCompleto || !correoElectronico || !cedulaPasaporte}
+        >
+          {invitar.isPending ? <CircularProgress size={20} /> : 'Invitar'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function ListaDelegados() {
+  const { data: delegados, isLoading, isError, error } = useDelegados();
+  const cambiarEstado = useCambiarEstadoDelegado();
+
+  if (isLoading) return <EstadoCarga />;
+  if (isError) return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los delegados'}</Alert>;
+  
+  if (!delegados || delegados.length === 0) {
+    return <EstadoVacio titulo="Aún no has invitado a ningún delegado." icono={<GroupOutlinedIcon fontSize="large" />} />;
+  }
+
+  async function handleToggleEstado(id: string, estadoActual: string) {
+    const nuevoEstado = estadoActual === 'APROBADO' ? 'INACTIVO' : 'APROBADO';
+    try {
+      await cambiarEstado.mutateAsync({ id, estado: nuevoEstado });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Nombre</TableCell>
+            <TableCell>Correo</TableCell>
+            <TableCell>Fecha de ingreso</TableCell>
+            <TableCell align="center">Activo</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {delegados.map((d) => (
+            <TableRow key={d.id}>
+              <TableCell>{d.nombreCompleto}</TableCell>
+              <TableCell>{d.correoElectronico}</TableCell>
+              <TableCell>{new Date(d.fechaCreacion).toLocaleDateString()}</TableCell>
+              <TableCell align="center">
+                <Switch
+                  checked={d.estado === 'APROBADO'}
+                  onChange={() => handleToggleEstado(d.id, d.estado)}
+                  disabled={cambiarEstado.isPending && cambiarEstado.variables?.id === d.id}
+                  size="small"
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 function ResumenEmpresa() {
   const { data: establecimientos } = useEstablecimientos();
   const { data: solicitudes } = useSolicitudesPropias();
@@ -488,6 +630,7 @@ function ResumenEmpresa() {
 
 export default function DashboardEmpresa() {
   const { sesion, cargando } = useSesion();
+  const [openInvitar, setOpenInvitar] = useState(false);
 
   if (cargando) return <EstadoCarga etiqueta="Cargando tu panel…" />;
 
@@ -516,7 +659,7 @@ export default function DashboardEmpresa() {
         {empresaId ? <SeccionEmpresa empresaId={empresaId} puedeEditar={puedeEditar} /> : <FormularioCrearEmpresa />}
       </Box>
 
-      {empresaId && (
+      {empresaId && puedeEditar && (
         <Box>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 1 }}>
             <Typography variant="h6">Mis establecimientos</Typography>
@@ -525,6 +668,19 @@ export default function DashboardEmpresa() {
             </Button>
           </Box>
           <ListaEstablecimientos />
+        </Box>
+      )}
+
+      {empresaId && puedeEditar && (
+        <Box>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 1 }}>
+            <Typography variant="h6">Gestión de delegados</Typography>
+            <Button variant="outlined" onClick={() => setOpenInvitar(true)}>
+              Invitar delegado
+            </Button>
+          </Box>
+          <ListaDelegados />
+          <DialogInvitarDelegado open={openInvitar} onClose={() => setOpenInvitar(false)} />
         </Box>
       )}
 

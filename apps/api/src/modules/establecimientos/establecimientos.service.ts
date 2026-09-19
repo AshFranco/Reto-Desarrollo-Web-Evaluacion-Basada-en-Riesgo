@@ -4,7 +4,7 @@ import { CrearEstablecimientoDto, ActualizarEstablecimientoDto } from './dto/est
 import { JwtPayload } from '../auth/token.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
-const ROLES_EMPRESA = ['ADMINISTRADOR_EMPRESA', 'USUARIO_DELEGADO'];
+const ROLES_EMPRESA = ['ADMINISTRADOR_EMPRESA'];
 
 /**
  * `establecimiento` es la entidad sobre la que giran los flujos reales:

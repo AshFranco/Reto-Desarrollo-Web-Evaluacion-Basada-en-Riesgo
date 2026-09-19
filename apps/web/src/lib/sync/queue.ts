@@ -2,11 +2,24 @@ import { db, type OperacionPendiente } from '@/lib/db';
 
 const MAX_INTENTOS = 10;
 
+/**
+ * Date.now() puede repetirse entre dos enqueue() en el mismo milisegundo
+ * (común con Promise.all o encolados en ráfaga), rompiendo el orden FIFO
+ * que getPendientes()/SyncProcessor asumen al ordenar por timestamp. Este
+ * contador garantiza que cada timestamp sea estrictamente mayor al anterior.
+ */
+let ultimoTimestamp = 0;
+function timestampMonotono(): number {
+  const ahora = Date.now();
+  ultimoTimestamp = ahora > ultimoTimestamp ? ahora : ultimoTimestamp + 1;
+  return ultimoTimestamp;
+}
+
 export async function enqueue(tipo: OperacionPendiente['tipo'], payload: object): Promise<string> {
   const uuidLocal = crypto.randomUUID();
   await db.cola_sync.add({
     uuidLocal, tipo, payload,
-    timestamp: Date.now(),
+    timestamp: timestampMonotono(),
     intentos: 0,
     estado: 'pendiente',
   });

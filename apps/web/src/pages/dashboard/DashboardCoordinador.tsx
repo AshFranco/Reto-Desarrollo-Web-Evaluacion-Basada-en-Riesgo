@@ -43,7 +43,13 @@ import { useCasos, useCasoDetalle, useAsignarEvaluador, useDesasignarEvaluador }
 import { useTecnicos } from '@/lib/coordinador/useTecnicos';
 import { ModalInspeccionCaso } from '@/components/casos/ModalInspeccionCaso';
 
-import { useCalendario } from '@/lib/coordinador/useCalendario';
+import {
+  useCalendario,
+  useCalendarioEquipo,
+  useReprogramarEvaluacion,
+  type EvaluacionCalendario,
+} from '@/lib/coordinador/useCalendario';
+import EventRepeatOutlinedIcon from '@mui/icons-material/EventRepeatOutlined';
 import {
   useInformesPendientes,
   useInformesDevueltos,
@@ -612,24 +618,192 @@ function TablaCasos() {
 }
 
 
+/**
+ * Diálogo de reprogramar, compartido entre la vista combinada y la
+ * individual. Body confirmado contra ReprogramarCitaDto
+ * (calendario.controller.ts): nuevaFecha obligatoria, comentario opcional.
+ * No hay acción de "cancelar" a propósito -- confirmado en vivo que
+ * PATCH /calendario/:id/cancelar responde 200 pero no cambia nada (no
+ * existe ningún estado CANCELADA/CANCELADO en el catálogo sembrado), así
+ * que no se ofrece esa opción para no sugerir algo que no funciona.
+ */
+function DialogoReprogramar({
+  evaluacion,
+  open,
+  onClose,
+}: {
+  evaluacion: EvaluacionCalendario | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const reprogramar = useReprogramarEvaluacion();
+  const [nuevaFecha, setNuevaFecha] = useState('');
+  const [comentario, setComentario] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirmar() {
+    if (!evaluacion) return;
+    if (!nuevaFecha) {
+      setError('Elegí la nueva fecha.');
+      return;
+    }
+    setError(null);
+    try {
+      await reprogramar.mutateAsync({ id: evaluacion.id, nuevaFecha, comentario: comentario.trim() || undefined });
+      setNuevaFecha('');
+      setComentario('');
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al reprogramar la evaluación');
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={() => {
+        setError(null);
+        onClose();
+      }}
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Reprogramar evaluación</DialogTitle>
+      <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <DialogContentText sx={{ mb: 2 }}>
+          {evaluacion?.establecimiento.nombre}
+        </DialogContentText>
+        <TextField
+          label="Nueva fecha"
+          type="date"
+          required
+          fullWidth
+          margin="dense"
+          value={nuevaFecha}
+          onChange={(e) => setNuevaFecha(e.target.value)}
+          disabled={reprogramar.isPending}
+          InputLabelProps={{ shrink: true }}
+        />
+        <TextField
+          label="Comentario (opcional)"
+          fullWidth
+          multiline
+          rows={2}
+          margin="dense"
+          value={comentario}
+          onChange={(e) => setComentario(e.target.value)}
+          disabled={reprogramar.isPending}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={reprogramar.isPending}>
+          Cancelar
+        </Button>
+        <Button variant="contained" disabled={reprogramar.isPending} onClick={confirmar}>
+          {reprogramar.isPending ? <CircularProgress size={18} /> : 'Reprogramar'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function TablaEventos({
+  eventos,
+  isMobile,
+  onReprogramar,
+}: {
+  eventos: EvaluacionCalendario[];
+  isMobile: boolean;
+  onReprogramar: (ev: EvaluacionCalendario) => void;
+}) {
+  if (isMobile) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {eventos.map((ev) => (
+          <Paper key={ev.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              {ev.establecimiento.nombre}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, mb: 1 }}>
+              Fecha programada: <strong>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha asignada'}</strong>
+            </Typography>
+            <Button size="small" startIcon={<EventRepeatOutlinedIcon fontSize="small" />} onClick={() => onReprogramar(ev)}>
+              Reprogramar
+            </Button>
+          </Paper>
+        ))}
+      </Box>
+    );
+  }
+
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Establecimiento</TableCell>
+            <TableCell>Fecha programada</TableCell>
+            <TableCell align="right">Acción</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {eventos.map((ev) => (
+            <TableRow key={ev.id}>
+              <TableCell>{ev.establecimiento.nombre}</TableCell>
+              <TableCell>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha'}</TableCell>
+              <TableCell align="right">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EventRepeatOutlinedIcon fontSize="small" />}
+                  onClick={() => onReprogramar(ev)}
+                >
+                  Reprogramar
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+/**
+ * Por defecto muestra el calendario combinado de todo el equipo (agrupado
+ * por técnico) -- confirmado en vivo que GET /calendario sin evaluadorId ya
+ * no da 400 para COORDINADOR/ADMINISTRADOR, devuelve
+ * obtenerCalendarioEquipo(). El selector de técnico es un filtro opcional:
+ * si se elige uno, cambia a la vista individual (useCalendario), que ya
+ * existía.
+ */
 function Calendario() {
   const { data: tecnicos, isLoading: cargandoTecnicos } = useTecnicos();
   const [evaluadorId, setEvaluadorId] = useState('');
-  const { data: eventos, isLoading, isError, error } = useCalendario(evaluadorId || undefined);
+  const [evaluacionReprogramar, setEvaluacionReprogramar] = useState<EvaluacionCalendario | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const vistaEquipo = useCalendarioEquipo();
+  const vistaIndividual = useCalendario(evaluadorId || undefined);
 
   return (
     <Box>
       <TextField
         select
-        label="Técnico Evaluador"
+        label="Filtrar por técnico (opcional)"
         size="small"
-        sx={{ minWidth: 260, mb: 2 }}
+        sx={{ minWidth: 280, mb: 2 }}
         value={evaluadorId}
         onChange={(e) => setEvaluadorId(e.target.value)}
         disabled={cargandoTecnicos}
       >
+        <MenuItem value="">— Todo el equipo —</MenuItem>
         {(tecnicos ?? []).map((t) => (
           <MenuItem key={t.id} value={t.id}>
             {t.nombreCompleto}
@@ -637,52 +811,58 @@ function Calendario() {
         ))}
       </TextField>
 
-      {!evaluadorId && (
-        <Typography color="text.secondary">Selecciona un técnico para ver su calendario.</Typography>
+      {!evaluadorId ? (
+        <>
+          {vistaEquipo.isLoading && <CircularProgress size={24} />}
+          {vistaEquipo.isError && (
+            <Alert severity="error">
+              {vistaEquipo.error instanceof Error ? vistaEquipo.error.message : 'Error al cargar el calendario'}
+            </Alert>
+          )}
+          {vistaEquipo.data && vistaEquipo.data.length === 0 && (
+            <Typography color="text.secondary">No hay evaluaciones programadas en el equipo.</Typography>
+          )}
+          {vistaEquipo.data && vistaEquipo.data.length > 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {vistaEquipo.data.map((tecnico) => (
+                <Box key={tecnico.evaluadorId}>
+                  <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                    {tecnico.nombreCompleto} · {tecnico.evaluaciones.length} evaluación(es)
+                  </Typography>
+                  {tecnico.evaluaciones.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Sin evaluaciones programadas.
+                    </Typography>
+                  ) : (
+                    <TablaEventos eventos={tecnico.evaluaciones} isMobile={isMobile} onReprogramar={setEvaluacionReprogramar} />
+                  )}
+                </Box>
+              ))}
+            </Box>
+          )}
+        </>
+      ) : (
+        <>
+          {vistaIndividual.isLoading && <CircularProgress size={24} />}
+          {vistaIndividual.isError && (
+            <Alert severity="error">
+              {vistaIndividual.error instanceof Error ? vistaIndividual.error.message : 'Error al cargar el calendario'}
+            </Alert>
+          )}
+          {vistaIndividual.data && vistaIndividual.data.length === 0 && (
+            <Typography color="text.secondary">Este técnico no tiene evaluaciones programadas.</Typography>
+          )}
+          {vistaIndividual.data && vistaIndividual.data.length > 0 && (
+            <TablaEventos eventos={vistaIndividual.data} isMobile={isMobile} onReprogramar={setEvaluacionReprogramar} />
+          )}
+        </>
       )}
 
-      {evaluadorId && isLoading && <CircularProgress size={24} />}
-      {evaluadorId && isError && (
-        <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar el calendario'}</Alert>
-      )}
-      {evaluadorId && eventos && eventos.length === 0 && (
-        <Typography color="text.secondary">Este técnico no tiene evaluaciones programadas.</Typography>
-      )}
-      {evaluadorId && eventos && eventos.length > 0 && (
-        isMobile ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {eventos.map((ev) => (
-              <Paper key={ev.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight={700}>
-                  {ev.establecimiento.nombre}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  Fecha programada: <strong>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha asignada'}</strong>
-                </Typography>
-              </Paper>
-            ))}
-          </Box>
-        ) : (
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Establecimiento</TableCell>
-                  <TableCell>Fecha programada</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {eventos.map((ev) => (
-                  <TableRow key={ev.id}>
-                    <TableCell>{ev.establecimiento.nombre}</TableCell>
-                    <TableCell>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )
-      )}
+      <DialogoReprogramar
+        evaluacion={evaluacionReprogramar}
+        open={!!evaluacionReprogramar}
+        onClose={() => setEvaluacionReprogramar(null)}
+      />
     </Box>
   );
 }

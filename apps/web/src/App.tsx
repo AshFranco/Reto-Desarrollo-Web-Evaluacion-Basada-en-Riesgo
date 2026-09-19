@@ -7,6 +7,7 @@ import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { theme } from '@/theme';
 import Login from '@/pages/Login';
 import RestablecerContrasena from '@/pages/RestablecerContrasena';
+import Registro from '@/pages/Registro';
 import NoAutorizado from '@/pages/NoAutorizado';
 import { RoleRoute } from '@/routes/RoleRoute';
 import { AppLayout } from '@/layouts/AppLayout';
@@ -18,6 +19,9 @@ import DashboardEmpresa from '@/pages/dashboard/DashboardEmpresa';
 import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
 import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento';
 import ConsultaHistorica from '@/pages/historico/ConsultaHistorica';
+import DenunciaPublica from '@/pages/publico/DenunciaPublica';
+import AlertasLapch from '@/pages/coordinador/AlertasLapch';
+import Denuncias from '@/pages/coordinador/Denuncias';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +52,8 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
+            <Route path="/registro" element={<Registro />} />
+            <Route path="/denuncia-publica" element={<DenunciaPublica />} />
             <Route path="/no-autorizado" element={<NoAutorizado />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -60,6 +66,13 @@ export default function App() {
             <Route element={<RoleRoute rolesPermitidos={['COORDINADOR']} />}>
               <Route element={<AppLayout />}>
                 <Route path="/coordinador" element={<DashboardCoordinador />} />
+              </Route>
+            </Route>
+
+            <Route element={<RoleRoute rolesPermitidos={['ADMINISTRADOR', 'COORDINADOR']} />}>
+              <Route element={<AppLayout />}>
+                <Route path="/alertas-lapch" element={<AlertasLapch />} />
+                <Route path="/denuncias" element={<Denuncias />} />
               </Route>
             </Route>
 

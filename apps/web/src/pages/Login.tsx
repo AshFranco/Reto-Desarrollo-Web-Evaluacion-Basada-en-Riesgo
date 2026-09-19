@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link,
   Paper,
   TextField,
   Typography,
@@ -234,6 +235,20 @@ export default function Login() {
                 ¿Olvidaste tu contraseña?
               </Button>
             </Box>
+
+            <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
+              ¿No tenés cuenta?{' '}
+              <Link component={RouterLink} to="/registro" underline="hover">
+                Registrate
+              </Link>
+            </Typography>
+
+            <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
+              ¿Querés hacer una denuncia sin iniciar sesión?{' '}
+              <Link component={RouterLink} to="/denuncia-publica" underline="hover">
+                Denunciá acá
+              </Link>
+            </Typography>
           </>
         )}
       </Paper>

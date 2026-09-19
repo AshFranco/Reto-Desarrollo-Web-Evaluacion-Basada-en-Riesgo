@@ -2,12 +2,14 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
 import { PdfService } from '../../common/services/pdf.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class InformesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   async generarPdf(evaluacionId: string): Promise<Buffer> {
@@ -125,6 +127,19 @@ export class InformesService {
         data: { idEstado: nuevoEstado.id, idCoordinador: BigInt(coordinadorId), fechaRevision: new Date() },
       });
       return { ...actualizada, id: actualizada.id.toString(), accion: dto.accion };
+    }).then(async (resultado) => {
+      const esAprobacion = dto.accion === 'APROBAR';
+      await this.notificaciones.crear({
+        idUsuario: evaluacion.idEvaluador,
+        tipo: esAprobacion ? 'INFORME_APROBADO' : 'INFORME_DEVUELTO',
+        titulo: esAprobacion ? 'Informe aprobado' : 'Informe devuelto para corrección',
+        mensaje: esAprobacion
+          ? `Su informe de la evaluación #${evaluacionId} fue aprobado.`
+          : `Su informe de la evaluación #${evaluacionId} fue devuelto.${dto.observaciones ? ` Observaciones: ${dto.observaciones}` : ''}`,
+        entidad: 'evaluacion',
+        idEntidad: evaluacionId,
+      });
+      return resultado;
     });
   }
 

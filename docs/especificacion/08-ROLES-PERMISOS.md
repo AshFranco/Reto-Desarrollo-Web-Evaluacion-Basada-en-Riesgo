@@ -25,9 +25,10 @@ Definir la matriz RBAC del sistema EBR/BPM a partir de los roles del SRS y del u
 | Configurar catálogos/parámetros | 🔵 | ❌ | ❌ | ❌ | ❌ |
 | Aprobar/rechazar registro de usuario | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Gestionar empresa (crear/editar) | ✅ | ✅ (la propia) | ❌ | ✅ | ❌ |
-| Gestionar establecimiento | 🔵 | 🔵 (el propio) | ❌ | ❌ | ❌ |
+| Gestionar establecimiento (crear/editar) | ✅ | ✅ (el propio) | ❌ | ✅ | ❌ |
 | Crear solicitud BPM | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Enviar solicitud BPM | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Adjuntar documentación a solicitud BPM (croquis, memoria descriptiva) | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Registrar alerta LAPCH | ✅ | ❌ | ❌ | ✅ | ❌ |
 | Registrar denuncia | ✅ | ❌ | ❌ | ✅ | ❌ |
 | Ver casos | ✅ (todos) | 🟡 (propios, vía `casos`) | 🟡 (propios) | ✅ (todos) | 🟡 (asignados) |
@@ -70,5 +71,8 @@ Esta restricción de alcance depende hoy exclusivamente de la capa de aplicació
 
 - Si el modelo de permisos granulares M:N (`rol_permiso`) debe activarse eventualmente, o si el modelo simplificado de "un rol principal" es aceptable para producción.
 - Permisos exactos de reasignación de evaluador (¿el Administrador puede reasignar directamente, o solo el Coordinador?).
-- Si un Usuario Delegado tiene exactamente los mismos permisos que un Administrador Empresa, o hay una diferencia de alcance dentro de la misma empresa (el SRS solo dice que "actúa en representación de la empresa", sin más detalle).
 - Alcance de auditoría por rol (quién puede consultar el módulo de auditoría, hoy sin implementar).
+
+### Resuelto: Usuario Delegado vs Administrador Empresa
+
+Decisión de producto (2026-09-18): el Usuario Delegado **actúa en representación de la empresa para trámites** (crear/enviar/adjuntar solicitudes BPM), pero **no administra los datos de la empresa**. Solo el Administrador Empresa puede crear/editar la empresa y sus establecimientos. Implementado quitando `USUARIO_DELEGADO` de los guards `@Roles()` de `POST /empresas`, `POST /establecimientos` y `PATCH /establecimientos/:id` (el `PATCH /empresas/:id` ya lo restringía correctamente).

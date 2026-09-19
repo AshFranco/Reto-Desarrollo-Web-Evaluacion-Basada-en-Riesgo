@@ -14,6 +14,7 @@ import {
 } from '@nestjs/swagger';
 import { EmpresasService } from './empresas.service';
 import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
+import { InvitarDelegadoDto, EstadoDelegadoDto } from './dto/delegados.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -32,12 +33,48 @@ export class EmpresasController {
     return this.empresasService.listarPublicas();
   }
 
+  // --- Gestión de Delegados ---
+  // IMPORTANTE: estas rutas estáticas deben declararse ANTES que @Get(':id') y
+  // @Patch(':id') para que Express/NestJS no las capture como parámetro dinámico.
+
+  @Get('delegados')
+  @Roles(RolUsuario.ADMINISTRADOR_EMPRESA)
+  @ApiOperation({ summary: 'Listar delegados de la empresa' })
+  @ApiResponse({ status: 200, description: 'Lista de usuarios delegados.' })
+  listarDelegados(@CurrentUser() user: JwtPayload) {
+    if (!user.empresaId) return [];
+    return this.empresasService.listarDelegados(user.empresaId);
+  }
+
+  @Post('delegados')
+  @Roles(RolUsuario.ADMINISTRADOR_EMPRESA)
+  @ApiOperation({ summary: 'Invitar a un nuevo delegado a la empresa' })
+  @ApiResponse({ status: 201, description: 'Delegado creado exitosamente.' })
+  invitarDelegado(@Body() dto: InvitarDelegadoDto, @CurrentUser() user: JwtPayload) {
+    if (!user.empresaId) return null;
+    return this.empresasService.invitarDelegado(user.empresaId, dto);
+  }
+
+  @Patch('delegados/:id/estado')
+  @Roles(RolUsuario.ADMINISTRADOR_EMPRESA)
+  @ApiOperation({ summary: 'Activar o desactivar a un delegado de la empresa' })
+  @ApiResponse({ status: 200, description: 'Estado actualizado.' })
+  cambiarEstadoDelegado(
+    @Param('id') id: string,
+    @Body() dto: EstadoDelegadoDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (!user.empresaId) return null;
+    return this.empresasService.cambiarEstadoDelegado(id, user.empresaId, dto.estado);
+  }
+
+  // --- CRUD de Empresa ---
+
   @Post()
   @Roles(
     RolUsuario.ADMINISTRADOR,
     RolUsuario.COORDINADOR,
     RolUsuario.ADMINISTRADOR_EMPRESA,
-    RolUsuario.USUARIO_DELEGADO,
   )
   @ApiOperation({ summary: 'Registrar nueva empresa titular' })
   @ApiResponse({ status: 201, description: 'Empresa creada exitosamente.' })
