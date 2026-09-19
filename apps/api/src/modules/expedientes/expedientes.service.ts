@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
 import { PdfService } from '../../common/services/pdf.service';
+import { mapearResultadoDestacado, mapearNoConformidades } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
@@ -20,7 +21,14 @@ export class ExpedientesService {
       include: {
         establecimiento: { include: { empresa: true } },
         expediente: true,
-        evaluaciones: { include: { estado: true, calculoRiesgo: { include: { nivelRiesgo: true } }, informe: true } },
+        evaluaciones: {
+          include: {
+            estado: true,
+            calculoRiesgo: { include: { nivelRiesgo: true } },
+            informe: true,
+            respuestas: { include: { itemFicha: true, opcionRespuesta: true, criticidad: true } },
+          },
+        },
         origen: true,
       },
     });
@@ -44,6 +52,8 @@ export class ExpedientesService {
         { etiqueta: 'RNC Empresa', valor: caso.establecimiento.empresa.rnc },
         { etiqueta: 'Origen del Caso', valor: caso.origen?.nombre ?? 'N/A' },
       ],
+      resultado: mapearResultadoDestacado(evaluacionAprobada?.calculoRiesgo),
+      noConformidades: mapearNoConformidades(evaluacionAprobada?.respuestas ?? []),
       secciones: [
         {
           titulo: 'Dictamen Oficial',

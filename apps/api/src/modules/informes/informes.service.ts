@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
 import { PdfService } from '../../common/services/pdf.service';
+import { mapearResultadoDestacado, mapearNoConformidades } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
@@ -21,7 +22,10 @@ export class InformesService {
         estado: true,
         establecimiento: { include: { empresa: true } },
         informe: true,
-        calculoRiesgo: true,
+        calculoRiesgo: { include: { nivelRiesgo: true } },
+        respuestas: {
+          include: { itemFicha: true, opcionRespuesta: true, criticidad: true },
+        },
       },
     });
 
@@ -41,6 +45,8 @@ export class InformesService {
         { etiqueta: 'Estado Evaluacion', valor: evaluacion.estado?.nombre ?? 'N/A' },
         { etiqueta: 'Calificacion Riesgo', valor: evaluacion.calculoRiesgo?.calificacionTexto ?? 'N/A' },
       ],
+      resultado: mapearResultadoDestacado(evaluacion.calculoRiesgo),
+      noConformidades: mapearNoConformidades(evaluacion.respuestas),
       secciones: [
         { titulo: 'Resumen Ejecutivo', contenido: informe?.resumenEjecutivo ?? 'Sin resumen registrado.' },
         { titulo: 'Hallazgos', contenido: informe?.hallazgos ?? 'Sin hallazgos registrados.' },
