@@ -407,6 +407,23 @@ export const MOCK_NOTIFICACIONES = [
   }
 ];
 
+export const MOCK_DELEGADOS = [
+  {
+    id: '100',
+    nombreCompleto: 'Delegado Prueba Uno',
+    correoElectronico: 'delegado1@prueba.com',
+    estado: 'APROBADO',
+    fechaCreacion: '2026-01-01T10:00:00.000Z',
+  },
+  {
+    id: '101',
+    nombreCompleto: 'Delegado Prueba Dos',
+    correoElectronico: 'delegado2@prueba.com',
+    estado: 'INACTIVO',
+    fechaCreacion: '2026-01-02T10:00:00.000Z',
+  }
+];
+
 const BASE = 'http://localhost:3000';
 
 export const handlers = [
@@ -678,6 +695,26 @@ export const handlers = [
       notificacion.leida = true;
     }
     return HttpResponse.json(notificacion ?? { id: params.id, leida: true });
+  }),
+  // Gestión de Delegados (Empresa)
+  http.get(`${BASE}/api/v1/empresas/delegados`, () =>
+    HttpResponse.json(MOCK_DELEGADOS)
+  ),
+  http.post(`${BASE}/api/v1/empresas/delegados`, async ({ request }) => {
+    const body = (await request.json()) as any;
+    const nuevo = {
+      id: Math.random().toString().slice(2, 6),
+      nombreCompleto: body.nombreCompleto,
+      correoElectronico: body.correoElectronico,
+      estado: 'APROBADO',
+      fechaCreacion: new Date().toISOString(),
+      contrasenaTemporal: 'MockPass123',
+    };
+    return HttpResponse.json(nuevo, { status: 201 });
+  }),
+  http.patch(`${BASE}/api/v1/empresas/delegados/:id/estado`, async ({ request, params }) => {
+    const body = (await request.json()) as { estado: string };
+    return HttpResponse.json({ id: params.id, estado: body.estado });
   }),
 ];
 
