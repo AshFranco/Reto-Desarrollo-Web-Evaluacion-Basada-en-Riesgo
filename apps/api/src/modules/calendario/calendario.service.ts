@@ -1,9 +1,13 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class CalendarioService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificaciones: NotificacionesService,
+  ) {}
 
   async obtenerCalendario(evaluadorId: string, desde?: string, hasta?: string) {
     const evaluaciones = await this.prisma.evaluacion.findMany({
@@ -83,6 +87,15 @@ export class CalendarioService {
       data: { fechaProgramada: new Date(nuevaFecha) },
     });
 
+    await this.notificaciones.crear({
+      idUsuario: actualizada.idEvaluador,
+      tipo: 'CITA_REPROGRAMADA',
+      titulo: 'Cita de evaluación reprogramada',
+      mensaje: `Su evaluación #${evaluacionId} fue reprogramada para ${actualizada.fechaProgramada?.toISOString().split('T')[0]}.${comentario ? ` Comentario: ${comentario}` : ''}`,
+      entidad: 'evaluacion',
+      idEntidad: actualizada.id,
+    });
+
     return {
       mensaje: 'Evaluación reprogramada exitosamente.',
       evaluacion: { ...actualizada, id: actualizada.id.toString(), idEvaluador: actualizada.idEvaluador.toString() },
@@ -109,6 +122,15 @@ export class CalendarioService {
       data: {
         idEstado: estadoCancelado.id,
       },
+    });
+
+    await this.notificaciones.crear({
+      idUsuario: actualizada.idEvaluador,
+      tipo: 'CITA_CANCELADA',
+      titulo: 'Cita de evaluación cancelada',
+      mensaje: `Su evaluación #${evaluacionId} fue cancelada.${motivo ? ` Motivo: ${motivo}` : ''}`,
+      entidad: 'evaluacion',
+      idEntidad: actualizada.id,
     });
 
     return {

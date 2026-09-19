@@ -37,7 +37,6 @@ export class EmpresasController {
     RolUsuario.ADMINISTRADOR,
     RolUsuario.COORDINADOR,
     RolUsuario.ADMINISTRADOR_EMPRESA,
-    RolUsuario.USUARIO_DELEGADO,
   )
   @ApiOperation({ summary: 'Registrar nueva empresa titular' })
   @ApiResponse({ status: 201, description: 'Empresa creada exitosamente.' })

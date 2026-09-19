@@ -1,9 +1,14 @@
-import { IsNumberString, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsNumberString, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CrearSolicitudBpmDto {
   @IsString() @MaxLength(100) tipoEstablecimiento: string;
   @IsString() @MaxLength(255) motivo: string;
   @IsOptional() @IsString() observaciones?: string;
+}
+
+export class SubirAdjuntoSolicitudDto {
+  @IsIn(['CROQUIS', 'MEMORIA_DESCRIPTIVA', 'OTRO'])
+  tipo: string;
 }
 
 /**

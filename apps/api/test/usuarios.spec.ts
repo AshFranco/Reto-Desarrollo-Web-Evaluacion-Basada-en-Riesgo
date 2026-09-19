@@ -8,6 +8,7 @@ describe('UsuariosService — Mi Perfil, 2FA (TOTP) y Cambio de Contraseña (RF-
   let passwordServiceMock: any;
   let tokenServiceMock: any;
   let encryptionServiceMock: any;
+  let notificacionesMock: any;
 
   beforeEach(() => {
     prismaMock = {
@@ -34,11 +35,14 @@ describe('UsuariosService — Mi Perfil, 2FA (TOTP) y Cambio de Contraseña (RF-
       decrypt: jest.fn().mockImplementation((val: string) => val.replace('cifrado.', '')),
     };
 
+    notificacionesMock = { crear: jest.fn() };
+
     usuariosService = new UsuariosService(
       prismaMock,
       passwordServiceMock,
       tokenServiceMock,
       encryptionServiceMock,
+      notificacionesMock,
     );
   });
 
@@ -252,6 +256,37 @@ describe('UsuariosService — Mi Perfil, 2FA (TOTP) y Cambio de Contraseña (RF-
       });
       expect(tokenServiceMock.revokeAllForUser).toHaveBeenCalledWith(BigInt(42));
       expect(res.mensaje).toContain('Contraseña actualizada correctamente');
+    });
+  });
+
+  describe('resolverRegistro', () => {
+    it('notifica al usuario cuando su registro es aprobado', async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue({ id: BigInt(7), estado: 'PENDIENTE_VALIDACION' });
+      prismaMock.usuario.update.mockResolvedValue({ id: BigInt(7), estado: 'APROBADO', idEmpresa: null });
+
+      await usuariosService.resolverRegistro('7', { decision: 'APROBADO' } as any);
+
+      expect(notificacionesMock.crear).toHaveBeenCalledWith(
+        expect.objectContaining({ idUsuario: BigInt(7), tipo: 'REGISTRO_APROBADO' }),
+      );
+    });
+
+    it('notifica al usuario cuando su registro es rechazado, incluyendo el motivo', async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue({ id: BigInt(8), estado: 'PENDIENTE_VALIDACION' });
+      prismaMock.usuario.update.mockResolvedValue({ id: BigInt(8), estado: 'RECHAZADO', idEmpresa: null });
+
+      await usuariosService.resolverRegistro('8', {
+        decision: 'RECHAZADO',
+        motivoRechazo: 'Documentación incompleta',
+      } as any);
+
+      expect(notificacionesMock.crear).toHaveBeenCalledWith(
+        expect.objectContaining({
+          idUsuario: BigInt(8),
+          tipo: 'REGISTRO_RECHAZADO',
+          mensaje: expect.stringContaining('Documentación incompleta'),
+        }),
+      );
     });
   });
 });

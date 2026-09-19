@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AsignarEvaluadorDto } from './dto/asignar-evaluador.dto';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class AsignacionesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificaciones: NotificacionesService,
+  ) {}
 
   /**
    * RF-10: asigna (o reasigna) un evaluador a un caso. Además, crea la
@@ -79,6 +83,16 @@ export class AsignacionesService {
         idCaso: asignacion.idCaso.toString(),
         evaluacionId: evaluacion.id.toString(),
       };
+    }).then(async (resultado) => {
+      await this.notificaciones.crear({
+        idUsuario: dto.evaluadorId,
+        tipo: 'ASIGNACION_EVALUACION',
+        titulo: 'Nueva evaluación asignada',
+        mensaje: `Se le asignó una evaluación para el caso #${dto.casoId}.`,
+        entidad: 'evaluacion',
+        idEntidad: resultado.evaluacionId,
+      });
+      return resultado;
     });
   }
 

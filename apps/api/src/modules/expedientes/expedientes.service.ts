@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
 import { PdfService } from '../../common/services/pdf.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 
@@ -10,6 +11,7 @@ export class ExpedientesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   async generarPdf(casoId: string): Promise<Buffer> {
@@ -58,7 +60,7 @@ export class ExpedientesService {
   async cerrar(casoId: string) {
     const caso = await this.prisma.caso.findUnique({
       where: { id: BigInt(casoId) },
-      include: { evaluaciones: true, expediente: true },
+      include: { evaluaciones: true, expediente: true, establecimiento: { select: { idEmpresa: true } } },
     });
     if (!caso) throw new NotFoundException('Caso no encontrado.');
 
@@ -95,6 +97,15 @@ export class ExpedientesService {
       await tx.evaluacion.update({ where: { id: evaluacionAprobada.id }, data: { idEstado: estadoCerrada.id } });
 
       return { ...expediente, id: expediente.id.toString(), idCaso: expediente.idCaso.toString() };
+    }).then(async (resultado) => {
+      await this.notificaciones.notificarPorEmpresa(caso.establecimiento.idEmpresa, {
+        tipo: 'EXPEDIENTE_CERRADO',
+        titulo: 'Expediente cerrado',
+        mensaje: `El expediente del caso #${casoId} fue cerrado. Resultado: ${resultado.resultadoFinal ?? 'N/A'}.`,
+        entidad: 'expediente',
+        idEntidad: resultado.id,
+      });
+      return resultado;
     });
   }
 

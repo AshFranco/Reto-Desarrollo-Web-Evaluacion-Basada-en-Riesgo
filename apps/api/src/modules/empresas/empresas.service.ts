@@ -4,17 +4,19 @@ import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
 import { JwtPayload } from '../auth/token.service';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
-const ROLES_EMPRESA = ['ADMINISTRADOR_EMPRESA', 'USUARIO_DELEGADO'];
+const ROLES_EMPRESA = ['ADMINISTRADOR_EMPRESA'];
 
 @Injectable()
 export class EmpresasService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * RF-03: "la empresa gestiona sus propios datos". Un Admin Empresa o
-   * Usuario Delegado puede registrar SU empresa -- pero solo si todavía
-   * no está vinculado a ninguna (evita que un mismo usuario cree varias
-   * empresas encadenadas). Al crearla, se le asigna automáticamente.
+   * RF-03: "la empresa gestiona sus propios datos". Solo el Admin Empresa
+   * puede registrar/editar SU empresa -- el Usuario Delegado actúa en
+   * representación de la empresa para trámites (solicitudes BPM), pero no
+   * administra sus datos. Se registra solo si todavía no está vinculado a
+   * ninguna empresa (evita que un mismo usuario cree varias encadenadas).
+   * Al crearla, se le asigna automáticamente.
    */
   async crear(dto: CrearEmpresaDto, user: JwtPayload) {
     if (ROLES_EMPRESA.includes(user.rol) && user.empresaId) {
