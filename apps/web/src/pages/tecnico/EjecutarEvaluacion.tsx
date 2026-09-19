@@ -53,6 +53,8 @@ import {
   useResponderItem,
   useFinalizarEvaluacion,
   useReabrirEvaluacion,
+  useObservacionesEvaluacion,
+  useCorregirEvaluacion,
   type RespuestaItemInput,
 } from '@/lib/tecnico/useEvaluacion';
 import { useSubirEvidencia, useEliminarEvidencia } from '@/lib/tecnico/useEvidencias';
@@ -640,6 +642,7 @@ function FilaCriterio({
   onGuardadoOffline,
   evidencias = [],
   bloqueada = false,
+  esCorreccion = false,
 }: {
   criterio: NodoCatalogo;
   evaluacionId: string;
@@ -651,8 +654,22 @@ function FilaCriterio({
   onGuardadoOffline: () => void;
   evidencias?: Evidencia[];
   bloqueada?: boolean;
+  /**
+   * true mientras la evaluación sigue Devuelta+bloqueada y todavía no se
+   * mandó ninguna corrección. En ese caso el primer guardado NO puede usar
+   * POST /respuestas (el backend lo rechaza con 403 porque bloqueada=true
+   * -- confirmado en vivo, Devuelta no desbloquea la evaluación por sí
+   * sola) -- tiene que pasar por PATCH /corregir, que hace las dos cosas
+   * en una sola llamada: guarda la respuesta Y desbloquea + pone EN_CURSO.
+   * Una vez que esa primera llamada tiene éxito, la evaluación deja de
+   * estar bloqueada (se refleja solo con invalidar la query, sin ningún
+   * flag extra), así que los guardados siguientes ya usan el POST
+   * /respuestas normal automáticamente.
+   */
+  esCorreccion?: boolean;
 }) {
   const responder = useResponderItem();
+  const corregir = useCorregirEvaluacion();
   const [draft, setDraft] = useState<DraftRespuesta>(draftInicial);
   const [guardado, setGuardado] = useState(false);
   const [guardadoLocal, setGuardadoLocal] = useState(pendienteSyncInicial);
@@ -682,6 +699,20 @@ function FilaCriterio({
       nivelCriticidad: requiereCrit ? (draftActualizado.nivelCriticidad as 'C' | 'M' | 'Me') : undefined,
       observacion: draftActualizado.observacion.trim() || undefined,
     };
+
+    if (esCorreccion) {
+      // Sin fallback offline a propósito: corregir es una acción puntual
+      // de reactivación que necesita confirmación inmediata del servidor
+      // (no tiene sentido "encolarla" -- mientras no se confirme, la
+      // evaluación sigue bloqueada y no se puede seguir editando igual).
+      try {
+        await corregir.mutateAsync({ evaluacionId, respuestas: [respuesta] });
+        setGuardado(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al enviar la corrección');
+      }
+      return;
+    }
 
     if (!enLinea) {
       await enqueue('RESPUESTAS', { evaluacionServerId: evaluacionId, respuestas: [respuesta] });
@@ -772,7 +803,7 @@ function FilaCriterio({
                 void guardarConDraft(nuevoDraft);
               }
             }}
-            disabled={responder.isPending || bloqueada}
+            disabled={responder.isPending || corregir.isPending || bloqueada}
             sx={{
               gap: 1,
               flexWrap: 'wrap',
@@ -824,7 +855,7 @@ function FilaCriterio({
               setGuardadoLocal(false);
               setDraft((d) => ({ ...d, nivelCriticidad: e.target.value as DraftRespuesta['nivelCriticidad'] }));
             }}
-            disabled={responder.isPending || bloqueada}
+            disabled={responder.isPending || corregir.isPending || bloqueada}
           >
             {NIVELES_CRITICIDAD.map((n) => (
               <MenuItem key={n.codigo} value={n.codigo}>
@@ -844,12 +875,12 @@ function FilaCriterio({
             setGuardadoLocal(false);
             setDraft((d) => ({ ...d, observacion: e.target.value }));
           }}
-          disabled={responder.isPending || bloqueada}
+          disabled={responder.isPending || corregir.isPending || bloqueada}
         />
 
         {!bloqueada && (requiereCriticidad || draft.observacion) && (
-          <Button variant="outlined" size="small" disabled={responder.isPending} onClick={guardar}>
-            {responder.isPending ? <CircularProgress size={18} /> : 'Guardar'}
+          <Button variant="outlined" size="small" disabled={responder.isPending || corregir.isPending} onClick={guardar}>
+            {responder.isPending || corregir.isPending ? <CircularProgress size={18} /> : 'Guardar'}
           </Button>
         )}
       </Box>
@@ -1208,10 +1239,30 @@ export default function EjecutarEvaluacion() {
   const [errorFinalizar, setErrorFinalizar] = useState<string | null>(null);
   const [errorReabrir, setErrorReabrir] = useState<string | null>(null);
   const [finalizadoLocal, setFinalizadoLocal] = useState(false);
+  // La finalización en sí puede haber tenido éxito (bloqueada=true) aunque el
+  // paso de generar el informe (POST /informes, encadenado en
+  // useFinalizarEvaluacion) haya fallado -- en ese caso no queremos que se vea
+  // como si "Finalizar" hubiera fallado, porque no fue así: la evaluación queda
+  // FINALIZADA igual. Se muestra como advertencia aparte, no como error.
+  const [advertenciaInforme, setAdvertenciaInforme] = useState<string | null>(null);
   const inicioIntentadoRef = useRef(false);
   const [verFichaEnBloqueada, setVerFichaEnBloqueada] = useState(false);
 
   const casoCerrado = evaluacion?.caso?.estado === 'Cerrado' || evaluacion?.estado.codigo === 'CERRADA';
+
+  // RF-18: una evaluación Devuelta sigue bloqueada=true (confirmado en vivo
+  // que informes.service.ts#revisar() solo cambia idEstado, nunca toca
+  // `bloqueada`) -- así que hay que tratarla como un caso especial: se
+  // muestra editable (no la vista de solo-lectura genérica de "bloqueada"),
+  // con las observaciones del Coordinador visibles, y el primer guardado
+  // pasa por corregir() en vez de por el POST /respuestas normal. Una vez
+  // que ese primer corregir() tiene éxito, `evaluacion.bloqueada` pasa a
+  // false solo con invalidar la query -- no hace falta ningún flag extra.
+  const esDevuelta = evaluacion?.estado.codigo === 'DEVUELTA';
+  const enModoCorreccion = !!evaluacion?.bloqueada && esDevuelta;
+  const { data: observaciones, isLoading: cargandoObservaciones } = useObservacionesEvaluacion(
+    esDevuelta ? evaluacionId : undefined
+  );
 
   // 1. Cuando la evaluación en el servidor ya está bloqueada/finalizada, limpiar finalizadoLocal
   useEffect(() => {
@@ -1389,7 +1440,12 @@ export default function EjecutarEvaluacion() {
       return;
     }
     try {
-      await finalizar.mutateAsync(evaluacionId);
+      const resultado = await finalizar.mutateAsync(evaluacionId);
+      if (resultado && 'advertenciaInforme' in resultado && resultado.advertenciaInforme) {
+        setAdvertenciaInforme(resultado.advertenciaInforme);
+      } else {
+        setAdvertenciaInforme(null);
+      }
     } catch (err) {
       setErrorFinalizar(err instanceof Error ? err.message : 'Error al finalizar la evaluación');
     }
@@ -1542,17 +1598,61 @@ export default function EjecutarEvaluacion() {
             )}
           </Box>
         </Paper>
-      ) : evaluacion.bloqueada && !verFichaEnBloqueada ? (
-        <SeccionResultadoRiesgo
-          evaluacion={evaluacion}
-          onReabrir={handleReabrir}
-          reabriendo={reabrir.isPending}
-          errorReabrir={errorReabrir}
-          onVerFicha={() => setVerFichaEnBloqueada(true)}
-        />
+      ) : evaluacion.bloqueada && !verFichaEnBloqueada && !enModoCorreccion ? (
+        <>
+          {advertenciaInforme && (
+            <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setAdvertenciaInforme(null)}>
+              La evaluación se finalizó correctamente, pero no se pudo enviar al Coordinador para revisión
+              ({advertenciaInforme}). Se reintentará automáticamente cuando haya conexión.
+            </Alert>
+          )}
+          <SeccionResultadoRiesgo
+            evaluacion={evaluacion}
+            onReabrir={handleReabrir}
+            reabriendo={reabrir.isPending}
+            errorReabrir={errorReabrir}
+            onVerFicha={() => setVerFichaEnBloqueada(true)}
+          />
+        </>
       ) : (
         <>
-          {evaluacion.bloqueada && (
+          {enModoCorreccion && (
+            <Paper
+              variant="outlined"
+              sx={{ p: 2, borderLeft: '4px solid', borderLeftColor: 'error.main' }}
+            >
+              <Typography variant="subtitle2" fontWeight={600} color="error.main" gutterBottom>
+                Evaluación devuelta por el Coordinador
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                Corregí los criterios que hagan falta según las observaciones de abajo. En cuanto guardes la primera
+                respuesta corregida, la evaluación vuelve a quedar en curso y podés seguir editando con normalidad
+                hasta volver a finalizar.
+              </Typography>
+              {cargandoObservaciones ? (
+                <CircularProgress size={18} />
+              ) : observaciones && observaciones.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {observaciones
+                    .filter((o) => o.comentario)
+                    .slice(0, 3)
+                    .map((o) => (
+                      <Paper key={o.id} variant="outlined" sx={{ p: 1.5, bgcolor: 'background.paper' }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {o.usuario} · {new Date(o.fechaHora).toLocaleString()}
+                        </Typography>
+                        <Typography variant="body2">{o.comentario}</Typography>
+                      </Paper>
+                    ))}
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  El Coordinador no dejó un comentario adicional.
+                </Typography>
+              )}
+            </Paper>
+          )}
+          {evaluacion.bloqueada && !enModoCorreccion && (
             <Paper
               variant="outlined"
               sx={{
@@ -1799,7 +1899,8 @@ export default function EjecutarEvaluacion() {
                       enLinea={sync.enLinea}
                       onGuardadoOffline={() => void sincronizacion.refrescar()}
                       evidencias={evidenciasItem}
-                      bloqueada={evaluacion.bloqueada}
+                      bloqueada={enModoCorreccion ? false : evaluacion.bloqueada}
+                      esCorreccion={enModoCorreccion}
                     />
                   </div>
                 );
@@ -1821,7 +1922,7 @@ export default function EjecutarEvaluacion() {
               etiqueta="Adjuntar evidencia general"
               enLinea={sync.enLinea}
               evidencias={evidenciasGenerales}
-              bloqueada={evaluacion.bloqueada}
+              bloqueada={enModoCorreccion ? false : evaluacion.bloqueada}
               permitirGps={true}
               tituloModal="Adjuntar Evidencia General"
               descripcionModal="Selecciona el tipo de evidencia general que deseas adjuntar a esta evaluación:"

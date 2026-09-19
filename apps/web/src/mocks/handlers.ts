@@ -381,6 +381,32 @@ export const MOCK_ADJUNTO_SOLICITUD = {
   tamanoBytes: '204800',
   fechaCarga: '2026-01-01T00:00:00.000Z',
 };
+
+export const MOCK_NOTIFICACIONES = [
+  {
+    id: '1',
+    idUsuario: '1',
+    tipo: 'ASIGNACION_EVALUACION',
+    titulo: 'Nueva evaluación asignada',
+    mensaje: 'Se le ha asignado una nueva evaluación para Planta Piloto de Prueba.',
+    entidad: null,
+    idEntidad: null,
+    leida: false,
+    fechaCreacion: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    idUsuario: '1',
+    tipo: 'INFORME_APROBADO',
+    titulo: 'Informe aprobado',
+    mensaje: 'Su informe para el caso #1 ha sido aprobado.',
+    entidad: null,
+    idEntidad: null,
+    leida: true,
+    fechaCreacion: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+  }
+];
+
 const BASE = 'http://localhost:3000';
 
 export const handlers = [
@@ -442,6 +468,28 @@ export const handlers = [
     MOCK_EVALUACION_DETALLE.idEstado = 3;
     MOCK_EVALUACION_DETALLE.bloqueada = true;
     return HttpResponse.json({ ...MOCK_EVALUACION_DETALLE });
+  }),
+  http.post(`${BASE}/api/v1/informes`, () => HttpResponse.json({ id: '1', idEvaluacion: '1' }, { status: 201 })),
+  http.get(`${BASE}/api/v1/evaluaciones/:id/observaciones`, () =>
+    HttpResponse.json([
+      {
+        id: '1',
+        estado: 'Devuelta',
+        codigoEstado: 'DEVUELTA',
+        usuario: 'Coordinador Ejemplo',
+        comentario: '[SOLICITAR_CORRECCION] Falta evidencia fotográfica en el área de almacenamiento.',
+        fechaHora: '2026-03-02T10:00:00.000Z',
+      },
+    ])
+  ),
+  http.patch(`${BASE}/api/v1/evaluaciones/:id/corregir`, () => {
+    MOCK_EVALUACION_DETALLE.idEstado = 2;
+    MOCK_EVALUACION_DETALLE.bloqueada = false;
+    MOCK_EVALUACION_DETALLE.estado = { id: 2, codigo: 'EN_CURSO', nombre: 'En Curso', esFinal: false, bloqueaDatos: false, orden: 2 };
+    return HttpResponse.json({
+      mensaje: 'Correcciones registradas exitosamente.',
+      evaluacion: { ...MOCK_EVALUACION_DETALLE },
+    });
   }),
   http.post(`${BASE}/api/v1/evidencias`, async ({ request }) => {
     try {
@@ -623,5 +671,14 @@ export const handlers = [
   http.delete(`${BASE}/api/v1/solicitudes-bpm/adjuntos/:adjuntoId`, () =>
     HttpResponse.json({ mensaje: 'Adjunto eliminado correctamente.' })
   ),
+  http.get(`${BASE}/api/v1/notificaciones/mias`, () => HttpResponse.json(MOCK_NOTIFICACIONES)),
+  http.patch(`${BASE}/api/v1/notificaciones/:id/leer`, ({ params }) => {
+    const notificacion = MOCK_NOTIFICACIONES.find((n) => n.id === params.id);
+    if (notificacion) {
+      notificacion.leida = true;
+    }
+    return HttpResponse.json(notificacion ?? { id: params.id, leida: true });
+  }),
 ];
+
 
