@@ -55,6 +55,7 @@ import {
   useReabrirEvaluacion,
   useObservacionesEvaluacion,
   useCorregirEvaluacion,
+  useGenerarInforme,
   type RespuestaItemInput,
 } from '@/lib/tecnico/useEvaluacion';
 import { useSubirEvidencia, useEliminarEvidencia } from '@/lib/tecnico/useEvidencias';
@@ -1112,6 +1113,8 @@ function SeccionResultadoRiesgo({
   const navigate = useNavigate();
   const { data: catalogo } = useCatalogoMotorRiesgo();
   const [resultado, setResultado] = useState<ResultadoRiesgo | null>(evaluacion.calculoRiesgo ?? null);
+  const generarInforme = useGenerarInforme();
+  const [errorGenerar, setErrorGenerar] = useState<string | null>(null);
 
   useEffect(() => {
     if (evaluacion.calculoRiesgo) {
@@ -1120,13 +1123,22 @@ function SeccionResultadoRiesgo({
   }, [evaluacion.calculoRiesgo]);
 
   const casoCerrado = evaluacion.caso?.estado === 'Cerrado' || evaluacion.estado.codigo === 'CERRADA';
+  const enRevision = evaluacion.estado.codigo === 'EN_REVISION';
 
   const nivelTexto = useMemo(() => {
     if (!resultado || !catalogo) return null;
-    // idNivelRiesgo no trae su código legible — se deriva cruzando la
-    // frecuencia devuelta contra el catálogo (frecuencia y nivelRiesgo son 1:1 por rango).
     return catalogo.rangosFrecuencia.find((r) => r.frecuencia === resultado.frecuencia)?.nivelRiesgo ?? null;
   }, [resultado, catalogo]);
+
+  const handleGenerarInforme = async () => {
+    setErrorGenerar(null);
+    try {
+      await generarInforme.mutateAsync(evaluacion.id);
+      navigate('/tecnico');
+    } catch (err) {
+      setErrorGenerar(err instanceof Error ? err.message : 'Error al generar el informe');
+    }
+  };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1140,11 +1152,12 @@ function SeccionResultadoRiesgo({
           flexWrap: 'wrap',
           gap: 1.5,
           borderColor: 'primary.light',
+          bgcolor: 'background.default',
         }}
       >
         <Box>
-          <Typography variant="subtitle2" fontWeight={600}>
-            {casoCerrado ? 'Caso cerrado — Modo inspección' : 'Evaluación finalizada'}
+          <Typography variant="subtitle2" fontWeight={600} color="primary.main">
+            Evaluación finalizada
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {casoCerrado
@@ -1172,7 +1185,7 @@ function SeccionResultadoRiesgo({
                 variant="contained"
                 color="primary"
                 startIcon={reabriendo ? <CircularProgress size={16} color="inherit" /> : <EditOutlinedIcon />}
-                disabled={reabriendo || casoCerrado}
+                disabled={reabriendo || casoCerrado || enRevision}
                 onClick={onReabrir}
               >
                 {reabriendo ? 'Reabriendo...' : 'Reabrir evaluación para edición'}
@@ -1191,8 +1204,27 @@ function SeccionResultadoRiesgo({
       {errorReabrir && <Alert severity="error">{errorReabrir}</Alert>}
 
       {resultado ? (
-        <ResumenResultado resultado={resultado} catalogoNivel={nivelTexto} />
-      ) : casoCerrado || evaluacion.estado.codigo !== 'FINALIZADA' ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <ResumenResultado resultado={resultado} catalogoNivel={nivelTexto} />
+          {!casoCerrado && !enRevision && (
+            <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2, bgcolor: 'primary.50' }}>
+              <Typography variant="h6">Enviar a Revisión</Typography>
+              <Typography variant="body2">
+                El riesgo ha sido calculado. Revisa los resultados arriba. Si todo está correcto, envía el informe final al Coordinador para su aprobación.
+              </Typography>
+              {errorGenerar && <Alert severity="error">{errorGenerar}</Alert>}
+              <Button 
+                variant="contained" 
+                size="large"
+                disabled={generarInforme.isPending}
+                onClick={handleGenerarInforme}
+              >
+                {generarInforme.isPending ? <CircularProgress size={24} /> : 'Generar Informe y Enviar a Coordinador'}
+              </Button>
+            </Paper>
+          )}
+        </Box>
+      ) : casoCerrado || enRevision ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             {casoCerrado ? 'Expediente de evaluación cerrado' : 'Evaluación en modo solo lectura'}
@@ -1200,7 +1232,7 @@ function SeccionResultadoRiesgo({
           <Alert severity="info" sx={{ mb: 2 }}>
             {casoCerrado
               ? 'Este caso se encuentra cerrado en el archivo institucional. La evaluación se muestra en modo solo lectura para fines de consulta y auditoría. No se permite realizar recálculos en este estado.'
-              : `Esta evaluación se encuentra en estado ${evaluacion.estado.nombre}. Para modificar respuestas o volver a calcular el resultado de riesgo, primero debe ser reabierta para edición.`}
+              : `Esta evaluación se encuentra en estado En Revisión. Para modificar respuestas o volver a calcular el resultado de riesgo, primero debe ser devuelta por el Coordinador.`}
           </Alert>
         </Paper>
       ) : (
@@ -1244,7 +1276,6 @@ export default function EjecutarEvaluacion() {
   // useFinalizarEvaluacion) haya fallado -- en ese caso no queremos que se vea
   // como si "Finalizar" hubiera fallado, porque no fue así: la evaluación queda
   // FINALIZADA igual. Se muestra como advertencia aparte, no como error.
-  const [advertenciaInforme, setAdvertenciaInforme] = useState<string | null>(null);
   const inicioIntentadoRef = useRef(false);
   const [verFichaEnBloqueada, setVerFichaEnBloqueada] = useState(false);
 
@@ -1440,12 +1471,7 @@ export default function EjecutarEvaluacion() {
       return;
     }
     try {
-      const resultado = await finalizar.mutateAsync(evaluacionId);
-      if (resultado && 'advertenciaInforme' in resultado && resultado.advertenciaInforme) {
-        setAdvertenciaInforme(resultado.advertenciaInforme);
-      } else {
-        setAdvertenciaInforme(null);
-      }
+      await finalizar.mutateAsync(evaluacionId);
     } catch (err) {
       setErrorFinalizar(err instanceof Error ? err.message : 'Error al finalizar la evaluación');
     }
@@ -1600,12 +1626,6 @@ export default function EjecutarEvaluacion() {
         </Paper>
       ) : evaluacion.bloqueada && !verFichaEnBloqueada && !enModoCorreccion ? (
         <>
-          {advertenciaInforme && (
-            <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setAdvertenciaInforme(null)}>
-              La evaluación se finalizó correctamente, pero no se pudo enviar al Coordinador para revisión
-              ({advertenciaInforme}). Se reintentará automáticamente cuando haya conexión.
-            </Alert>
-          )}
           <SeccionResultadoRiesgo
             evaluacion={evaluacion}
             onReabrir={handleReabrir}

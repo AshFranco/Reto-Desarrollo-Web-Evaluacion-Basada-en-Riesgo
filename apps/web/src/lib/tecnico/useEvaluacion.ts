@@ -25,7 +25,7 @@ interface Encolada {
  */
 async function conFallbackOffline<T>(
   peticion: () => Promise<T>,
-  tipo: 'INICIAR_EVALUACION' | 'RESPUESTAS' | 'FINALIZAR_EVALUACION',
+  tipo: 'INICIAR_EVALUACION' | 'RESPUESTAS' | 'FINALIZAR_EVALUACION' | 'GENERAR_INFORME',
   payload: object
 ): Promise<T | Encolada> {
   try {
@@ -159,7 +159,7 @@ export function useResponderItem() {
  * devuelve aparte (`advertenciaInforme`) para que la pantalla avise sin
  * hacer parecer que finalizar falló.
  */
-export function useFinalizarEvaluacion() {
+  export function useFinalizarEvaluacion() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (evaluacionId: string) => {
@@ -168,24 +168,7 @@ export function useFinalizarEvaluacion() {
         'FINALIZAR_EVALUACION',
         { evaluacionServerId: evaluacionId }
       );
-
-      if ('encolado' in resultado) {
-        // Sin conexión: SyncProcessor encadena la generación del informe
-        // automáticamente después de que FINALIZAR_EVALUACION se sincroniza
-        // (ver sync/processor.ts).
-        return resultado;
-      }
-
-      try {
-        await apiFetchJson(`/api/v1/informes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ evaluacionId }),
-        });
-        return resultado;
-      } catch (err) {
-        return { ...resultado, advertenciaInforme: err instanceof Error ? err.message : 'Error al generar el informe' };
-      }
+      return resultado;
     },
     onSuccess: (_data, evaluacionId) => {
       queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
@@ -195,6 +178,30 @@ export function useFinalizarEvaluacion() {
       void db.asignacion.toCollection().modify((a) => {
         if (a.evaluacionId === evaluacionId) a.evaluacionEstado = 'FINALIZADA';
       }).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ['asignaciones', 'mias'] });
+    },
+  });
+}
+
+/**
+ * POST /api/v1/informes — Genera el informe final y pasa el caso a estado EN_REVISION para el coordinador.
+ */
+export function useGenerarInforme() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (evaluacionId: string) => {
+      return conFallbackOffline(
+        () => apiFetchJson(`/api/v1/informes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ evaluacionId }),
+        }),
+        'GENERAR_INFORME',
+        { evaluacionServerId: evaluacionId }
+      );
+    },
+    onSuccess: (_data, evaluacionId) => {
+      queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
       queryClient.invalidateQueries({ queryKey: ['asignaciones', 'mias'] });
     },
   });
