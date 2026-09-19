@@ -37,7 +37,7 @@ import { useCasoDetalle, useActualizarPrioridadCaso, useDesasignarEvaluador, use
 import { useReabrirExpediente } from '@/lib/coordinador/useExpedientes';
 import { useTecnicos } from '@/lib/coordinador/useTecnicos';
 import { EstadoChip } from '@/components/ui/EstadoChip';
-import { generarActaPdf } from '@/lib/pdf/GeneradorActaPdf';
+import { descargarActaPdf } from '@/lib/pdf/apiPdf';
 
 interface ModalInspeccionCasoProps {
   casoId: string | null;
@@ -392,7 +392,10 @@ export function ModalInspeccionCaso({ casoId, open, onClose, soloLectura = false
             color="secondary"
             fullWidth={isMobile}
             startIcon={<PictureAsPdfOutlinedIcon />}
-            onClick={() => caso && generarActaPdf(caso)}
+            onClick={() => {
+              const evalId = caso?.evaluaciones?.[caso.evaluaciones.length - 1]?.id;
+              if (evalId) descargarActaPdf(evalId);
+            }}
           >
             Descargar Acta PDF
           </Button>
