@@ -3,11 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
 import { PdfService } from '../../common/services/pdf.service';
 
+import { AuditoriaService } from '../auditoria/auditoria.service';
+
 @Injectable()
 export class InformesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   async generarPdf(evaluacionId: string): Promise<Buffer> {
@@ -56,8 +59,11 @@ export class InformesService {
     }
 
     const estadoFinalizada = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: 'FINALIZADA' } });
-    if (evaluacion.idEstado !== estadoFinalizada.id) {
-      throw new BadRequestException('Solo se puede generar el informe de una evaluación finalizada.');
+    const estadoDevuelta = await this.prisma.estadoEvaluacion.findUnique({ where: { codigo: 'DEVUELTA' } });
+    const estadosPermitidos = [estadoFinalizada.id, ...(estadoDevuelta ? [estadoDevuelta.id] : [])];
+
+    if (!evaluacion.idEstado || !estadosPermitidos.includes(evaluacion.idEstado)) {
+      throw new BadRequestException('Solo se puede generar o reenviar el informe de una evaluación finalizada o devuelta para corrección.');
     }
 
     const informe = await this.prisma.informeEvaluacion.upsert({
@@ -81,6 +87,14 @@ export class InformesService {
     await this.prisma.evaluacion.update({
       where: { id: BigInt(dto.evaluacionId) },
       data: { idEstado: estadoEnRevision.id },
+    });
+
+    await this.auditoriaService.registrar({
+      entidad: 'Evaluacion',
+      idEntidad: dto.evaluacionId,
+      accion: 'GENERAR_INFORME',
+      idUsuario: tecnicoId,
+      valoresNuevos: { resumenEjecutivo: dto.resumenEjecutivo, hallazgos: dto.hallazgos },
     });
 
     return { ...informe, id: informe.id.toString(), idEvaluacion: informe.idEvaluacion.toString() };
@@ -109,7 +123,7 @@ export class InformesService {
 
     const comentarioConAccion = `[${dto.accion}] ${dto.observaciones ?? ''}`.trim();
 
-    return this.prisma.$transaction(async (tx) => {
+    const resultado = await this.prisma.$transaction(async (tx) => {
       await tx.historialEstado.create({
         data: {
           idEvaluacion: BigInt(evaluacionId),
@@ -126,6 +140,17 @@ export class InformesService {
       });
       return { ...actualizada, id: actualizada.id.toString(), accion: dto.accion };
     });
+
+    await this.auditoriaService.registrar({
+      entidad: 'Evaluacion',
+      idEntidad: evaluacionId,
+      accion: `REVISAR_${dto.accion}`,
+      idUsuario: coordinadorId,
+      valoresAnteriores: { estado: 'EN_REVISION' },
+      valoresNuevos: { estado: nuevoEstadoCodigo, observaciones: dto.observaciones },
+    });
+
+    return resultado;
   }
 
   async revertirRevision(evaluacionId: string, coordinadorId: string) {
@@ -146,7 +171,7 @@ export class InformesService {
       throw new BadRequestException('Solo se puede revertir una evaluación que esté en estado Devuelta.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const resultado = await this.prisma.$transaction(async (tx) => {
       await tx.historialEstado.create({
         data: {
           idEvaluacion: BigInt(evaluacionId),
@@ -168,5 +193,16 @@ export class InformesService {
         mensaje: 'Devolución revertida exitosamente a En Revisión.',
       };
     });
+
+    await this.auditoriaService.registrar({
+      entidad: 'Evaluacion',
+      idEntidad: evaluacionId,
+      accion: 'REVERTIR_DEVOLUCION',
+      idUsuario: coordinadorId,
+      valoresAnteriores: { estado: 'DEVUELTA' },
+      valoresNuevos: { estado: 'EN_REVISION' },
+    });
+
+    return resultado;
   }
 }

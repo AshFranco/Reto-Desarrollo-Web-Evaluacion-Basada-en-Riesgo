@@ -39,7 +39,7 @@ export class PdfService {
     lineas.push('/F2 8 Tf');
     lineas.push('0.45 0.50 0.55 rg'); // Gris corporativo neutral
     lineas.push(`${marginX} 742 Td`);
-    lineas.push('(REPÚBLICA DOMINICANA | MINISTERIO DE SALUD PÚBLICA - DIGEMAPS) Tj');
+    lineas.push(`(${this.escapePdfText('REPÚBLICA DOMINICANA | MINISTERIO DE SALUD PÚBLICA - DIGEMAPS')}) Tj`);
     lineas.push('ET');
 
     // Título principal del documento
@@ -71,7 +71,7 @@ export class PdfService {
       lineas.push('/F1 8.5 Tf');
       lineas.push('0.45 0.50 0.55 rg');
       lineas.push(`${marginX} ${currentY - 12} Td`);
-      lineas.push('(Sistema de Evaluación Basada en Riesgo - EBR/BPM) Tj');
+      lineas.push(`(${this.escapePdfText('Sistema de Evaluación Basada en Riesgo - EBR/BPM')}) Tj`);
       lineas.push('ET');
 
       currentY -= 32;
@@ -196,7 +196,7 @@ export class PdfService {
     lineas.push('/F2 7.5 Tf');
     lineas.push('0.30 0.35 0.42 rg');
     lineas.push(`${marginX} 32 Td`);
-    lineas.push('(DIGEMAPS | Sistema de Evaluación Basada en Riesgo - EBR/BPM) Tj');
+    lineas.push(`(${this.escapePdfText('DIGEMAPS | Sistema de Evaluación Basada en Riesgo - EBR/BPM')}) Tj`);
     lineas.push('ET');
 
     const fechaHoy = new Date().toISOString().split('T')[0];

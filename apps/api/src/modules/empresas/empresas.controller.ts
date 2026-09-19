@@ -13,7 +13,12 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { EmpresasService } from './empresas.service';
-import { CrearEmpresaDto, ActualizarEmpresaDto } from './dto/empresa.dto';
+import {
+  CrearEmpresaDto,
+  ActualizarEmpresaDto,
+  InvitarDelegadoDto,
+  CambiarEstadoDelegadoDto,
+} from './dto/empresa.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -37,7 +42,6 @@ export class EmpresasController {
     RolUsuario.ADMINISTRADOR,
     RolUsuario.COORDINADOR,
     RolUsuario.ADMINISTRADOR_EMPRESA,
-    RolUsuario.USUARIO_DELEGADO,
   )
   @ApiOperation({ summary: 'Registrar nueva empresa titular' })
   @ApiResponse({ status: 201, description: 'Empresa creada exitosamente.' })
@@ -76,4 +80,52 @@ export class EmpresasController {
   ) {
     return this.empresasService.actualizar(id, dto, user);
   }
+
+  @Post(':id/delegados')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+  )
+  @ApiOperation({ summary: 'Invitar/Registrar un usuario delegado para la empresa' })
+  @ApiResponse({ status: 201, description: 'Usuario delegado invitado exitosamente.' })
+  @ApiResponse({ status: 403, description: 'No tiene permisos para invitar delegados.' })
+  invitarDelegado(
+    @Param('id') id: string,
+    @Body() dto: InvitarDelegadoDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.empresasService.invitarDelegado(id, dto, user);
+  }
+
+  @Get(':id/delegados')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+    RolUsuario.USUARIO_DELEGADO,
+  )
+  @ApiOperation({ summary: 'Listar usuarios delegados de la empresa' })
+  @ApiResponse({ status: 200, description: 'Lista de delegados.' })
+  listarDelegados(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.empresasService.listarDelegados(id, user);
+  }
+
+  @Patch(':id/delegados/:delegadoId/estado')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+  )
+  @ApiOperation({ summary: 'Cambiar el estado de un usuario delegado (aprobar/inactivar/rechazar)' })
+  @ApiResponse({ status: 200, description: 'Estado del delegado actualizado exitosamente.' })
+  cambiarEstadoDelegado(
+    @Param('id') id: string,
+    @Param('delegadoId') delegadoId: string,
+    @Body() dto: CambiarEstadoDelegadoDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.empresasService.cambiarEstadoDelegado(id, delegadoId, dto, user);
+  }
 }
+

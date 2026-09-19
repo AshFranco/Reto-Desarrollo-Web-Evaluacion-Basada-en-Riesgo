@@ -156,6 +156,7 @@ export class UsuariosService {
     });
 
     const codigoLimpio = dto.codigo.trim();
+    authenticator.options = { window: 2 };
     const esValido = authenticator.check(codigoLimpio, dto.secreto);
 
     if (!esValido) {

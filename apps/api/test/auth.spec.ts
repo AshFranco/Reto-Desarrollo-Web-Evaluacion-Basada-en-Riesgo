@@ -79,8 +79,8 @@ describe('Auth & Token Services', () => {
       passwordServiceMock,
       tokenService,
       loginThrottleMock,
-      emailServiceMock,
       encryptionServiceMock,
+      emailServiceMock,
       configMock as any,
     );
   });
@@ -256,6 +256,7 @@ describe('Auth & Token Services', () => {
         estado: 'APROBADO',
         contrasenaHash: 'hash',
         dobleFactorActivo: true,
+        secretoTotp: 'enc_secreto',
         roles: [{ rol: { codigo: 'TECNICO_EVALUADOR' } }],
       });
       passwordServiceMock.verify.mockResolvedValue(true);
@@ -276,6 +277,7 @@ describe('Auth & Token Services', () => {
         contrasenaHash: 'hash',
         nombreCompleto: 'Tecnico Pruebas',
         dobleFactorActivo: true,
+        secretoTotp: `cifrado.${secreto}`,
         idEmpresa: null,
         roles: [{ rol: { codigo: 'TECNICO_EVALUADOR' } }],
       });
@@ -295,6 +297,7 @@ describe('Auth & Token Services', () => {
         estado: 'APROBADO',
         contrasenaHash: 'hash',
         dobleFactorActivo: true,
+        secretoTotp: 'enc_secreto',
         roles: [{ rol: { codigo: 'TECNICO_EVALUADOR' } }],
       });
       prismaMock.$queryRaw.mockResolvedValue([{ secreto_totp: `cifrado.${secreto}` }]);
@@ -329,7 +332,7 @@ describe('Auth & Token Services', () => {
 
   describe('AuthService - Recuperación de Contraseña (RF-01)', () => {
     it('solicitarRecuperacionContrasena despacha correo con enlace de restablecimiento', async () => {
-      prismaMock.usuario.findUnique.mockResolvedValue({
+      prismaMock.usuario.findFirst.mockResolvedValue({
         id: 10n,
         correoElectronico: 'usuario@digemaps.gob.do',
         nombreCompleto: 'Usuario Prueba',
@@ -347,7 +350,7 @@ describe('Auth & Token Services', () => {
     });
 
     it('solicitarRecuperacionContrasena no revela si el usuario no existe', async () => {
-      prismaMock.usuario.findUnique.mockResolvedValue(null);
+      prismaMock.usuario.findFirst.mockResolvedValue(null);
 
       const res = await authService.solicitarRecuperacionContrasena({ correo: 'inexistente@digemaps.gob.do' });
       expect(res.ok).toBe(true);
@@ -358,6 +361,7 @@ describe('Auth & Token Services', () => {
       jwtServiceMock.verify = jest.fn().mockReturnValue({
         sub: '10',
         pwh: 'abcde12345',
+        rol: 'RESET_PASSWORD',
         purpose: 'pwd_reset',
       });
 
@@ -377,7 +381,7 @@ describe('Auth & Token Services', () => {
       expect(res.ok).toBe(true);
       expect(prismaMock.usuario.update).toHaveBeenCalledWith({
         where: { id: 10n },
-        data: { contrasenaHash: '$argon2id$hashed_password' },
+        data: expect.objectContaining({ contrasenaHash: '$argon2id$hashed_password' }),
       });
       expect(prismaMock.refreshToken.updateMany).toHaveBeenCalledWith({
         where: { idUsuario: 10n },

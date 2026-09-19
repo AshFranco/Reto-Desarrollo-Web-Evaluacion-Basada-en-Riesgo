@@ -163,7 +163,7 @@ async function main() {
     update: { contrasenaHash: hash, estado: 'APROBADO', intentosFallidos: 0, bloqueadoHasta: null },
     create: {
       nombreCompleto: 'Administrador del Sistema',
-      cedulaPasaporte: 'ADMIN-INICIAL',
+      cedulaPasaporte: '001-0000000-1',
       correoElectronico: 'admin@digemaps.gob.do',
       contrasenaHash: hash,
       estado: 'APROBADO',

@@ -14,6 +14,10 @@ import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
 import { SolicitudRecuperacionDto, ResetContrasenaDto } from './dto/recuperacion-contrasena.dto';
 import { RecuperarContrasenaDto } from './dto/recuperar-contrasena.dto';
 import { RestablecerContrasenaDto } from './dto/restablecer-contrasena.dto';
+import { authenticator } from 'otplib';
+import { EncryptionService } from '../../common/services/encryption.service';
+import { EmailService } from '../../common/services/email.service';
+import { AppConfigService } from '../../config/app-config.service';
 
 export interface RequestMeta {
   ip?: string;
@@ -51,6 +55,9 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly loginThrottle: LoginThrottleService,
+    private readonly encryptionService: EncryptionService,
+    private readonly emailService: EmailService,
+    private readonly config: AppConfigService,
   ) {}
 
   async registrar(dto: RegistroUsuarioDto) {
@@ -132,7 +139,19 @@ export class AuthService {
       if (!usuario.secretoTotp) {
         throw new BadRequestException('El usuario tiene MFA marcado como activo pero no tiene un secreto TOTP configurado.');
       }
-      return { requiereMfa: true, mensaje: 'Ingrese su código de autenticación de dos factores.' };
+
+      if (!dto.codigoMfa) {
+        return { requiereMfa: true, mensaje: 'Ingrese su código de autenticación de dos factores.' };
+      }
+
+      const secretoDesencriptado = this.encryptionService.decrypt(usuario.secretoTotp);
+      authenticator.options = { window: 4 };
+      const isValid = authenticator.check(dto.codigoMfa.trim(), secretoDesencriptado);
+
+      if (!isValid) {
+        await this.loginThrottle.registrarIntentoFallido(usuario.id);
+        throw new UnauthorizedException('Código de autenticación inválido.');
+      }
     }
 
     await this.loginThrottle.registrarLoginExitoso(usuario.id);
@@ -211,10 +230,16 @@ export class AuthService {
         empresaId: null,
       });
 
+      const enlace = `${this.config.frontendUrl}/restablecer-contrasena?token=${resetToken}`;
+      await this.emailService.enviarRecuperacionContrasena(
+        usuario.correoElectronico,
+        usuario.nombreCompleto,
+        enlace
+      );
+
       return {
         ok: true,
         mensaje: mensajeGenerico,
-        token: resetToken,
       };
     } catch {
       return { ok: true, mensaje: mensajeGenerico };

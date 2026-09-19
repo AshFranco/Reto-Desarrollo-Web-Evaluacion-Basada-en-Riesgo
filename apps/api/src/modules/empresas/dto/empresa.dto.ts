@@ -12,3 +12,28 @@ export class CrearEmpresaDto {
 }
 
 export class ActualizarEmpresaDto extends CrearEmpresaDto {}
+
+export class InvitarDelegadoDto {
+  @IsString({ message: 'El nombre completo es obligatorio.' })
+  nombreCompleto: string;
+
+  @IsString({ message: 'El documento de identidad es obligatorio.' })
+  cedulaPasaporte: string;
+
+  @IsEmail({}, { message: 'El correo electrónico no es válido.' })
+  correoElectronico: string;
+
+  @IsOptional()
+  @IsString()
+  telefono?: string;
+
+  @IsOptional()
+  @IsString()
+  contrasena?: string;
+}
+
+export class CambiarEstadoDelegadoDto {
+  @IsString({ message: 'El estado es obligatorio.' })
+  estado: string; // APROBADO, INACTIVO, RECHAZADO
+}
+
