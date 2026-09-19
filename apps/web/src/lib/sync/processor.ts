@@ -1,4 +1,4 @@
-import { getPendientes, marcarEnviada, marcarError } from './queue';
+import { getPendientes, marcarEnviada, marcarError, enqueue } from './queue';
 import { isTokenValid, getSession } from '@/lib/auth/session';
 import { silentRefresh } from '@/lib/auth/refresh';
 import type { OperacionPendiente } from '@/lib/db';
@@ -106,6 +106,31 @@ export class SyncProcessor {
         res = await fetch(`${API_BASE}/api/v1/evaluaciones/${evalId}/finalizar`, {
           method: 'POST', headers,
           body: JSON.stringify({ observacionesFinales: payload['observacionesFinales'] }),
+        });
+        // BUG REAL corregido acá: finalizar() por sí solo deja la evaluación en
+        // FINALIZADA, no en EN_REVISION -- confirmado en vivo que sin este paso
+        // el Coordinador nunca puede revisarla (ver el mismo fix en useEvaluacion.ts).
+        // Si finalizar() tuvo éxito pero esta segunda llamada falla, NO se
+        // reintenta finalizar (ya quedó bloqueada=true, un segundo intento daría
+        // 403) -- en vez de eso se encola GENERAR_INFORME aparte, que sí es
+        // seguro de reintentar (POST /informes usa upsert en el backend).
+        if (res.ok) {
+          try {
+            const resInforme = await fetch(`${API_BASE}/api/v1/informes`, {
+              method: 'POST', headers,
+              body: JSON.stringify({ evaluacionId: evalId }),
+            });
+            if (!resInforme.ok) {
+              await enqueue('GENERAR_INFORME', { evaluacionServerId: evalId });
+            }
+          } catch {
+            await enqueue('GENERAR_INFORME', { evaluacionServerId: evalId });
+          }
+        }
+      } else if (op.tipo === 'GENERAR_INFORME' && evalId) {
+        res = await fetch(`${API_BASE}/api/v1/informes`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ evaluacionId: evalId }),
         });
       } else {
         await marcarError(op.uuidLocal, 'tipo desconocido o falta evaluacionServerId');

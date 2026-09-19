@@ -433,6 +433,28 @@ export const handlers = [
     MOCK_EVALUACION_DETALLE.bloqueada = true;
     return HttpResponse.json({ ...MOCK_EVALUACION_DETALLE });
   }),
+  http.post(`${BASE}/api/v1/informes`, () => HttpResponse.json({ id: '1', idEvaluacion: '1' }, { status: 201 })),
+  http.get(`${BASE}/api/v1/evaluaciones/:id/observaciones`, () =>
+    HttpResponse.json([
+      {
+        id: '1',
+        estado: 'Devuelta',
+        codigoEstado: 'DEVUELTA',
+        usuario: 'Coordinador Ejemplo',
+        comentario: '[SOLICITAR_CORRECCION] Falta evidencia fotográfica en el área de almacenamiento.',
+        fechaHora: '2026-03-02T10:00:00.000Z',
+      },
+    ])
+  ),
+  http.patch(`${BASE}/api/v1/evaluaciones/:id/corregir`, () => {
+    MOCK_EVALUACION_DETALLE.idEstado = 2;
+    MOCK_EVALUACION_DETALLE.bloqueada = false;
+    MOCK_EVALUACION_DETALLE.estado = { id: 2, codigo: 'EN_CURSO', nombre: 'En Curso', esFinal: false, bloqueaDatos: false, orden: 2 };
+    return HttpResponse.json({
+      mensaje: 'Correcciones registradas exitosamente.',
+      evaluacion: { ...MOCK_EVALUACION_DETALLE },
+    });
+  }),
   http.post(`${BASE}/api/v1/evidencias`, async ({ request }) => {
     try {
       const formData = await request.formData();
