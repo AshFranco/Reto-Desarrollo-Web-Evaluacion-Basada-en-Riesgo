@@ -1,14 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../http/api';
+import { apiFetchJson } from '@/lib/http/client';
 import type { Notificacion } from '../types';
 
 export function useNotificaciones() {
   return useQuery({
     queryKey: ['notificaciones'],
-    queryFn: async () => {
-      const { data } = await api.get<Notificacion[]>('/api/v1/notificaciones/mias');
-      return data;
-    },
+    queryFn: () => apiFetchJson<Notificacion[]>('/api/v1/notificaciones/mias'),
     // Poll every 60 seconds to keep the bell updated without reloading
     refetchInterval: 60 * 1000,
   });
@@ -18,10 +15,8 @@ export function useMarcarLeida() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await api.patch<Notificacion>(`/api/v1/notificaciones/${id}/leer`);
-      return data;
-    },
+    mutationFn: (id: string) =>
+      apiFetchJson<Notificacion>(`/api/v1/notificaciones/${id}/leer`, { method: 'PATCH' }),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['notificaciones'] });
       const previous = queryClient.getQueryData<Notificacion[]>(['notificaciones']);

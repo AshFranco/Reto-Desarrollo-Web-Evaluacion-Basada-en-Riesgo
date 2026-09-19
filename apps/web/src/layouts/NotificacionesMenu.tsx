@@ -12,9 +12,18 @@ import {
 import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import CircleIcon from '@mui/icons-material/Circle';
 import { useNotificaciones, useMarcarLeida } from '@/lib/notificaciones/useNotificaciones';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { useQueryClient } from '@tanstack/react-query';
+
+const formatoRelativo = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
+
+/** Evita depender de date-fns (no está entre las dependencias del proyecto) para un formato "hace X". */
+function tiempoRelativo(fechaIso: string): string {
+  const diffMin = Math.round((new Date(fechaIso).getTime() - Date.now()) / 60000);
+  if (Math.abs(diffMin) < 60) return formatoRelativo.format(diffMin, 'minute');
+  const diffHoras = Math.round(diffMin / 60);
+  if (Math.abs(diffHoras) < 24) return formatoRelativo.format(diffHoras, 'hour');
+  return formatoRelativo.format(Math.round(diffHoras / 24), 'day');
+}
 
 export function NotificacionesMenu() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -97,7 +106,7 @@ export function NotificacionesMenu() {
               {n.mensaje}
             </Typography>
             <Typography variant="caption" color="text.disabled">
-              {formatDistanceToNow(new Date(n.fechaCreacion), { addSuffix: true, locale: es })}
+              {tiempoRelativo(n.fechaCreacion)}
             </Typography>
           </MenuItem>
         ))}
