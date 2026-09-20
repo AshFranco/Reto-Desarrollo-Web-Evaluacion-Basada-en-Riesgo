@@ -147,7 +147,7 @@ export default function DenunciaPublica() {
 
             {errorEmpresas ? (
               <Alert severity="error" sx={{ mt: 2 }}>
-                No se pudo cargar la lista de empresas. Recargá la página e intentá de nuevo.
+                No se pudo cargar la lista de empresas. Recargue la página e intente de nuevo.
               </Alert>
             ) : (
               <TextField
@@ -155,7 +155,7 @@ export default function DenunciaPublica() {
                 label="Empresa denunciada"
                 fullWidth
                 margin="normal"
-                helperText={cargandoEmpresas ? 'Cargando empresas…' : 'Opcional, si sabés cuál es.'}
+                helperText={cargandoEmpresas ? 'Cargando empresas…' : 'Opcional, si la conoce.'}
                 value={datos.empresaId}
                 onChange={(e) => setDatos((d) => ({ ...d, empresaId: e.target.value }))}
                 disabled={cargando || cargandoEmpresas}

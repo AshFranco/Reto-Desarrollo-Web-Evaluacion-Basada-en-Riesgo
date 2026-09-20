@@ -91,4 +91,65 @@ describe('PdfService', () => {
     const cantidadPaginas = (texto.match(/\/Type\s*\/Page[^s]/g) || []).length;
     expect(cantidadPaginas).toBeGreaterThan(1);
   });
+
+  it('renderiza ficha oficial BPM con código QR real escaneable, sello de certificación y firma manuscrita', async () => {
+    const doc: DocumentoPdfData = {
+      titulo: 'FICHA OFICIAL DE INSPECCIÓN Y EVALUACIÓN BPM',
+      subtitulo: 'Establecimiento: Laboratorio Sanitario Central SRL',
+      codigo: 'F-BPM-2026-0042',
+      version: '2026-Rev-BPM-RD',
+      metadataTitulo: 'DATOS DEL ESTABLECIMIENTO Y CONTACTOS',
+      metadata: [
+        { etiqueta: 'ID Evaluación', valor: '42' },
+        { etiqueta: 'Establecimiento', valor: 'Laboratorio Sanitario Central SRL' },
+        { etiqueta: 'Empresa Titular', valor: 'Grupo Sanitario Dominicano SAS' },
+        { etiqueta: 'RNC Empresa', valor: '130000002' },
+      ],
+      metadataControlTitulo: 'DATOS DE CONTROL INTERNO Y FISCALIZACIÓN',
+      metadataControl: [
+        { etiqueta: 'Código Ficha', valor: 'F-BPM-2026-0042' },
+        { etiqueta: 'Tipo de Evaluación', valor: 'Vigilancia Sanitaria Regular BPM' },
+        { etiqueta: 'Coordinador Revisor', valor: 'Ing. Carlos Peña' },
+      ],
+      resultado: {
+        cumplimientoPct: 88.0,
+        ncCriticas: 0,
+        ncMayores: 2,
+        ncMenores: 1,
+        nivelRiesgo: 'BAJO',
+        frecuencia: 'ANUAL',
+        aprueba: true,
+      },
+      noConformidades: [
+        {
+          item: '4.2 Control de temperatura en cámaras de frío',
+          gravedad: 'MAYOR',
+          calificacion: 'No cumple parcial',
+          observacion: 'El termómetro análogo no cuenta con calibración vigente.',
+        },
+      ],
+      secciones: [
+        { titulo: 'Resumen Ejecutivo', contenido: 'Establecimiento calificado favorablemente para certificación BPM.' },
+      ],
+      incluirSello: true,
+      incluirQr: true,
+      qrUrl: 'https://sinec.msp.gob.do/verificar/informe/F-BPM-2026-0042',
+      incluirFirma: true,
+      tecnicoNombre: 'Lic. Roberto Morales',
+      tecnicoCargo: 'Técnico Evaluador Autorizado BPM',
+      coordinadorNombre: 'Ing. Carlos Peña',
+      coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
+    };
+
+    const buffer = await pdfService.generarDocumentoPdf(doc);
+
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    expect(buffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    expect(buffer.length).toBeGreaterThan(5000);
+    // Verificar que contiene objetos de imagen (logo, firma o QR embebidos en el stream)
+    const raw = buffer.toString('latin1');
+    expect(raw).toContain('/Subtype /Image');
+    expect(buffer.subarray(-20).toString('latin1')).toContain('%%EOF');
+  });
 });
+

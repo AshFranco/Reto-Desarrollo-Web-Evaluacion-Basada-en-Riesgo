@@ -45,7 +45,7 @@ async function completarFormulario(user: ReturnType<typeof userEvent.setup>) {
   fireEvent.change(screen.getByLabelText(/^Correo/), { target: { value: 'nuevo@ebr.local' } });
   fireEvent.change(screen.getByLabelText(/^Contraseña/), { target: { value: 'ClaveSegura#123' } });
 
-  await screen.findByText('Elegí la empresa a la que pertenecés.');
+  await screen.findByText('Seleccione la empresa a la que pertenece.');
   await user.click(screen.getByLabelText(/^Empresa/));
   await user.click(await screen.findByRole('option', { name: /Alimentos de Prueba SRL/ }));
 }
@@ -95,14 +95,14 @@ describe('Registro', () => {
 
   it('tiene un enlace de vuelta a /login', () => {
     renderPantalla();
-    expect(screen.getByRole('link', { name: 'Iniciá sesión' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/login');
   });
 
   it('carga las empresas desde GET /empresas/publicas y las ofrece como opciones', async () => {
     const user = userEvent.setup();
     renderPantalla();
 
-    await screen.findByText('Elegí la empresa a la que pertenecés.');
+    await screen.findByText('Seleccione la empresa a la que pertenece.');
     await user.click(screen.getByLabelText(/^Empresa/));
     expect(await screen.findByRole('option', { name: /Alimentos de Prueba SRL/ })).toBeInTheDocument();
   });

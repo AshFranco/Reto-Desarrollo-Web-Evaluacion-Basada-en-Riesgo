@@ -102,7 +102,7 @@ describe('DenunciaPublica', () => {
     const user = userEvent.setup();
     renderPantalla();
 
-    await screen.findByText('Opcional, si sabés cuál es.');
+    await screen.findByText('Opcional, si la conoce.');
     await user.click(screen.getByLabelText(/^Empresa denunciada/));
     expect(await screen.findByRole('option', { name: /Alimentos de Prueba SRL/ })).toBeInTheDocument();
   });

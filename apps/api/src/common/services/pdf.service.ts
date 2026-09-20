@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 
 export interface SeccionPdf {
   titulo: string;
@@ -57,9 +58,27 @@ export interface DocumentoPdfData {
   /** Tabla de no conformidades con pill de gravedad. Opcional. */
   noConformidades?: FilaNoConformidad[];
   secciones: SeccionPdf[];
+  /** Habilita la inclusión del sello oficial circular de certificación */
+  incluirSello?: boolean;
+  /** Habilita la generación e inclusión del código QR real */
+  incluirQr?: boolean;
+  /** URL destino que codificará el código QR escaneable */
+  qrUrl?: string;
+  /** Habilita la inclusión de la firma digital manuscrita */
+  incluirFirma?: boolean;
+  /** Nombre del técnico evaluador */
+  tecnicoNombre?: string;
+  /** Cargo o acreditación del técnico evaluador */
+  tecnicoCargo?: string;
+  /** Nombre del coordinador técnico revisor */
+  coordinadorNombre?: string;
+  /** Cargo del coordinador técnico revisor */
+  coordinadorCargo?: string;
+  /** Fecha textual de emisión del documento (opcional) */
+  fechaEmision?: string;
 }
 
-const AZUL_INSTITUCIONAL = '#2A6DB0';
+const AZUL_INSTITUCIONAL = '#002B49';
 const AZUL_OSCURO = '#0F172A';
 const GRIS_TEXTO = '#334155';
 const GRIS_CLARO = '#64748B';
@@ -99,12 +118,51 @@ export class PdfService {
     return null;
   }
 
+  private rutaFirma(): string | null {
+    const candidatos = [
+      join(__dirname, '..', '..', 'assets', 'firma.jpg'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'firma.jpg'),
+    ];
+    for (const ruta of candidatos) {
+      if (existsSync(ruta)) return ruta;
+    }
+    return null;
+  }
+
+  private async generarQrBuffer(url: string): Promise<Buffer | null> {
+    try {
+      return await QRCode.toBuffer(url, {
+        type: 'png',
+        margin: 1,
+        width: 140,
+        color: {
+          dark: '#002B49',
+          light: '#FFFFFF',
+        },
+      });
+    } catch (err) {
+      this.logger.warn(`No se pudo generar el código QR: ${err instanceof Error ? err.message : err}`);
+      return null;
+    }
+  }
+
   async generarDocumentoPdf(data: DocumentoPdfData): Promise<Buffer> {
     const doc = new PDFDocument({
       size: 'LETTER',
       margins: { top: this.margin, bottom: this.margin, left: this.margin, right: this.margin },
       bufferPages: true,
     });
+
+    // Generar buffer QR real si se requiere
+    let qrBuffer: Buffer | null = null;
+    if (data.incluirQr || data.qrUrl) {
+      const url =
+        data.qrUrl ??
+        (data.codigo
+          ? `https://sinec.msp.gob.do/verificar/informe/${data.codigo}`
+          : 'https://sinec.msp.gob.do');
+      qrBuffer = await this.generarQrBuffer(url);
+    }
 
     const chunks: Buffer[] = [];
     const listo = new Promise<Buffer>((resolve, reject) => {
@@ -134,6 +192,10 @@ export class PdfService {
 
     for (const seccion of data.secciones) {
       this.dibujarSeccion(doc, seccion);
+    }
+
+    if (data.incluirFirma || data.incluirQr || data.qrUrl || data.incluirSello) {
+      this.dibujarBloqueFirmasYQr(doc, data, qrBuffer);
     }
 
     this.dibujarPiePaginaEnTodas(doc);
@@ -238,8 +300,8 @@ export class PdfService {
     doc
       .fillColor('#FFFFFF')
       .font('Helvetica-Bold')
-      .fontSize(16)
-      .text('EBR', x, y + tam / 2 - 7, { width: tam, align: 'center' });
+      .fontSize(14)
+      .text('SINEC', x, y + tam / 2 - 6, { width: tam, align: 'center' });
     doc.restore();
   }
 
@@ -480,6 +542,208 @@ export class PdfService {
     return contenido.trim();
   }
 
+  /** Dibuja el sello institucional circular oficial de certificación SINEC / DIGEMAPS */
+  private dibujarSelloCertificacion(doc: PDFKit.PDFDocument, cx: number, cy: number, fechaStr: string) {
+    const r = 30;
+    doc.save();
+    // Círculo exterior doble
+    doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.circle(cx, cy, r - 2.5).lineWidth(0.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    // Círculo punteado interior
+    doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(AZUL_INSTITUCIONAL).stroke().undash();
+
+    // Líneas divisorias horizontales
+    doc.moveTo(cx - 20, cy - 5).lineTo(cx + 20, cy - 5).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.moveTo(cx - 20, cy + 6).lineTo(cx + 20, cy + 6).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
+
+    // Textos institucionales dentro del sello
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(5)
+      .text('REPÚBLICA DOMINICANA', cx - 28, cy - 18, { width: 56, align: 'center' });
+
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(6)
+      .text('APROBADO Y VALIDADO', cx - 28, cy - 3.5, { width: 56, align: 'center' });
+
+    doc
+      .fillColor(GRIS_TEXTO)
+      .font('Helvetica-Bold')
+      .fontSize(5)
+      .text(fechaStr, cx - 24, cy + 8, { width: 48, align: 'center' });
+
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica')
+      .fontSize(4.5)
+      .text('SINEC · DIGEMAPS', cx - 26, cy + 18, { width: 52, align: 'center' });
+
+    doc.restore();
+  }
+
+  /** Dibuja el bloque inferior con QR real escaneable, firma manuscrita y sello/firma del coordinador */
+  private dibujarBloqueFirmasYQr(doc: PDFKit.PDFDocument, data: DocumentoPdfData, qrBuffer: Buffer | null) {
+    const altoBloque = 100;
+    this.asegurarEspacio(doc, altoBloque + 20);
+
+    const x = doc.page.margins.left;
+    const ancho = this.anchoContenido(doc);
+    const yInicio = doc.y + 6;
+
+    // Línea horizontal divisoria superior
+    doc.save();
+    doc.moveTo(x, yInicio).lineTo(x + ancho, yInicio).lineWidth(1.5).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.restore();
+
+    const yContenido = yInicio + 10;
+    const colAncho = ancho / 3;
+
+    // Columna 1: Validación Digital QR Real
+    const col1X = x;
+    if (qrBuffer) {
+      try {
+        const qrTam = 56;
+        doc.image(qrBuffer, col1X, yContenido, { fit: [qrTam, qrTam] });
+        const textoQrX = col1X + qrTam + 6;
+        const textoQrAncho = colAncho - qrTam - 10;
+
+        doc
+          .fillColor(AZUL_INSTITUCIONAL)
+          .font('Helvetica-Bold')
+          .fontSize(7.5)
+          .text('Validación QR', textoQrX, yContenido + 2, { width: textoQrAncho });
+        doc
+          .fillColor(GRIS_TEXTO)
+          .font('Helvetica')
+          .fontSize(6)
+          .text('Escanee con la cámara para verificar autenticidad en SINEC / DIGEMAPS.', textoQrX, doc.y + 2, {
+            width: textoQrAncho,
+          });
+        if (data.codigo) {
+          doc
+            .fillColor(GRIS_CLARO)
+            .font('Helvetica-Bold')
+            .fontSize(6)
+            .text(`ID: ${data.codigo}`, textoQrX, doc.y + 2, { width: textoQrAncho });
+        }
+      } catch (err) {
+        this.logger.warn(`No se pudo embeber el QR en el PDF: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
+    // Columna 2: Firma Manuscrita del Técnico Evaluador
+    const col2X = x + colAncho + 5;
+    const col2Ancho = colAncho - 10;
+    const firma = this.rutaFirma();
+    const altoFirma = 36;
+    const yFirma = yContenido;
+
+    if (data.incluirFirma && firma) {
+      try {
+        doc.image(firma, col2X + (col2Ancho - 90) / 2, yFirma, { fit: [90, altoFirma] });
+      } catch (err) {
+        this.logger.warn(`No se pudo embeber la firma manuscrita: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
+    const yLineaFirma = yFirma + altoFirma + 4;
+    doc.save();
+    doc.moveTo(col2X + 10, yLineaFirma).lineTo(col2X + col2Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(BORDE_GRIS).stroke();
+    doc.restore();
+
+    doc
+      .fillColor(AZUL_OSCURO)
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text(data.tecnicoNombre ?? 'Lic. Roberto Morales', col2X, yLineaFirma + 4, {
+        width: col2Ancho,
+        align: 'center',
+      });
+    doc
+      .fillColor(GRIS_CLARO)
+      .font('Helvetica')
+      .fontSize(6.5)
+      .text(data.tecnicoCargo ?? 'Técnico Evaluador Autorizado BPM', col2X, doc.y + 1, {
+        width: col2Ancho,
+        align: 'center',
+      });
+    doc
+      .fillColor(GRIS_CLARO)
+      .font('Helvetica')
+      .fontSize(5.5)
+      .text('Reg. Profesional: TEC-BPM-RD', col2X, doc.y + 1, {
+        width: col2Ancho,
+        align: 'center',
+      });
+
+    // Columna 3: Sello Oficial Circular y Visto Bueno Coordinador
+    const col3X = x + colAncho * 2 + 5;
+    const col3Ancho = colAncho - 10;
+    const fechaHoy = data.fechaEmision ?? new Date().toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+
+    if (data.incluirSello) {
+      const stampCenterX = col3X + col3Ancho / 2;
+      const stampCenterY = yContenido + 28;
+      this.dibujarSelloCertificacion(doc, stampCenterX, stampCenterY, fechaHoy);
+
+      doc
+        .fillColor(AZUL_OSCURO)
+        .font('Helvetica-Bold')
+        .fontSize(7.5)
+        .text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, stampCenterY + 34, {
+          width: col3Ancho,
+          align: 'center',
+        });
+      doc
+        .fillColor(GRIS_CLARO)
+        .font('Helvetica')
+        .fontSize(6)
+        .text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, {
+          width: col3Ancho,
+          align: 'center',
+        });
+    } else {
+      const yCoord = yContenido + 8;
+      doc
+        .fillColor(AZUL_INSTITUCIONAL)
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .text('FIRMADO DIGITALMENTE', col3X, yCoord, { width: col3Ancho, align: 'center' });
+      doc
+        .fillColor(GRIS_CLARO)
+        .font('Helvetica')
+        .fontSize(6)
+        .text('Certificado: MSP-DIGEMAPS-2026', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
+
+      doc.save();
+      doc.moveTo(col3X + 10, yLineaFirma).lineTo(col3X + col3Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(BORDE_GRIS).stroke();
+      doc.restore();
+
+      doc
+        .fillColor(AZUL_OSCURO)
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, yLineaFirma + 4, {
+          width: col3Ancho,
+          align: 'center',
+        });
+      doc
+        .fillColor(GRIS_CLARO)
+        .font('Helvetica')
+        .fontSize(6.5)
+        .text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, {
+          width: col3Ancho,
+          align: 'center',
+        });
+    }
+
+    doc.y = yInicio + altoBloque + 10;
+    doc.x = x;
+  }
+
   /** Pie de página institucional, dibujado en TODAS las páginas (incluidas las que pdfkit agregó solo por desborde de contenido). */
   private dibujarPiePaginaEnTodas(doc: PDFKit.PDFDocument) {
     const rango = doc.bufferedPageRange();
@@ -502,7 +766,7 @@ export class PdfService {
         .fillColor(GRIS_CLARO)
         .font('Helvetica')
         .fontSize(7.5)
-        .text('DIGEMAPS | Sistema de Evaluación Basada en Riesgo - EBR/BPM | Documento oficial', x, y, {
+        .text('DIGEMAPS | Sistema SINEC - Evaluación Basada en Riesgo (BPM) | Documento oficial', x, y, {
           width: anchoContenido - 100,
         });
       doc

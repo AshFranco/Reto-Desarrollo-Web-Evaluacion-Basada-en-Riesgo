@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  MenuItem,
   Paper,
   Switch,
   Table,
@@ -428,7 +429,7 @@ function ListaEstablecimientos() {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los establecimientos'}</Alert>;
   }
   if (!establecimientos || establecimientos.length === 0) {
-    return <EstadoVacio titulo="Todavía no registraste ningún establecimiento." icono={<DomainOutlinedIcon fontSize="large" />} />;
+    return <EstadoVacio titulo="Todavía no ha registrado ningún establecimiento." icono={<DomainOutlinedIcon fontSize="large" />} />;
   }
 
   if (isMobile) {
@@ -490,14 +491,65 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
   const invitar = useInvitarDelegado();
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [correoElectronico, setCorreoElectronico] = useState('');
-  const [cedulaPasaporte, setCedulaPasaporte] = useState('');
+  const [tipoDocumento, setTipoDocumento] = useState<'CEDULA' | 'RNC' | 'PASAPORTE'>('CEDULA');
+  const [numeroDocumento, setNumeroDocumento] = useState('');
+  const [errorDoc, setErrorDoc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contrasenaGenerada, setContrasenaGenerada] = useState<string | null>(null);
 
+  function validarDocumento(tipo: 'CEDULA' | 'RNC' | 'PASAPORTE', valor: string): string | null {
+    const digitos = valor.replace(/\D/g, '');
+    if (!valor.trim()) {
+      return 'El documento de identidad es requerido.';
+    }
+    if (tipo === 'CEDULA') {
+      if (digitos.length !== 11) {
+        return 'La cédula dominicana debe contener exactamente 11 dígitos numéricos.';
+      }
+    } else if (tipo === 'RNC') {
+      if (digitos.length !== 9 && digitos.length !== 11) {
+        return 'El RNC debe contener 9 u 11 dígitos numéricos.';
+      }
+    } else if (tipo === 'PASAPORTE') {
+      if (valor.trim().length < 5) {
+        return 'El pasaporte debe contener al menos 5 caracteres alfanuméricos.';
+      }
+    }
+    return null;
+  }
+
+  function handleDocumentoChange(nuevoValor: string) {
+    let filtrado = nuevoValor;
+    if (tipoDocumento === 'CEDULA') {
+      filtrado = nuevoValor.replace(/[^0-9-]/g, '').slice(0, 13);
+    } else if (tipoDocumento === 'RNC') {
+      filtrado = nuevoValor.replace(/[^0-9-]/g, '').slice(0, 13);
+    } else {
+      filtrado = nuevoValor.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20);
+    }
+    setNumeroDocumento(filtrado);
+    setErrorDoc(validarDocumento(tipoDocumento, filtrado));
+  }
+
+  function handleTipoDocumentoChange(nuevoTipo: 'CEDULA' | 'RNC' | 'PASAPORTE') {
+    setTipoDocumento(nuevoTipo);
+    setNumeroDocumento('');
+    setErrorDoc(null);
+  }
+
   async function handleInvitar() {
     setError(null);
+    const err = validarDocumento(tipoDocumento, numeroDocumento);
+    if (err) {
+      setErrorDoc(err);
+      return;
+    }
     try {
-      const resultado = await invitar.mutateAsync({ nombreCompleto, correoElectronico, cedulaPasaporte });
+      const resultado = await invitar.mutateAsync({
+        nombreCompleto,
+        correoElectronico,
+        cedulaPasaporte: numeroDocumento.trim(),
+      });
       setContrasenaGenerada(resultado.contrasenaTemporal);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al invitar al delegado');
@@ -507,7 +559,9 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
   function handleClose() {
     setNombreCompleto('');
     setCorreoElectronico('');
-    setCedulaPasaporte('');
+    setTipoDocumento('CEDULA');
+    setNumeroDocumento('');
+    setErrorDoc(null);
     setError(null);
     setContrasenaGenerada(null);
     onClose();
@@ -562,13 +616,45 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
           disabled={invitar.isPending}
         />
         <TextField
+          select
           margin="dense"
-          label="Cédula o pasaporte"
+          label="Tipo de documento"
+          fullWidth
+          value={tipoDocumento}
+          onChange={(e) => handleTipoDocumentoChange(e.target.value as any)}
+          disabled={invitar.isPending}
+        >
+          <MenuItem value="CEDULA">Cédula Dominicana (11 dígitos)</MenuItem>
+          <MenuItem value="RNC">RNC (9 u 11 dígitos)</MenuItem>
+          <MenuItem value="PASAPORTE">Pasaporte (Extranjero)</MenuItem>
+        </TextField>
+        <TextField
+          margin="dense"
+          label={
+            tipoDocumento === 'CEDULA'
+              ? 'Número de Cédula'
+              : tipoDocumento === 'RNC'
+              ? 'Número de RNC'
+              : 'Número de Pasaporte'
+          }
           fullWidth
           required
-          value={cedulaPasaporte}
-          onChange={(e) => setCedulaPasaporte(e.target.value)}
+          value={numeroDocumento}
+          onChange={(e) => handleDocumentoChange(e.target.value)}
+          error={Boolean(errorDoc)}
+          helperText={
+            errorDoc ??
+            (tipoDocumento === 'CEDULA'
+              ? '11 dígitos numéricos sin letras.'
+              : tipoDocumento === 'RNC'
+              ? '9 u 11 dígitos numéricos.'
+              : 'Alfanumérico (mínimo 5 caracteres).')
+          }
           disabled={invitar.isPending}
+          inputProps={{
+            maxLength: tipoDocumento === 'PASAPORTE' ? 20 : 13,
+            inputMode: tipoDocumento === 'PASAPORTE' ? 'text' : 'numeric',
+          }}
         />
       </DialogContent>
       <DialogActions>
@@ -576,7 +662,7 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
         <Button
           onClick={handleInvitar}
           variant="contained"
-          disabled={invitar.isPending || !nombreCompleto || !correoElectronico || !cedulaPasaporte}
+          disabled={invitar.isPending || !nombreCompleto || !correoElectronico || !numeroDocumento || Boolean(errorDoc)}
         >
           {invitar.isPending ? <CircularProgress size={20} /> : 'Invitar'}
         </Button>

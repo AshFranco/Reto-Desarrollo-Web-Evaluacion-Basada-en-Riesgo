@@ -228,16 +228,16 @@ export default function Login() {
             </Box>
 
             <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
-              ¿No tenés cuenta?{' '}
+              ¿No tiene una cuenta?{' '}
               <Link component={RouterLink} to="/registro" underline="hover">
-                Registrate
+                Regístrese
               </Link>
             </Typography>
 
             <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
-              ¿Querés hacer una denuncia sin iniciar sesión?{' '}
+              ¿Desea realizar una denuncia sin iniciar sesión?{' '}
               <Link component={RouterLink} to="/denuncia-publica" underline="hover">
-                Denunciá acá
+                Presentar denuncia
               </Link>
             </Typography>
           </>

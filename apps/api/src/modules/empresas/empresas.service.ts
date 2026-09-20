@@ -175,6 +175,7 @@ export class EmpresasService {
       cedulaPasaporte: usuarioDelegado.cedulaPasaporte,
       estado: usuarioDelegado.estado,
       idEmpresa: empresaId,
+      contrasenaTemporal: passwordPlana,
     };
   }
 

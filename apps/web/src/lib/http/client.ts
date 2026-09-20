@@ -14,8 +14,11 @@ export class SesionExpiradaError extends Error {
   }
 }
 
-async function construirHeaders(init?: HeadersInit): Promise<Headers> {
+async function construirHeaders(init?: HeadersInit, body?: BodyInit | null): Promise<Headers> {
   const headers = new Headers(init);
+  if (!headers.has('Content-Type') && typeof body === 'string') {
+    headers.set('Content-Type', 'application/json');
+  }
   const sesion = await getSession();
   if (sesion) headers.set('Authorization', `Bearer ${sesion.accessToken}`);
   return headers;
@@ -31,7 +34,7 @@ async function construirHeaders(init?: HeadersInit): Promise<Headers> {
  * de esta tarea.
  */
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const headers = await construirHeaders(init.headers);
+  const headers = await construirHeaders(init.headers, init.body);
   const respuesta = await fetch(`${API_BASE}${path}`, { ...init, headers });
 
   if (respuesta.status !== 401) return respuesta;
@@ -42,7 +45,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     throw new SesionExpiradaError();
   }
 
-  const headersReintento = await construirHeaders(init.headers);
+  const headersReintento = await construirHeaders(init.headers, init.body);
   return fetch(`${API_BASE}${path}`, { ...init, headers: headersReintento });
 }
 
@@ -57,7 +60,11 @@ export async function apiFetchJson<T>(path: string, init: RequestInit = {}): Pro
   const cuerpo = await respuesta.json().catch(() => null);
 
   if (!respuesta.ok) {
-    throw new Error(cuerpo?.message ?? `Error en la petición (${respuesta.status})`);
+    let errorMsg = `Error en la petición (${respuesta.status})`;
+    if (cuerpo?.message) {
+      errorMsg = Array.isArray(cuerpo.message) ? cuerpo.message.join(' | ') : String(cuerpo.message);
+    }
+    throw new Error(errorMsg);
   }
 
   return cuerpo as T;
