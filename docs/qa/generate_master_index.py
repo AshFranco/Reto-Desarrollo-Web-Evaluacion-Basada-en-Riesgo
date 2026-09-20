@@ -101,7 +101,7 @@ def build_master_index():
         "El presente índice relaciona los 21 informes técnicos individuales generados en formato Microsoft Word (.docx), "
         "los cuales documentan el diagnóstico de causa raíz (RCA), la solución implementada a nivel de código y base de datos, "
         "y las evidencias de verificación automatizada. Todos los defectos reportados se encuentran actualmente en estado "
-        "CERRADO / VERIFICADO con 100% de pruebas unitarias y de integración aprobadas (56 en Backend, 182 en Frontend)."
+        "CERRADO / VERIFICADO con 100% de pruebas unitarias y de integración aprobadas (111 en Backend, 289 en Frontend y 17 en Motor de Riesgo; total: 417 pruebas)."
     )
 
     # Tabla maestra

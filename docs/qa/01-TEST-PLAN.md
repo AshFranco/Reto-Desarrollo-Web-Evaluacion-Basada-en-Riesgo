@@ -23,16 +23,19 @@ El propósito de este Plan Maestro de Pruebas es definir el alcance, enfoque, re
   - Cálculo de Riesgo de Producto ($RP = \max(\text{categorías})$).
   - Cálculo de Riesgo Total ($RT = RP \times RE$) y asignación de frecuencia (Anual, Semestral, Trimestral).
 - **PWA Frontend (`apps/web`):**
-  - Registro y ciclo de vida del Service Worker (Workbox).
+  - Registro y ciclo de vida del Service Worker (Workbox injectManifest).
   - Almacenamiento local estructurado en IndexedDB (`Dexie.js`).
-  - Funcionamiento 100% offline (modo avión) y cola de sincronización diferida (`Outbox`).
-  - Captura y compresión local de evidencias fotográficas en el cliente.
+  - Funcionamiento 100% offline (modo avión) y cola de sincronización diferida (`cola_sync`).
+  - Captura y compresión local de evidencias fotográficas en el cliente (`compressor.ts`).
+  - Captura de geolocalización GPS por criterio y exportación GeoJSON en tiempo real.
   - Vistas y dashboards según roles (Técnico, Coordinador, Empresa, Administrador).
+  - **Compatibilidad Multiplataforma (RNF-05):** Certificación en Chrome, Edge, Firefox, Safari de escritorio, Android (Chrome) e iOS (Safari).
 - **Backend API (`apps/api`):**
   - Autenticación JWT, rotación criptográfica de refresh tokens y revocación en cascada ante reuso.
   - Control de acceso por roles (RBAC) con `RolesGuard`.
   - Aislamiento multi-empresa con `EmpresaOwnershipGuard` (prevención de IDOR).
   - Integridad transaccional y bloqueo estricto de evaluaciones finalizadas (`RF-17`).
+  - Generación de informes PDF institucionales en backend (`pdfkit`).
   - Búsqueda histórica con filtros avanzados y seguridad a nivel de servidor.
 - **Base de Datos (PostgreSQL 18 + Prisma):**
   - Integridad referencial de las 51 tablas del esquema oficial.
@@ -49,11 +52,12 @@ El propósito de este Plan Maestro de Pruebas es definir el alcance, enfoque, re
 
 | Componente | Entorno de Pruebas Local | Entorno Integrado CI/CD |
 |---|---|---|
-| **Sistema Operativo** | Windows 11 Pro / x64 | Ubuntu 22.04 LTS (GitHub Actions) |
+| **Sistema Operativo** | Windows 11 Pro / x64, Android 13/14, iOS 17/18 | Ubuntu 22.04 LTS (GitHub Actions) |
 | **Node.js** | v24.13.0 / npm 11.6.2 | v20.x LTS |
 | **Base de Datos** | PostgreSQL 18.3 (puerto 5432) | PostgreSQL 16 (Service Container) |
-| **Navegadores** | Google Chrome 128+, Microsoft Edge, Firefox | Headless Chromium (Playwright) |
-| **Simulación Offline** | Chrome DevTools Network Throttling / Airplane Mode | Vitest Fake-IndexedDB + Mock Service Worker |
+| **Navegadores Escritorio** | Google Chrome 128+, Microsoft Edge 128+, Mozilla Firefox 130+, Apple Safari (macOS) | Headless Chromium (Playwright) |
+| **Navegadores Móviles (RNF-05)** | Android Google Chrome (A2HS, GPS real, cámara), iOS Apple Safari (PWA WebKit) | Emuladores / Vitest Mobile Viewports |
+| **Simulación Offline** | Chrome DevTools Network Throttling / Modo Avión / `window.dispatchEvent` | Vitest Fake-IndexedDB + Mock Service Worker |
 
 ---
 

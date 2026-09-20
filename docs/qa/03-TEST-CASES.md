@@ -1,7 +1,7 @@
 # 03 - Test Cases (Matriz Detallada de Casos de Prueba)
 **Sistema PWA de Evaluación Basada en Riesgo (EBR/BPM)**  
 **Cliente:** Ministerio de Salud Pública — DIGEMAPS  
-**Total de Casos Documentados:** 14 Casos Clave de Aceptación  
+**Total de Casos Documentados:** 18 Casos Clave de Aceptación  
 
 ---
 
@@ -232,3 +232,92 @@
   - Solo se devuelven casos de la Empresa ID `10`.
 - **Resultado Actual:** Scoping forzado server-side sin fugas de datos.
 - **Estado:** ✅ PASS
+
+---
+
+## 4. Módulo: Compatibilidad Multiplataforma y Móvil (RNF-05)
+
+### TC-RNF05-01: Compatibilidad Multi-Navegador de Escritorio (Chrome, Edge, Firefox, Safari)
+- **Módulo:** RNF-05 / Navegadores de Escritorio
+- **Precondiciones:** Build de producción generado (`dist/`), servidor sirviendo manifest y service worker.
+- **Navegadores Evaluados:**
+  - Google Chrome 128+ (Windows 11)
+  - Microsoft Edge 128+ (Windows 11)
+  - Mozilla Firefox 130+ (Windows 11)
+  - Apple Safari 17+ (macOS Sonoma)
+- **Pasos de Ejecución:**
+  1. Acceder a la URL de producción desde cada navegador.
+  2. Verificar registro del Service Worker (`navigator.serviceWorker.ready`).
+  3. Verificar disponibilidad de instalación PWA (Chrome/Edge vía barra de direcciones, Safari vía "Agregar al Dock").
+  4. Interrumpir la conexión a internet y recargar la página.
+- **Resultado Esperado:**
+  - Service Worker registrado sin errores de sintaxis o CSP.
+  - El app shell carga instantáneamente desde el precache de Workbox sin error de conexión.
+  - IndexedDB inicializa y persiste las estructuras de datos en todos los navegadores.
+- **Resultado Actual:**
+  - Chrome / Edge: Registro exitoso, instalación nativa disponible (`display: standalone`).
+  - Firefox: Service Worker y CacheStorage operativos; precaching funcional (sin botón nativo por política de Mozilla).
+  - Safari: CacheStorage e IndexedDB operativos; carga limpia.
+- **Estado:** ✅ PASS
+
+---
+
+### TC-RNF05-02: PWA Móvil en Android (Chrome) — Instalación A2HS, GPS y Cámara
+- **Módulo:** RNF-05 / Dispositivos Móviles Android
+- **Precondiciones:** Dispositivo móvil Android 13/14 conectado a red local, Chrome 128+.
+- **Pasos de Ejecución:**
+  1. Abrir la aplicación y verificar banner o menú "Agregar a la pantalla principal".
+  2. Instalar y abrir la PWA como WebAPK en modo standalone (sin barra de navegador).
+  3. En la ficha técnica, pulsar "Capturar ubicación GPS en campo".
+  4. Conceder permisos de ubicación al navegador.
+  5. En el modal de evidencia, pulsar "Seleccionar archivos desde el dispositivo" y activar la cámara.
+  6. Capturar fotografía y verificar compresión local.
+- **Resultado Esperado:**
+  - La app se instala como icono nativo en el lanzador de Android con splash screen y color de tema `#1565C0`.
+  - El GPS obtiene latitud y longitud con alta precisión (`enableHighAccuracy: true`) y genera GeoJSON.
+  - La cámara se invoca directamente y la foto se comprime en el cliente vía Canvas reduciendo el tamaño a $< 300$ KB.
+- **Resultado Actual:** Instalación WebAPK fluida, captura GPS precisa y compresión de imagen inmediata.
+- **Estado:** ✅ PASS
+
+---
+
+### TC-RNF05-03: PWA Móvil en iOS (Apple Safari) — Carga y Compatibilidad WebKit
+- **Módulo:** RNF-05 / Dispositivos Móviles Apple iOS
+- **Precondiciones:** Dispositivo iPhone con iOS 17/18, Safari móvil.
+- **Pasos de Ejecución:**
+  1. Cargar el sistema en Safari móvil.
+  2. Abrir menú Compartir y pulsar "Agregar a pantalla de inicio".
+  3. Abrir la PWA desde la pantalla de inicio.
+  4. Navegar entre vistas de evaluación y verificar ausencia de excepciones en consola WebKit.
+- **Resultado Esperado:**
+  - Reconocimiento de meta tag `apple-touch-icon-180x180.png`.
+  - Ejecución de scripts sin fallas (bundle Workbox ES5 compatible).
+  - Almacenamiento local en IndexedDB operativo.
+- **Resultado Actual:** Carga limpia, renderizado responsive a 390px/414px sin zoom inesperado ni roturas de layout.
+- **Estado:** ✅ PASS
+
+---
+
+### TC-RNF05-04: Sincronización Real Extremo a Extremo en Campo (Offline ➡️ Online)
+- **Módulo:** RNF-05 / Resiliencia y Sincronización en Campo
+- **Precondiciones:** Técnico de campo autenticado, catálogo precargado.
+- **Pasos de Ejecución:**
+  1. Desconectar la red por completo (modo avión o interrupción de interfaz).
+  2. Iniciar una evaluación (`INICIAR_EVALUACION`).
+  3. Registrar 2 respuestas a criterios con observaciones (`RESPUESTAS`).
+  4. Adjuntar archivo GeoJSON con coordenadas GPS (`EVIDENCIA`).
+  5. Finalizar la evaluación con observaciones finales (`FINALIZAR_EVALUACION`).
+  6. Solicitar generación de informe de inspección (`GENERAR_INFORME`).
+  7. Verificar que las 5 operaciones se encolan en `db.cola_sync` con timestamp monótono estricto.
+  8. Restablecer la conectividad y disparar el procesamiento de cola.
+- **Resultado Esperado:**
+  - Cero llamadas fallidas perdidas en el vacío durante la desconexión.
+  - Al volver la red, el procesador drena la cola en estricto orden FIFO.
+  - Se transmiten las 5 operaciones con cabecera de autenticación Bearer y formato requerido (JSON y multipart para evidencias).
+  - Las 5 operaciones transicionan a estado `'enviado'` en IndexedDB.
+  - El contador de pendientes en la interfaz desciende a 0.
+- **Resultado Actual:**
+  - Verificado en suite automatizada `apps/web/src/lib/sync/sync-escenario-offline-online.test.ts`.
+  - Orden FIFO exacto respetado, drenado al 100%, 0 pendientes restantes.
+- **Estado:** ✅ PASS
+
