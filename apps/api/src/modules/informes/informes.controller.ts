@@ -29,8 +29,12 @@ export class InformesController {
   )
   @ApiOperation({ summary: 'Descargar el PDF del informe técnico de la evaluación' })
   @ApiResponse({ status: 200, description: 'Archivo PDF del informe.' })
-  async descargarPdf(@Param('evaluacionId') evaluacionId: string, @Res() res: Response) {
-    const pdfBuffer = await this.informesService.generarPdf(evaluacionId);
+  async descargarPdf(
+    @Param('evaluacionId') evaluacionId: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.informesService.generarPdf(evaluacionId, user);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=informe_${evaluacionId}.pdf`);
     res.send(pdfBuffer);

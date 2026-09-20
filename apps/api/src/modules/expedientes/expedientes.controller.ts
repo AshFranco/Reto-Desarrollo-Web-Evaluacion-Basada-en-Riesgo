@@ -29,8 +29,12 @@ export class ExpedientesController {
   )
   @ApiOperation({ summary: 'Descargar el PDF consolidado del expediente del caso' })
   @ApiResponse({ status: 200, description: 'Archivo PDF del expediente.' })
-  async descargarPdf(@Param('casoId') casoId: string, @Res() res: Response) {
-    const pdfBuffer = await this.expedientesService.generarPdf(casoId);
+  async descargarPdf(
+    @Param('casoId') casoId: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.expedientesService.generarPdf(casoId, user);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=expediente_caso_${casoId}.pdf`);
     res.send(pdfBuffer);

@@ -4,6 +4,7 @@ import { JwtPayload } from '../auth/token.service';
 import { PdfService } from '../../common/services/pdf.service';
 import { mapearResultadoDestacado, mapearNoConformidades } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 
@@ -15,7 +16,7 @@ export class ExpedientesService {
     private readonly notificaciones: NotificacionesService,
   ) {}
 
-  async generarPdf(casoId: string): Promise<Buffer> {
+  async generarPdf(casoId: string, user: JwtPayload): Promise<Buffer> {
     const caso = await this.prisma.caso.findUnique({
       where: { id: BigInt(casoId) },
       include: {
@@ -35,6 +36,7 @@ export class ExpedientesService {
     });
 
     if (!caso) throw new NotFoundException('Caso no encontrado.');
+    verificarAccesoEmpresa(user, caso.establecimiento.idEmpresa);
     if (!caso.expediente) throw new NotFoundException('El caso aún no posee un expediente registrado.');
 
     const expediente = caso.expediente;
