@@ -60,7 +60,7 @@ function validarCampos(datos: DatosEstablecimiento): ErroresCampo {
     if (datos.rnc.includes('-')) {
       errores.rnc = 'El RNC no puede contener signos negativos ni guiones.';
     } else if (!RNC_REGEX.test(datos.rnc)) {
-      errores.rnc = 'El RNC debe contener exactamente 9 u 11 dígitos numéricos.';
+      errores.rnc = 'El RNC debe ser numérico y de 9 o de 11 dígitos.';
     }
   }
 
@@ -235,7 +235,7 @@ export default function FormularioEstablecimiento() {
               onChange={(e) => actualizarCampo('rnc', e.target.value)}
               disabled={enviando}
               error={!!erroresCampo.rnc}
-              helperText={erroresCampo.rnc ?? '9 u 11 dígitos numéricos'}
+              helperText={erroresCampo.rnc ?? 'Solo números, de 9 o de 11 dígitos'}
             />
             <TextField
               label="Calle / dirección"

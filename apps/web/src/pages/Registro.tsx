@@ -141,7 +141,7 @@ export default function Registro() {
               disabled={cargando}
             >
               <MenuItem value="CEDULA">Cédula Dominicana (11 dígitos)</MenuItem>
-              <MenuItem value="RNC">RNC (9 u 11 dígitos)</MenuItem>
+              <MenuItem value="RNC">RNC (de 9 o de 11 dígitos)</MenuItem>
               <MenuItem value="PASAPORTE">Pasaporte (Extranjero)</MenuItem>
             </TextField>
             <TextField
@@ -153,7 +153,7 @@ export default function Registro() {
                 tipoDocumento === 'CEDULA'
                   ? 'Solo 11 dígitos numéricos sin letras.'
                   : tipoDocumento === 'RNC'
-                  ? '9 u 11 dígitos numéricos.'
+                  ? 'Solo números, de 9 o de 11 dígitos.'
                   : 'Alfanumérico (mínimo 5 caracteres).'
               }
               value={datos.cedulaPasaporte}
