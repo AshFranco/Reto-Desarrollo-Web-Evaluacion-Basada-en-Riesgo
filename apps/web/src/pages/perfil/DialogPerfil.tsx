@@ -52,6 +52,7 @@ import { useActualizarPerfil } from '@/lib/perfil/useActualizarPerfil';
 import { useFotoPerfil } from '@/lib/perfil/useFotoPerfil';
 import { use2Fa, type DatosGeneracion2Fa } from '@/lib/perfil/use2Fa';
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
+import type { UsuarioLocal } from '@/lib/types';
 
 const ETIQUETA_ROL: Record<string, string> = {
   ADMINISTRADOR: 'Administrador del Sistema',
@@ -73,7 +74,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   rolActivo: string;
-  usuarioSesion?: { id: string; nombreCompleto: string; rol: string; empresaId: string | null } | null;
+  usuarioSesion?: UsuarioLocal | null;
 }
 
 // ── Pestaña 1: Información del perfil y contacto ─────────────────────────────
@@ -510,7 +511,9 @@ function TabSeguridad({
 
   const mensajeError = errorLocal ?? error;
   const perfilCoincide = perfil && (!usuarioSesion || String(perfil.id) === String(usuarioSesion.id));
-  const dosPasosActivo = perfilCoincide ? (perfil.dobleFactorActivo ?? false) : false;
+  const dosPasosActivo = perfilCoincide
+    ? (perfil.dobleFactorActivo ?? usuarioSesion?.dobleFactorActivo ?? false)
+    : Boolean(usuarioSesion?.dobleFactorActivo);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

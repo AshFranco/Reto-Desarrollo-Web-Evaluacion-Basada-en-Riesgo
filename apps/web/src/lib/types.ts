@@ -3,6 +3,7 @@ export interface UsuarioLocal {
   nombreCompleto: string;
   rol: string;
   empresaId: string | null;
+  dobleFactorActivo?: boolean;
 }
 
 export interface LoginResponse {

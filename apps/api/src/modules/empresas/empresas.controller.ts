@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -35,6 +36,58 @@ export class EmpresasController {
   @Get('publicas')
   listarPublicas() {
     return this.empresasService.listarPublicas();
+  }
+
+  // --- Gestión de Delegados (Empresa del usuario actual) ---
+  // IMPORTANTE: estas rutas estáticas deben declararse ANTES que @Get(':id') y
+  // @Patch(':id') para que Express/NestJS no las capture como parámetro dinámico.
+
+  @Get('delegados')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+    RolUsuario.USUARIO_DELEGADO,
+  )
+  @ApiOperation({ summary: 'Listar usuarios delegados de la empresa del usuario actual' })
+  @ApiResponse({ status: 200, description: 'Lista de delegados.' })
+  listarDelegadosActual(@CurrentUser() user: JwtPayload) {
+    if (!user.empresaId) return [];
+    return this.empresasService.listarDelegados(user.empresaId, user);
+  }
+
+  @Post('delegados')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+  )
+  @ApiOperation({ summary: 'Invitar a un nuevo delegado a la empresa del usuario actual' })
+  @ApiResponse({ status: 201, description: 'Usuario delegado invitado exitosamente.' })
+  invitarDelegadoActual(@Body() dto: InvitarDelegadoDto, @CurrentUser() user: JwtPayload) {
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario autenticado no está vinculado a una empresa.');
+    }
+    return this.empresasService.invitarDelegado(user.empresaId, dto, user);
+  }
+
+  @Patch('delegados/:delegadoId/estado')
+  @Roles(
+    RolUsuario.ADMINISTRADOR,
+    RolUsuario.COORDINADOR,
+    RolUsuario.ADMINISTRADOR_EMPRESA,
+  )
+  @ApiOperation({ summary: 'Cambiar el estado de un usuario delegado de la empresa actual' })
+  @ApiResponse({ status: 200, description: 'Estado del delegado actualizado exitosamente.' })
+  cambiarEstadoDelegadoActual(
+    @Param('delegadoId') delegadoId: string,
+    @Body() dto: CambiarEstadoDelegadoDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario autenticado no está vinculado a una empresa.');
+    }
+    return this.empresasService.cambiarEstadoDelegado(user.empresaId, delegadoId, dto, user);
   }
 
   // --- CRUD de Empresa ---

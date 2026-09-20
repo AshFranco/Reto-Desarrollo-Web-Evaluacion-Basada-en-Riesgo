@@ -23,6 +23,7 @@ export class ExpedientesService {
         expediente: true,
         evaluaciones: {
           include: {
+            evaluador: true,
             estado: true,
             calculoRiesgo: { include: { nivelRiesgo: true } },
             informe: true,
@@ -38,17 +39,22 @@ export class ExpedientesService {
 
     const expediente = caso.expediente;
     const evaluacionAprobada = caso.evaluaciones.find((e) => e.estado?.codigo === 'CERRADA' || e.estado?.codigo === 'APROBADA');
+    const codigoExp = `EXP-DICTAMEN-${expediente.id.toString().padStart(4, '0')}`;
+    const qrUrl = `https://sinec.msp.gob.do/verificar/expediente/${expediente.id}`;
 
     return this.pdfService.generarDocumentoPdf({
-      titulo: 'EXPEDIENTE Y DICTAMEN DE CIERRE DE EVALUACION',
+      titulo: 'EXPEDIENTE Y DICTAMEN DE CIERRE DE EVALUACIÓN BPM',
       subtitulo: `Establecimiento: ${caso.establecimiento.nombre}`,
+      codigo: codigoExp,
+      version: '2026-Rev-EXP-RD',
+      metadataTitulo: 'DATOS GENERALES DEL CASO Y EXPEDIENTE',
       metadata: [
         { etiqueta: 'ID Expediente', valor: expediente.id.toString() },
         { etiqueta: 'ID Caso', valor: caso.id.toString() },
         { etiqueta: 'Estado Expediente', valor: expediente.estado },
         { etiqueta: 'Resultado Final', valor: expediente.resultadoFinal ?? 'N/A' },
         { etiqueta: 'Fecha de Cierre', valor: expediente.fechaCierre?.toISOString().split('T')[0] ?? 'N/A' },
-        { etiqueta: 'Empresa', valor: caso.establecimiento.empresa.razonSocial },
+        { etiqueta: 'Empresa Titular', valor: caso.establecimiento.empresa.razonSocial },
         { etiqueta: 'RNC Empresa', valor: caso.establecimiento.empresa.rnc },
         { etiqueta: 'Origen del Caso', valor: caso.origen?.nombre ?? 'N/A' },
       ],
@@ -60,10 +66,18 @@ export class ExpedientesService {
           contenido: `El expediente correspondiente al caso #${caso.id} ha sido dictaminado con resultado final: ${expediente.resultadoFinal ?? 'N/A'}.`,
         },
         {
-          titulo: 'Detalles de Evaluacion Aprobada',
-          contenido: evaluacionAprobada?.informe?.resumenEjecutivo ?? 'Evaluacion finalizada y archivada correctamente en el sistema EBR.',
+          titulo: 'Detalles de Evaluación Aprobada',
+          contenido: evaluacionAprobada?.informe?.resumenEjecutivo ?? 'Evaluación finalizada y archivada correctamente en el sistema SINEC.',
         },
       ],
+      incluirSello: true,
+      incluirQr: true,
+      qrUrl,
+      incluirFirma: true,
+      tecnicoNombre: evaluacionAprobada?.evaluador?.nombreCompleto ?? 'Lic. Roberto Morales',
+      tecnicoCargo: 'Técnico Evaluador BPM',
+      coordinadorNombre: 'Ing. Carlos Peña',
+      coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
     });
   }
 

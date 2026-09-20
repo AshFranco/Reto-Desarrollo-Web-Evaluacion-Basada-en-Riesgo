@@ -35,6 +35,7 @@ export type LoginResult =
         nombreCompleto: string;
         rol: string;
         empresaId: string | null;
+        dobleFactorActivo?: boolean;
       };
     };
 
@@ -198,6 +199,7 @@ export class AuthService {
         nombreCompleto: usuario.nombreCompleto,
         rol: rolPrincipal,
         empresaId: usuario.idEmpresa ? usuario.idEmpresa.toString() : null,
+        dobleFactorActivo: Boolean(usuario.dobleFactorActivo),
       },
     };
   }

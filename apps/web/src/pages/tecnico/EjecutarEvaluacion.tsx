@@ -43,6 +43,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import SyncIcon from '@mui/icons-material/Sync';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import { Collapse } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1537,14 +1538,51 @@ export default function EjecutarEvaluacion() {
             {evaluacion.establecimiento.empresa?.razonSocial} · Versión {evaluacion.versionFicha.numeroVersion}
           </Typography>
         </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={
+              sync.sincronizando ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <SyncIcon />
+              )
+            }
+            onClick={() => void sync.sincronizar()}
+            disabled={!sync.enLinea || sync.sincronizando}
+            title={
+              !sync.enLinea
+                ? 'Sin conexión a internet. La sincronización se realizará automáticamente al recuperar la red.'
+                : sync.sincronizando
+                ? 'Sincronizando cambios pendientes con el servidor...'
+                : 'Forzar sincronización inmediata de datos con el servidor'
+            }
+          >
+            {sync.sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
+          </Button>
+        </Box>
       </Box>
 
       <CardAntecedentesEstablecimiento establecimiento={evaluacion.establecimiento} />
 
       {(sincronizacion.pendientes.length > 0 || sync.sincronizando) && (
-        <Alert severity="info">
+        <Alert
+          severity="info"
+          action={
+            sync.enLinea && !sync.sincronizando ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => void sync.sincronizar()}
+              >
+                Sincronizar
+              </Button>
+            ) : undefined
+          }
+        >
           {sync.sincronizando
-            ? 'Sincronizando...'
+            ? 'Sincronizando cambios con el servidor...'
             : `${sincronizacion.pendientes.length} cambio(s) de esta evaluación guardado(s) localmente, pendiente(s) de sincronizar.`}
         </Alert>
       )}
@@ -1645,8 +1683,8 @@ export default function EjecutarEvaluacion() {
                 Evaluación devuelta por el Coordinador
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                Corregí los criterios que hagan falta según las observaciones de abajo. En cuanto guardes la primera
-                respuesta corregida, la evaluación vuelve a quedar en curso y podés seguir editando con normalidad
+                Corrija los criterios observados según las indicaciones que figuran debajo. En cuanto guarde la primera
+                respuesta corregida, la evaluación vuelve a quedar en curso y puede continuar editando con normalidad
                 hasta volver a finalizar.
               </Typography>
               {cargandoObservaciones ? (

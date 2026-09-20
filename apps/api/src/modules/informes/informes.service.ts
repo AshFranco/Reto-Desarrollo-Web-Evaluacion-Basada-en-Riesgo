@@ -35,18 +35,37 @@ export class InformesService {
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
 
     const informe = evaluacion.informe;
+    const anio = new Date().getFullYear();
+    const codigoDoc = `F-BPM-${anio}-${evaluacion.id.toString().padStart(4, '0')}`;
+    const qrUrl = `https://sinec.msp.gob.do/verificar/informe/${evaluacion.id}`;
 
     return this.pdfService.generarDocumentoPdf({
-      titulo: 'INFORME DE EVALUACIÓN BASADA EN RIESGO',
+      titulo: 'FICHA OFICIAL DE INSPECCIÓN Y EVALUACIÓN BPM',
       subtitulo: `Establecimiento: ${evaluacion.establecimiento.nombre}`,
+      codigo: codigoDoc,
+      version: '2026-Rev-BPM-RD',
+      metadataTitulo: 'DATOS DEL ESTABLECIMIENTO Y CONTACTOS',
       metadata: [
-        { etiqueta: 'ID Evaluacion', valor: evaluacion.id.toString() },
-        { etiqueta: 'Fecha Programada', valor: evaluacion.fechaProgramada?.toISOString().split('T')[0] ?? 'N/A' },
-        { etiqueta: 'Evaluador', valor: evaluacion.evaluador?.nombreCompleto ?? 'N/A' },
-        { etiqueta: 'Empresa', valor: evaluacion.establecimiento.empresa.razonSocial },
+        { etiqueta: 'ID Evaluación', valor: evaluacion.id.toString() },
+        { etiqueta: 'Establecimiento', valor: evaluacion.establecimiento.nombre },
+        { etiqueta: 'Empresa Titular', valor: evaluacion.establecimiento.empresa.razonSocial },
         { etiqueta: 'RNC Empresa', valor: evaluacion.establecimiento.empresa.rnc },
-        { etiqueta: 'Estado Evaluacion', valor: evaluacion.estado?.nombre ?? 'N/A' },
-        { etiqueta: 'Calificacion Riesgo', valor: evaluacion.calculoRiesgo?.calificacionTexto ?? 'N/A' },
+        { etiqueta: 'Fecha Programada', valor: evaluacion.fechaProgramada?.toISOString().split('T')[0] ?? 'N/A' },
+        { etiqueta: 'Estado Evaluación', valor: evaluacion.estado?.nombre ?? 'N/A' },
+        { etiqueta: 'Técnico Evaluador', valor: evaluacion.evaluador?.nombreCompleto ?? 'N/A' },
+        { etiqueta: 'Calificación Riesgo', valor: evaluacion.calculoRiesgo?.calificacionTexto ?? 'N/A' },
+      ],
+      metadataControlTitulo: 'DATOS DE CONTROL INTERNO Y FISCALIZACIÓN',
+      metadataControl: [
+        { etiqueta: 'Código Ficha', valor: codigoDoc },
+        { etiqueta: 'Tipo de Evaluación', valor: 'Vigilancia Sanitaria Regular BPM' },
+        { etiqueta: 'Coordinador Revisor', valor: evaluacion.coordinador?.nombreCompleto ?? 'Dirección Técnica DIGEMAPS' },
+        {
+          etiqueta: 'Frecuencia Fiscalización',
+          valor: evaluacion.calculoRiesgo?.nivelRiesgo?.nombre
+            ? `${evaluacion.calculoRiesgo.nivelRiesgo.nombre} (Fiscalización Regular)`
+            : 'Anual (Riesgo Bajo)',
+        },
       ],
       resultado: mapearResultadoDestacado(evaluacion.calculoRiesgo),
       noConformidades: mapearNoConformidades(evaluacion.respuestas),
@@ -56,6 +75,14 @@ export class InformesService {
         { titulo: 'No Conformidades', contenido: informe?.noConformidades ?? 'Sin no conformidades registradas.' },
         { titulo: 'Recomendaciones', contenido: informe?.recomendaciones ?? 'Sin recomendaciones registradas.' },
       ],
+      incluirSello: true,
+      incluirQr: true,
+      qrUrl,
+      incluirFirma: true,
+      tecnicoNombre: evaluacion.evaluador?.nombreCompleto ?? 'Lic. Roberto Morales',
+      tecnicoCargo: 'Técnico Evaluador Autorizado BPM',
+      coordinadorNombre: evaluacion.coordinador?.nombreCompleto ?? 'Ing. Carlos Peña',
+      coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
     });
   }
 

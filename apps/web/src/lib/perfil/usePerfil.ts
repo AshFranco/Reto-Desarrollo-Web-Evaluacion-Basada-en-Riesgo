@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getSession } from '@/lib/auth/session';
+import { apiFetchJson } from '@/lib/http/client';
 import type { PerfilUsuario } from '@/lib/types';
 
 async function fetchPerfil(usuarioIdEsperado?: string | null): Promise<PerfilUsuario> {
@@ -7,11 +8,7 @@ async function fetchPerfil(usuarioIdEsperado?: string | null): Promise<PerfilUsu
   if (usuarioIdEsperado && sesion?.usuario?.id && String(sesion.usuario.id) !== String(usuarioIdEsperado)) {
     throw new Error('Discrepancia de sesión detectada.');
   }
-  const res = await fetch('/api/v1/usuarios/perfil', {
-    headers: { Authorization: `Bearer ${sesion?.accessToken ?? ''}` },
-  });
-  if (!res.ok) throw new Error('Error al cargar el perfil.');
-  const data = (await res.json()) as PerfilUsuario;
+  const data = await apiFetchJson<PerfilUsuario>('/api/v1/usuarios/perfil');
   if (usuarioIdEsperado && data?.id && String(data.id) !== String(usuarioIdEsperado)) {
     throw new Error('Discrepancia de perfil detectada.');
   }

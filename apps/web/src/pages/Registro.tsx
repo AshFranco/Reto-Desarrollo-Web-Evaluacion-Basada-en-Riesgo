@@ -37,6 +37,7 @@ export default function Registro() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
+  const [tipoDocumento, setTipoDocumento] = useState<'CEDULA' | 'RNC' | 'PASAPORTE'>('CEDULA');
   const { data: empresas, isLoading: cargandoEmpresas, isError: errorEmpresas } = useEmpresasPublicas();
 
   async function manejarSubmit(evento: FormEvent) {
@@ -128,14 +129,48 @@ export default function Registro() {
               disabled={cargando}
             />
             <TextField
+              select
+              label="Tipo de documento"
+              fullWidth
+              margin="normal"
+              value={tipoDocumento}
+              onChange={(e) => {
+                setTipoDocumento(e.target.value as any);
+                setDatos((d) => ({ ...d, cedulaPasaporte: '' }));
+              }}
+              disabled={cargando}
+            >
+              <MenuItem value="CEDULA">Cédula Dominicana (11 dígitos)</MenuItem>
+              <MenuItem value="RNC">RNC (9 u 11 dígitos)</MenuItem>
+              <MenuItem value="PASAPORTE">Pasaporte (Extranjero)</MenuItem>
+            </TextField>
+            <TextField
               label="Cédula o pasaporte"
               fullWidth
               required
               margin="normal"
-              helperText="Solo números y guiones."
+              helperText={
+                tipoDocumento === 'CEDULA'
+                  ? 'Solo 11 dígitos numéricos sin letras.'
+                  : tipoDocumento === 'RNC'
+                  ? '9 u 11 dígitos numéricos.'
+                  : 'Alfanumérico (mínimo 5 caracteres).'
+              }
               value={datos.cedulaPasaporte}
-              onChange={(e) => setDatos((d) => ({ ...d, cedulaPasaporte: e.target.value }))}
+              onChange={(e) => {
+                const val = e.target.value;
+                let filtrado = val;
+                if (tipoDocumento === 'CEDULA' || tipoDocumento === 'RNC') {
+                  filtrado = val.replace(/[^0-9-]/g, '').slice(0, 13);
+                } else {
+                  filtrado = val.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20);
+                }
+                setDatos((d) => ({ ...d, cedulaPasaporte: filtrado }));
+              }}
               disabled={cargando}
+              inputProps={{
+                maxLength: tipoDocumento === 'PASAPORTE' ? 20 : 13,
+              }}
             />
             <TextField
               label="Correo"
@@ -185,7 +220,7 @@ export default function Registro() {
             </TextField>
             {errorEmpresas ? (
               <Alert severity="error" sx={{ mt: 2 }}>
-                No se pudo cargar la lista de empresas. Recargá la página e intentá de nuevo.
+                No se pudo cargar la lista de empresas. Recargue la página e intente de nuevo.
               </Alert>
             ) : (
               <TextField
@@ -194,7 +229,7 @@ export default function Registro() {
                 fullWidth
                 required
                 margin="normal"
-                helperText={cargandoEmpresas ? 'Cargando empresas…' : 'Elegí la empresa a la que pertenecés.'}
+                helperText={cargandoEmpresas ? 'Cargando empresas…' : 'Seleccione la empresa a la que pertenece.'}
                 value={datos.empresaId}
                 onChange={(e) => setDatos((d) => ({ ...d, empresaId: e.target.value }))}
                 disabled={cargando || cargandoEmpresas}
@@ -211,7 +246,7 @@ export default function Registro() {
               fullWidth
               margin="normal"
               placeholder="https://..."
-              helperText="Enlace al documento que autoriza tu registro en nombre de la empresa, si ya lo tenés subido."
+              helperText="Enlace al documento que autoriza su registro en nombre de la empresa, si ya dispone de él."
               value={datos.cartaAutorizacionUrl}
               onChange={(e) => setDatos((d) => ({ ...d, cartaAutorizacionUrl: e.target.value }))}
               disabled={cargando}
@@ -222,9 +257,9 @@ export default function Registro() {
             </Button>
 
             <Typography variant="body2" sx={{ mt: 2, textAlign: 'center' }}>
-              ¿Ya tenés cuenta?{' '}
+              ¿Ya tiene una cuenta?{' '}
               <Link component={RouterLink} to="/login" underline="hover">
-                Iniciá sesión
+                Iniciar sesión
               </Link>
             </Typography>
           </>
