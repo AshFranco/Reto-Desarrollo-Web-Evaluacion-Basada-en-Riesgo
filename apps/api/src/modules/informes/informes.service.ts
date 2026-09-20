@@ -4,6 +4,8 @@ import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
 import { PdfService } from '../../common/services/pdf.service';
 import { mapearResultadoDestacado, mapearNoConformidades } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
+import type { JwtPayload } from '../auth/token.service';
 
 import { AuditoriaService } from '../auditoria/auditoria.service';
 
@@ -16,7 +18,7 @@ export class InformesService {
     private readonly notificaciones: NotificacionesService,
   ) {}
 
-  async generarPdf(evaluacionId: string): Promise<Buffer> {
+  async generarPdf(evaluacionId: string, user: JwtPayload): Promise<Buffer> {
     const evaluacion = await this.prisma.evaluacion.findUnique({
       where: { id: BigInt(evaluacionId) },
       include: {
@@ -33,6 +35,7 @@ export class InformesService {
     });
 
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
+    verificarAccesoEmpresa(user, evaluacion.establecimiento.idEmpresa);
 
     const informe = evaluacion.informe;
     const anio = new Date().getFullYear();
