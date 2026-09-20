@@ -644,7 +644,7 @@ function DialogoReprogramar({
   async function confirmar() {
     if (!evaluacion) return;
     if (!nuevaFecha) {
-      setError('Elegí la nueva fecha.');
+      setError('Elija la nueva fecha.');
       return;
     }
     setError(null);

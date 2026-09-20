@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetchJson } from '@/lib/http/client';
 import type { Empresa } from '@/lib/types';
+import { limpiarDatosEmpresa } from './validacionEmpresa';
 
 /**
  * DTO confirmado contra apps/api/src/modules/empresas/dto/empresa.dto.ts
@@ -68,7 +69,7 @@ export function useCrearEmpresa() {
       apiFetchJson<Empresa>('/api/v1/empresas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos),
+        body: JSON.stringify(limpiarDatosEmpresa(datos)),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['empresas'] }),
   });
@@ -81,7 +82,7 @@ export function useEditarEmpresa(id: string) {
       apiFetchJson<Empresa>(`/api/v1/empresas/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos),
+        body: JSON.stringify(limpiarDatosEmpresa(datos)),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });

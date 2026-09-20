@@ -50,42 +50,7 @@ import { EstadoVacio } from '@/components/ui/EstadoVacio';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 import { EstadoChip } from '@/components/ui/EstadoChip';
 
-const EMPRESA_VACIA: DatosEmpresa = { razonSocial: '', rnc: '', nombreComercial: '', direccion: '', telefono: '', correo: '', actividadEconomica: '' };
-
-const RNC_REGEX = /^[0-9]{9}$|^[0-9]{11}$/;
-const TELEFONO_REGEX = /^[0-9]{10}$/;
-const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-interface ErroresEmpresa {
-  rnc?: string;
-  telefono?: string;
-  correo?: string;
-}
-
-function validarEmpresa(datos: { rnc: string; telefono?: string; correo?: string }): ErroresEmpresa {
-  const errores: ErroresEmpresa = {};
-  if (datos.rnc) {
-    if (datos.rnc.includes('-')) {
-      errores.rnc = 'El RNC no puede contener guiones ni signos negativos.';
-    } else if (!RNC_REGEX.test(datos.rnc)) {
-      errores.rnc = 'El RNC debe contener exactamente 9 u 11 dígitos numéricos.';
-    }
-  }
-
-  if (datos.telefono) {
-    if (datos.telefono.includes('-')) {
-      errores.telefono = 'El teléfono no puede contener signos negativos ni guiones.';
-    } else if (!TELEFONO_REGEX.test(datos.telefono)) {
-      errores.telefono = 'El teléfono debe contener exactamente 10 dígitos numéricos.';
-    }
-  }
-
-  if (datos.correo && !CORREO_REGEX.test(datos.correo)) {
-    errores.correo = 'El formato del correo electrónico no es válido.';
-  }
-
-  return errores;
-}
+import { EMPRESA_VACIA, validarEmpresa, type ErroresEmpresa } from '@/lib/empresa/validacionEmpresa';
 
 function FormularioCrearEmpresa() {
   const crearEmpresa = useCrearEmpresa();
@@ -147,7 +112,7 @@ function FormularioCrearEmpresa() {
           onChange={(e) => actualizarCampo('rnc', e.target.value)}
           disabled={crearEmpresa.isPending}
           error={Boolean(errores.rnc)}
-          helperText={errores.rnc ?? '9 u 11 dígitos numéricos sin signos'}
+          helperText={errores.rnc ?? 'Solo números, de 9 o de 11 dígitos, sin signos.'}
         />
         <TextField
           label="Nombre comercial"
@@ -279,7 +244,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
             value={datos.rnc}
             onChange={(e) => actualizarCampo('rnc', e.target.value)}
             error={Boolean(errores.rnc)}
-            helperText={errores.rnc ?? '9 u 11 dígitos numéricos sin signos'}
+            helperText={errores.rnc ?? 'Solo números, de 9 o de 11 dígitos, sin signos.'}
           />
           <TextField
             label="Nombre comercial"
@@ -508,7 +473,7 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
       }
     } else if (tipo === 'RNC') {
       if (digitos.length !== 9 && digitos.length !== 11) {
-        return 'El RNC debe contener 9 u 11 dígitos numéricos.';
+        return 'El RNC debe ser numérico y de 9 o de 11 dígitos.';
       }
     } else if (tipo === 'PASAPORTE') {
       if (valor.trim().length < 5) {
@@ -625,7 +590,7 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
           disabled={invitar.isPending}
         >
           <MenuItem value="CEDULA">Cédula Dominicana (11 dígitos)</MenuItem>
-          <MenuItem value="RNC">RNC (9 u 11 dígitos)</MenuItem>
+          <MenuItem value="RNC">RNC (de 9 o de 11 dígitos)</MenuItem>
           <MenuItem value="PASAPORTE">Pasaporte (Extranjero)</MenuItem>
         </TextField>
         <TextField
@@ -647,7 +612,7 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
             (tipoDocumento === 'CEDULA'
               ? '11 dígitos numéricos sin letras.'
               : tipoDocumento === 'RNC'
-              ? '9 u 11 dígitos numéricos.'
+              ? 'Solo números, de 9 o de 11 dígitos.'
               : 'Alfanumérico (mínimo 5 caracteres).')
           }
           disabled={invitar.isPending}
