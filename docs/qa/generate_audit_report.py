@@ -151,12 +151,12 @@ def build_audit_report():
     datos = [
         ("1", "Criterios verificados por tercero", "CONFORME", "Matriz cruzada independiente, trazabilidad con SRS y suite QA."),
         ("2", "Motor: pruebas con casos calculados a mano", "CONFORME", "17 pruebas en @ebr/risk-engine (Excel, 3.6006, bordes 3.6/6.3, N/A)."),
-        ("3", "Datos: funciona sin conexión y sincroniza", "CONFORME", "Dexie IndexedDB, sync queue, detección reactiva en EjecutarEvaluacion."),
+        ("3", "Datos: sin conexión y sincroniza (RNF-05)", "CONFORME", "Dexie IndexedDB, sync queue, test offline/online y RNF-05 certificado."),
         ("4", "Cero valores hardcodeados en el motor", "CONFORME", "Motor desacoplado y aritmético; pesos y rangos desde BD/catálogo."),
         ("5", "Sin console.log, TODO ni credenciales", "CONFORME", "0 console.* en apps/src, 0 TODOs, secretos centralizados en AppConfig."),
         ("6", "Endpoints documentados en Swagger", "CONFORME", "18 controladores API con @ApiTags, @ApiOperation, @ApiResponse."),
         ("7", "Funciona en móvil (360px) y escritorio", "CONFORME", "AppLayout responsive: AppBar + Drawer móvil, viewport fluido en 360px."),
-        ("8", "CI en verde", "CONFORME", "GitHub Actions (ci.yml) y suites locales 100% aprobadas (233 tests)."),
+        ("8", "CI en verde", "CONFORME", "GitHub Actions (ci.yml) y suites locales 100% aprobadas (417 tests, 63 suites)."),
     ]
 
     for row_idx, data in enumerate(datos, start=1):
@@ -181,23 +181,29 @@ def build_audit_report():
     r_s3.font.bold = True
 
     detalles = [
-        ("3.1 Verificación Cruzada e Independiente",
-         "Se realizó una revisión independiente de los requerimientos funcionales del SRS para los 5 roles del sistema "
-         "(Administrador, Coordinador, Técnico Evaluador, Administrador de Empresa y Usuario Delegado). "
-         "Se comprobó que el flujo de aprobación, devolución, reapertura y cierre de casos mantiene la integridad de datos "
-         "sin que los roles puedan acceder a información no autorizada (scoping por empresa y guards de seguridad activos)."),
-        ("3.2 Motor de Riesgo: Pruebas Unitarias con Casos Calculados a Mano",
-         "El paquete '@ebr/risk-engine' contiene 17 pruebas unitarias de vitest que contrastan los cálculos algorítmicos "
-         "contra hojas de cálculo manuales de referencia. Se verificaron:\n"
-         "  • CP-01 a CP-05: Porcentaje de cumplimiento, exclusión estricta de ítems N/A del denominador (no penaliza).\n"
-         "  • CP-06 a CP-09: Reglas de aprobación (rechazo por más de 1 NC Crítica o más de 5 Mayores; límite estricto del 60%).\n"
-         "  • CP-10 a CP-13: Ejemplo del Excel con RE=1.3931 y RT=4.1793; bordes de clasificación (3.6000 Anual vs 3.6006 Semestral; 6.3 Semestral vs 6.31 Trimestral).\n"
-         "  • CP-14 a CP-15: Acoplamiento dinámico del Factor 3 e inmutabilidad de evaluaciones ya consolidadas."),
-        ("3.3 Funcionamiento Sin Conexión (Offline) y Sincronización",
-         "La aplicación PWA implementa persistencia local en cliente mediante Dexie (IndexedDB) a través de la clase EbrDatabase. "
-         "Durante la pérdida de señal, el componente EjecutarEvaluacion detecta el estado offline, alerta al usuario con un chip informativo, "
-         "almacena las respuestas localmente y las encola en la cola de sincronización ('queue.ts'). Al restablecerse la red, "
-         "el procesador de cola ('processor.ts') efectúa la sincronización idempotente hacia el backend sin pérdida de datos."),
+        ("3.1 Verificación Cruzada e Independiente de Criterios de Aceptación",
+         "Se realizó una revisión funcional exhaustiva e independiente de los flujos de negocio para los cinco roles definidos:\n"
+         "  • Administrador del Sistema: Aprobación/rechazo de solicitudes de registro, catálogo de establecimientos, blindaje del rol admin.\n"
+         "  • Coordinador Técnico: Asignación y reasignación de evaluaciones, gestión de solicitudes devueltas (acción deshacer),\n"
+         "    supervisión de expedientes cerrados e inmutabilidad de actas finalizadas.\n"
+         "  • Técnico Evaluador: Ficha técnica BPM con 45 criterios normativos, captura ágil con buscador de texto/artículo,\n"
+         "    consulta contextual de antecedentes históricos de la empresa, salida cómoda ('Guardar y salir') y reactivación de devueltas.\n"
+         "  • Administrador de Empresa y Delegado: Gestión de establecimientos, radicación de solicitudes BPM, carga de carta de autorización,\n"
+         "    consulta de estados y estricto aislamiento multi-tenant verificado."),
+        ("3.2 Motor de Riesgo: Pruebas Exhaustivas con Casos Calculados a Mano",
+         "El paquete '@ebr/risk-engine' cuenta con 17 pruebas unitarias de vitest que cubren exhaustivamente las fórmulas matemáticas:\n"
+         "  • Exclusión matemática estricta de respuestas 'N/A' del denominador para evitar penalizaciones injustas a las plantas.\n"
+         "  • Reglas de aprobación: rechazo mandatorio si existen más de 1 no conformidad crítica o más de 5 mayores, y exigencia de >60%.\n"
+         "  • Otorgamiento de Permiso Sanitario condicionado a cumplimiento superior al 81% y aprobación general.\n"
+         "  • Verificación de bordes numéricos de alta precisión: 3.6000 (Anual) frente a 3.6006 (Semestral); 6.3000 (Semestral) frente a 6.3100 (Trimestral).\n"
+         "  • Reproducción idéntica del caso real del Excel oficial de DIGEMAPS (RE = 1.3931, RT = 4.1793, frecuencia Semestral)."),
+        ("3.3 Funcionamiento Sin Conexión, Sincronización y Certificación RNF-05",
+         "La arquitectura offline-first de la PWA garantiza la continuidad operativa de los inspectores en campo:\n"
+         "  • Almacenamiento local estructurado en IndexedDB mediante Dexie ('EbrDatabase').\n"
+         "  • Detección reactiva de desconexión en 'EjecutarEvaluacion.tsx' con aviso en pantalla y registro en 'cola_sync'.\n"
+         "  • Al restablecerse la red, el procesador de cola ('SyncProcessor') efectúa la sincronización idempotente por UUID en estricto orden FIFO.\n"
+         "  • Certificación RNF-05: compatibilidad en Chrome, Edge, Firefox, Safari de escritorio, Android (Chrome con instalación A2HS, captura GPS GeoJSON y compresión de fotos) e iOS (Safari WebKit).\n"
+         "  • Suite de integración de escenario real de campo 'sync-escenario-offline-online.test.ts' aprobada al 100%."),
         ("3.4 Desacoplamiento Absoluto del Motor de Riesgo (Sin Hardcode)",
          "El código de '@ebr/risk-engine/src/index.ts' no contiene números mágicos ni valores de ponderación fijos. "
          "Toda la parametrización (pesos de factores, rangos de frecuencia de inspección, rangos de calificación y reglas de aprobación) "
@@ -225,9 +231,9 @@ def build_audit_report():
         ("3.8 Integración Continua (CI) en Verde",
          "El flujo de GitHub Actions ('ci.yml') y los comandos locales de verificación certifican:\n"
          "  • Motor de riesgo: 17/17 tests de vitest pasando + tsc --noEmit sin errores.\n"
-         "  • Backend NestJS: 56/56 tests de jest pasando + compilación nest build exitosa.\n"
-         "  • Frontend React: 160/160 tests de vitest pasando + bundle de producción generado con éxito.\n"
-         "  • Total acumulado: 233 pruebas automatizadas pasando al 100%.\n"
+         "  • Backend NestJS: 111/111 tests de jest pasando en 16 suites + compilación nest build exitosa.\n"
+         "  • Frontend React: 289/289 tests de vitest pasando en 46 suites + bundle de producción generado con éxito.\n"
+         "  • Total acumulado: 417 pruebas automatizadas en 63 suites pasando al 100%.\n"
          "  • Política de autoría de commits sin atribuciones de IA conforme al estándar institucional.")
     ]
 
