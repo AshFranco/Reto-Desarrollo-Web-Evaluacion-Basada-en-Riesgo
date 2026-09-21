@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetchJson } from '@/lib/http/client';
 import {
@@ -32,7 +32,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import { useSesion } from '@/lib/auth/useSesion';
 import { useEmpresa } from '@/lib/empresa/useEmpresas';
-import { useCrearSolicitud, useEnviarSolicitud } from '@/lib/empresa/useSolicitudes';
+import { useCrearSolicitud, useEnviarSolicitud, useSolicitudesPropias } from '@/lib/empresa/useSolicitudes';
 import {
   useAdjuntosSolicitud,
   useSubirAdjunto,
@@ -66,8 +66,11 @@ const ETIQUETA_TIPO_ADJUNTO: Record<string, string> = {
 
 const PASOS = ['Datos básicos', 'Establecimiento', 'Adjuntos', 'Confirmar'];
 
+const ESTADO_BORRADOR = 'Pendiente de Asignacion';
+
 export default function FormularioSolicitud() {
   const navigate = useNavigate();
+  const { id: idBorrador } = useParams<{ id: string }>();
   const { sesion } = useSesion();
   const empresaId = sesion?.usuario.empresaId ?? null;
   const { data: empresa } = useEmpresa(empresaId);
@@ -101,6 +104,26 @@ export default function FormularioSolicitud() {
 
   // Solicitud creada en el backend (disponible desde paso 1)
   const [solicitudId, setSolicitudId] = useState<string | null>(null);
+
+  // Reanudar un borrador guardado antes (ruta /empresa/solicitudes/:id/continuar).
+  const { data: misSolicitudes, isLoading: cargandoSolicitudes } = useSolicitudesPropias();
+  const borrador = idBorrador ? misSolicitudes?.find((s) => s.id === idBorrador) : undefined;
+  // Solo se evalúa al abrir la pantalla: una vez cargado el borrador (solicitudId), enviarlo lo
+  // pasa a "Asignada" en el listado y eso no debe mostrarse como un error.
+  const borradorInvalido =
+    !!idBorrador && !cargandoSolicitudes && !solicitudId && (!borrador || borrador.estado !== ESTADO_BORRADOR);
+  const borradorCargado = useRef(false);
+  useEffect(() => {
+    if (!borrador || borrador.estado !== ESTADO_BORRADOR || borradorCargado.current) return;
+    borradorCargado.current = true;
+    setSolicitudId(borrador.id);
+    setTipoEstablecimiento(borrador.tipoEstablecimiento);
+    setMotivo(borrador.motivo);
+    setObservaciones(borrador.observaciones ?? '');
+    setPaso(1);
+  }, [borrador]);
+  // Una vez guardado el borrador, sus datos ya no se pueden cambiar desde aquí.
+  const datosBloqueados = !!solicitudId;
 
   // Adjuntos
   const [tipoAdjunto, setTipoAdjunto] = useState<
@@ -189,7 +212,7 @@ export default function FormularioSolicitud() {
   async function guardarBorrador() {
     if (solicitudId) {
       // Ya existe el borrador; navegar directamente
-      setExito('Solicitud guardada como borrador.');
+      setExito('Solicitud guardada como borrador. Puede continuarla desde "Mis solicitudes BPM".');
       setTimeout(() => navigate('/empresa'), 1200);
     }
   }
@@ -206,7 +229,7 @@ export default function FormularioSolicitud() {
     <Box sx={{ maxWidth: 640, mx: 'auto' }}>
       <PageHeader
         etiqueta="Empresa"
-        titulo="Nueva solicitud BPM"
+        titulo={idBorrador ? 'Continuar solicitud BPM' : 'Nueva solicitud BPM'}
         icono={<DescriptionOutlinedIcon />}
         accion={
           <Button
@@ -220,6 +243,16 @@ export default function FormularioSolicitud() {
         }
       />
 
+      {idBorrador && cargandoSolicitudes && (
+        <CircularProgress size={28} sx={{ display: 'block', mx: 'auto', mt: 4 }} />
+      )}
+      {borradorInvalido && (
+        <Alert severity="warning" sx={{ mt: 3 }}>
+          Esta solicitud no existe o ya fue enviada, así que no se puede continuar.
+        </Alert>
+      )}
+
+      {!(idBorrador && (cargandoSolicitudes || borradorInvalido)) && (
       <Paper variant="outlined" sx={{ padding: { xs: 2.5, md: 4 }, mt: 3 }}>
         <Stepper activeStep={paso} sx={{ mb: 4 }}>
           {PASOS.map((etiqueta) => (
@@ -251,8 +284,12 @@ export default function FormularioSolicitud() {
               margin="normal"
               value={tipoEstablecimiento}
               onChange={(e) => setTipoEstablecimiento(e.target.value)}
-              disabled={creandoSolicitud}
-              helperText="Selecciona el tipo de establecimiento predefinido que corresponda a tus operaciones"
+              disabled={creandoSolicitud || datosBloqueados}
+              helperText={
+                datosBloqueados
+                  ? 'Los datos ya se guardaron en el borrador y no se pueden modificar. Si necesita cambiarlos, cree una nueva solicitud.'
+                  : 'Selecciona el tipo de establecimiento predefinido que corresponda a tus operaciones'
+              }
             >
               <MenuItem value="" disabled>
                 -- Selecciona un tipo predefinido --
@@ -270,7 +307,7 @@ export default function FormularioSolicitud() {
               margin="normal"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              disabled={creandoSolicitud}
+              disabled={creandoSolicitud || datosBloqueados}
             />
             <TextField
               label="Observaciones (opcional)"
@@ -280,7 +317,7 @@ export default function FormularioSolicitud() {
               margin="normal"
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
-              disabled={creandoSolicitud}
+              disabled={creandoSolicitud || datosBloqueados}
             />
           </Box>
         )}
@@ -589,6 +626,7 @@ export default function FormularioSolicitud() {
           )}
         </Box>
       </Paper>
+      )}
     </Box>
   );
 }
