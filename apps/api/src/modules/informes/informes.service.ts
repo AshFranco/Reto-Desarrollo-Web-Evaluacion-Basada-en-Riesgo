@@ -82,41 +82,45 @@ export class InformesService {
       est?.contactos?.[0] ||
       emp?.contactos?.[0];
 
-    const representanteLegal = contactoRep?.nombreCompleto || 'Ashley Franco Bobonagua';
-    const telefonoContacto = est?.telefono || emp?.telefono || contactoRep?.telefono || '+1 (809) 555-0199';
+    // Sin dato real se muestra N/A: nunca se inventa un valor.
+    const NA = 'N/A';
+    const representanteLegal = contactoRep?.nombreCompleto || NA;
+    const telefonoContacto = est?.telefono || emp?.telefono || contactoRep?.telefono || NA;
 
     // Municipio / DPS
-    const nombreMunicipio = est?.municipio?.nombre || 'Santo Domingo Este';
-    const dps = est?.dpsDas?.nombre || (est?.municipio?.provincia?.nombre ? `DPS ${est.municipio.provincia.nombre}` : 'DPS II');
-    const municipioDps = `${nombreMunicipio} (${dps})`;
+    const nombreMunicipio: string | undefined = est?.municipio?.nombre;
+    const dps: string | undefined = est?.dpsDas?.nombre || (est?.municipio?.provincia?.nombre ? `DPS ${est.municipio.provincia.nombre}` : undefined);
+    const municipioDps = nombreMunicipio && dps ? `${nombreMunicipio} (${dps})` : nombreMunicipio || dps || NA;
 
     // Fechas
-    const fechaIni = evaluacion.fechaInicio || evaluacion.fechaProgramada || new Date();
-    const fechaIniTexto = new Intl.DateTimeFormat('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(fechaIni);
+    const formatoFecha = new Intl.DateTimeFormat('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const fechaIni = evaluacion.fechaInicio || evaluacion.fechaProgramada;
+    const fechaIniTexto = fechaIni ? formatoFecha.format(fechaIni) : NA;
 
-    const fechaAct = evaluacion.fechaFinalizacion || new Date();
-    const fechaActTexto = new Intl.DateTimeFormat('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(fechaAct);
+    const fechaAct = evaluacion.fechaFinalizacion;
+    const fechaActTexto = fechaAct ? formatoFecha.format(fechaAct) : NA;
 
-    const fechaEmisionTexto = new Intl.DateTimeFormat('es-DO', { day: 'numeric', month: 'long', year: 'numeric' }).format(evaluacion.fechaRevision || fechaAct);
+    // La fecha de emisión es la de la revisión o, si aún no hay, la del día en que se genera el documento.
+    const fechaEmisionTexto = new Intl.DateTimeFormat('es-DO', { day: 'numeric', month: 'long', year: 'numeric' }).format(evaluacion.fechaRevision || fechaAct || new Date());
 
     const resultadoDestacado = mapearResultadoDestacado(evaluacion.calculoRiesgo);
     const noConformidades = mapearNoConformidades(evaluacion.respuestas);
 
-    const tecId = evaluacion.evaluador?.id ? evaluacion.evaluador.id.toString().padStart(2, '0') : '08';
-    const tecNombre = evaluacion.evaluador?.nombreCompleto || 'Lic. Roberto Morales';
-    const tecnicoEvaluador = `${tecNombre} (TEC-${tecId})`;
+    const tecId = evaluacion.evaluador?.id ? evaluacion.evaluador.id.toString().padStart(2, '0') : undefined;
+    const tecNombre: string | undefined = evaluacion.evaluador?.nombreCompleto;
+    const tecnicoEvaluador = tecNombre ? `${tecNombre} (TEC-${tecId})` : NA;
 
-    const coordNombre = evaluacion.coordinador?.nombreCompleto || 'Ing. Carlos Peña';
-    const coordinadorRevisor = `${coordNombre} (DIGEMAPS)`;
+    const coordNombre: string | undefined = evaluacion.coordinador?.nombreCompleto;
+    const coordinadorRevisor = coordNombre ? `${coordNombre} (DIGEMAPS)` : NA;
 
-    const motivoInspeccion = (evaluacion as any).caso?.origen?.nombre || 'Vigilancia Sanitaria Regular';
-    const noPermisoSanitario = est?.numeroPermisoSanitario || `PS-SAN-${anio}-${(est?.id ?? evaluacion.id).toString().padStart(4, '0')}`;
+    const motivoInspeccion = (evaluacion as any).caso?.origen?.nombre || NA;
+    const noPermisoSanitario = est?.numeroPermisoSanitario || NA;
 
-    const nivelRiesgoTexto = evaluacion.calculoRiesgo?.nivelRiesgo?.nombre || 'Bajo';
-    const frecuenciaTexto = resultadoDestacado?.frecuencia || `Anual (Nivel de Riesgo ${nivelRiesgoTexto})`;
+    const frecuenciaTexto = resultadoDestacado?.frecuencia || NA;
 
-    const esFavorable = resultadoDestacado?.aprueba ?? true;
-    const dictamenTecnico = esFavorable ? 'Favorable' : 'Desfavorable';
+    // Sin resultado calculado no hay dictamen: ni favorable ni desfavorable.
+    const esFavorable: boolean | undefined = resultadoDestacado ? resultadoDestacado.aprueba : undefined;
+    const dictamenTecnico = esFavorable === undefined ? NA : esFavorable ? 'Favorable' : 'Desfavorable';
 
     const buffer = await this.pdfService.generarDocumentoPdf({
       titulo: 'FICHA DE INSPECCIÓN BPM (OFICIAL)',
@@ -126,9 +130,9 @@ export class InformesService {
       fechaEmision: fechaEmisionTexto,
       datosEstablecimiento: {
         regId: `EST-${(est?.id ?? evaluacion.id).toString().padStart(4, '0')}`,
-        empresaRazonSocial: emp?.razonSocial || est?.nombre || 'Restaurante Franciscano SRL',
-        rnc: est?.rnc || emp?.rnc || '1-30-00000-2',
-        direccionFisica: est?.calle || emp?.direccion || 'Av. Duarte esq. Independencia, #104',
+        empresaRazonSocial: emp?.razonSocial || est?.nombre || NA,
+        rnc: est?.rnc || emp?.rnc || NA,
+        direccionFisica: est?.calle || emp?.direccion || NA,
         municipioDps,
         representanteLegal,
         telefonoContacto,
@@ -152,10 +156,10 @@ export class InformesService {
       incluirFirma: true,
       tecnicoNombre: tecNombre,
       tecnicoCargo: 'Técnico Evaluador Autorizado BPM',
-      tecnicoRegistro: `Reg. Profesional: TEC-BPM-${tecId}`,
+      tecnicoRegistro: tecId ? `Reg. Profesional: TEC-BPM-${tecId}` : NA,
       coordinadorNombre: coordNombre,
       coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
-      coordinadorCertificado: 'Firma Electrónica Avanzada (Ley 126-02)',
+      coordinadorCertificado: coordNombre ? 'Firma Electrónica Avanzada (Ley 126-02)' : undefined,
     });
 
     const nombreArchivo = construirNombreArchivoFichaPdf(

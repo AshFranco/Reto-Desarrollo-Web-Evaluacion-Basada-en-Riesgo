@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { createHash } from 'crypto';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 
@@ -52,7 +53,8 @@ export interface DatosControlInternoPdf {
   coordinadorRevisor: string;
   frecuenciaFiscalizacion: string;
   dictamenTecnico: string;
-  esFavorable: boolean;
+  /** undefined = todavía no hay resultado: el dictamen se muestra como N/A. */
+  esFavorable?: boolean;
 }
 
 export interface DocumentoPdfData {
@@ -87,6 +89,9 @@ export interface DocumentoPdfData {
   coordinadorCargo?: string;
   coordinadorCertificado?: string;
 }
+
+/** Lo que se muestra cuando no hay un dato real: nunca se inventa uno. */
+const NA = 'N/A';
 
 const AZUL_INSTITUCIONAL = '#002B49';
 const AZUL_OSCURO = '#0F172A';
@@ -163,6 +168,11 @@ export class PdfService {
       if (existsSync(ruta)) return ruta;
     }
     return null;
+  }
+
+  /** SHA-256 del contenido del documento: cambia si cambia cualquier dato mostrado. */
+  private calcularHashContenido(data: DocumentoPdfData): string {
+    return createHash('sha256').update(JSON.stringify(data)).digest('hex');
   }
 
   private async generarQrBuffer(url: string): Promise<Buffer | null> {
@@ -307,7 +317,7 @@ export class PdfService {
     doc.roundedRect(x, yFila1, anchoColIzq, altoFila1, 6).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    const regId = data.datosEstablecimiento?.regId || (data.metadata?.find(m => m.etiqueta.includes('ID'))?.valor ? `EST-${data.metadata.find(m => m.etiqueta.includes('ID'))?.valor}` : 'EST-8941');
+    const regId = data.datosEstablecimiento?.regId || (data.metadata?.find(m => m.etiqueta.includes('ID'))?.valor ? `EST-${data.metadata.find(m => m.etiqueta.includes('ID'))?.valor}` : NA);
 
     doc
       .fillColor(AZUL_INSTITUCIONAL)
@@ -322,12 +332,12 @@ export class PdfService {
       .text(`REG-ID: ${regId}`, x + 10, yFila1 + 9, { width: anchoColIzq - 20, align: 'right' });
 
     const est = data.datosEstablecimiento;
-    const empresaVal = est?.empresaRazonSocial || this.buscarMeta(data.metadata, ['Empresa', 'Razón Social']) || 'Restaurante Franciscano SRL';
-    const rncVal = est?.rnc || this.buscarMeta(data.metadata, ['RNC']) || '1-30-00000-2';
-    const dirVal = est?.direccionFisica || this.buscarMeta(data.metadata, ['Dirección', 'Calle']) || 'Av. Duarte esq. Independencia, #104';
-    const munVal = est?.municipioDps || this.buscarMeta(data.metadata, ['Municipio', 'DPS']) || 'Santo Domingo Este (DPS II)';
-    const repVal = est?.representanteLegal || this.buscarMeta(data.metadata, ['Representante', 'Titular']) || 'Ashley Franco Bobonagua';
-    const telVal = est?.telefonoContacto || this.buscarMeta(data.metadata, ['Teléfono']) || '+1 (809) 555-0199';
+    const empresaVal = est?.empresaRazonSocial || this.buscarMeta(data.metadata, ['Empresa', 'Razón Social']) || NA;
+    const rncVal = est?.rnc || this.buscarMeta(data.metadata, ['RNC']) || NA;
+    const dirVal = est?.direccionFisica || this.buscarMeta(data.metadata, ['Dirección', 'Calle']) || NA;
+    const munVal = est?.municipioDps || this.buscarMeta(data.metadata, ['Municipio', 'DPS']) || NA;
+    const repVal = est?.representanteLegal || this.buscarMeta(data.metadata, ['Representante', 'Titular']) || NA;
+    const telVal = est?.telefonoContacto || this.buscarMeta(data.metadata, ['Teléfono']) || NA;
 
     const subColW = (anchoColIzq - 24) / 2;
     const yItemsFila1 = yFila1 + 24;
@@ -362,7 +372,10 @@ export class PdfService {
     const cy = yFila1 + altoFila1 / 2;
     const r = 36;
     const fechaSello = new Date().toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
-    const esAprobado = data.resultado ? data.resultado.aprueba : (data.datosControlInterno ? data.datosControlInterno.esFavorable : true);
+    // undefined = sin resultado todavía: ni aprobado ni observado.
+    const esAprobado: boolean | undefined = data.resultado ? data.resultado.aprueba : data.datosControlInterno?.esFavorable;
+    const textoSello = esAprobado === undefined ? 'SIN VALIDAR' : esAprobado ? 'APROBADO Y VALIDADO' : 'NO APROBADO / OBSERVADO';
+    const colorSello = esAprobado === undefined ? GRIS_CLARO : esAprobado ? AZUL_INSTITUCIONAL : ROJO_TXT;
 
     doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
     doc.circle(cx, cy, r - 2.5).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
@@ -372,7 +385,7 @@ export class PdfService {
     doc.moveTo(cx - 24, cy + 6).lineTo(cx + 24, cy + 6).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
 
     doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(5).text('REPÚBLICA DOMINICANA', cx - 30, cy - 18, { width: 60, align: 'center' });
-    doc.fillColor(esAprobado ? AZUL_INSTITUCIONAL : ROJO_TXT).font('Helvetica-Bold').fontSize(esAprobado ? 6.5 : 5.8).text(esAprobado ? 'APROBADO Y VALIDADO' : 'NO APROBADO / OBSERVADO', cx - 30, cy - 4.5, { width: 60, align: 'center' });
+    doc.fillColor(colorSello).font('Helvetica-Bold').fontSize(esAprobado === true ? 6.5 : 5.8).text(textoSello, cx - 30, cy - 4.5, { width: 60, align: 'center' });
     doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(5.5).text(fechaSello, cx - 30, cy + 9, { width: 60, align: 'center' });
     doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica').fontSize(4.5).text('SINEC · DIGEMAPS / MSP', cx - 30, cy + 18, { width: 60, align: 'center' });
     doc.restore();
@@ -392,14 +405,14 @@ export class PdfService {
       .text('DATOS DE CONTROL INTERNO Y FISCALIZACIÓN', x + 10, yFila2 + 7);
 
     const ctrl = data.datosControlInterno;
-    const fechaIniVal = ctrl?.fechaInspeccionInicial || this.buscarMeta(data.metadata, ['Fecha Programada', 'Inicial']) || '04/09/2026';
-    const permisoVal = ctrl?.noPermisoSanitario || 'PS-SAN-2026-8941';
-    const fechaActVal = ctrl?.fechaInspeccionActual || new Date().toLocaleDateString('es-DO');
-    const motivoVal = ctrl?.motivoInspeccion || this.buscarMeta(data.metadataControl, ['Tipo']) || 'Vigilancia Sanitaria Regular';
-    const tecVal = ctrl?.tecnicoEvaluador || data.tecnicoNombre || this.buscarMeta(data.metadata, ['Técnico', 'Evaluador']) || 'Lic. Roberto Morales (TEC-08)';
-    const coordVal = ctrl?.coordinadorRevisor || data.coordinadorNombre || 'Ing. Carlos Peña (DIGEMAPS)';
-    const freqVal = ctrl?.frecuenciaFiscalizacion || data.resultado?.frecuencia || 'Anual (Nivel de Riesgo Bajo)';
-    const dictamenVal = ctrl?.dictamenTecnico || (esAprobado ? 'Favorable' : 'Desfavorable');
+    const fechaIniVal = ctrl?.fechaInspeccionInicial || this.buscarMeta(data.metadata, ['Fecha Programada', 'Inicial']) || NA;
+    const permisoVal = ctrl?.noPermisoSanitario || NA;
+    const fechaActVal = ctrl?.fechaInspeccionActual || NA;
+    const motivoVal = ctrl?.motivoInspeccion || this.buscarMeta(data.metadataControl, ['Tipo']) || NA;
+    const tecVal = ctrl?.tecnicoEvaluador || data.tecnicoNombre || this.buscarMeta(data.metadata, ['Técnico', 'Evaluador']) || NA;
+    const coordVal = ctrl?.coordinadorRevisor || data.coordinadorNombre || NA;
+    const freqVal = ctrl?.frecuenciaFiscalizacion || data.resultado?.frecuencia || NA;
+    const dictamenVal = ctrl?.dictamenTecnico || (esAprobado === undefined ? NA : esAprobado ? 'Favorable' : 'Desfavorable');
 
     const col4W = (anchoContenido - 20) / 4;
     const yCont2 = yFila2 + 20;
@@ -431,9 +444,9 @@ export class PdfService {
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Dictamen Técnico:', xCol4, yCont2 + 20);
 
     // Pill badge Dictamen Técnico
-    const dictamenBg = esAprobado ? '#D1FAE5' : '#FEE2E2';
-    const dictamenBorde = esAprobado ? '#A7F3D0' : '#FECACA';
-    const dictamenColor = esAprobado ? '#065F46' : '#991B1B';
+    const dictamenBg = esAprobado === undefined ? '#F1F5F9' : esAprobado ? '#D1FAE5' : '#FEE2E2';
+    const dictamenBorde = esAprobado === undefined ? '#E2E8F0' : esAprobado ? '#A7F3D0' : '#FECACA';
+    const dictamenColor = esAprobado === undefined ? GRIS_TEXTO : esAprobado ? '#065F46' : '#991B1B';
 
     doc.save();
     doc.roundedRect(xCol4, yCont2 + 27, 60, 12, 6).fillAndStroke(dictamenBg, dictamenBorde);
@@ -448,48 +461,45 @@ export class PdfService {
     doc.roundedRect(x, yFila3, anchoContenido, altoFila3, 8).lineWidth(1.5).strokeColor(AZUL_INSTITUCIONAL).stroke();
     doc.restore();
 
-    const res = data.resultado || {
-      cumplimientoPct: 88,
-      ncCriticas: 0,
-      ncMayores: 2,
-      ncMenores: 1,
-      nivelRiesgo: 'BAJO (0.42)',
-      aprueba: true,
-    };
+    const res = data.resultado;
 
     doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(9).text('CUMPLIMIENTO BPM:', x + 16, yFila3 + 12);
     const anchoLabel = doc.widthOfString('CUMPLIMIENTO BPM:');
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(15).text(`${res.cumplimientoPct.toFixed(0)}%`, x + 16 + anchoLabel + 6, yFila3 + 7.5);
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(15).text(res ? `${res.cumplimientoPct.toFixed(0)}%` : NA, x + 16 + anchoLabel + 6, yFila3 + 7.5);
 
     const yBadges = yFila3 + 28;
-    // Badge 1: Críticas
-    doc.save();
-    doc.roundedRect(x + 16, yBadges, 64, 12, 6).fillAndStroke(VERDE_BG, VERDE_BORDE);
-    doc.fillColor(VERDE_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncCriticas} NC Crítica${res.ncCriticas === 1 ? '' : 's'}`, x + 16, yBadges + 2.5, { width: 64, align: 'center' });
-    doc.restore();
+    if (res) {
+      // Badge 1: Críticas
+      doc.save();
+      doc.roundedRect(x + 16, yBadges, 64, 12, 6).fillAndStroke(VERDE_BG, VERDE_BORDE);
+      doc.fillColor(VERDE_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncCriticas} NC Crítica${res.ncCriticas === 1 ? '' : 's'}`, x + 16, yBadges + 2.5, { width: 64, align: 'center' });
+      doc.restore();
 
-    // Badge 2: Mayores
-    doc.save();
-    doc.roundedRect(x + 86, yBadges, 64, 12, 6).fillAndStroke(AMBAR_BG, AMBAR_BORDE);
-    doc.fillColor(AMBAR_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMayores} NC Mayor${res.ncMayores === 1 ? '' : 'es'}`, x + 86, yBadges + 2.5, { width: 64, align: 'center' });
-    doc.restore();
+      // Badge 2: Mayores
+      doc.save();
+      doc.roundedRect(x + 86, yBadges, 64, 12, 6).fillAndStroke(AMBAR_BG, AMBAR_BORDE);
+      doc.fillColor(AMBAR_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMayores} NC Mayor${res.ncMayores === 1 ? '' : 'es'}`, x + 86, yBadges + 2.5, { width: 64, align: 'center' });
+      doc.restore();
 
-    // Badge 3: Menores
-    doc.save();
-    doc.roundedRect(x + 156, yBadges, 60, 12, 6).fillAndStroke('#F1F5F9', '#E2E8F0');
-    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMenores} NC Menor${res.ncMenores === 1 ? '' : 'es'}`, x + 156, yBadges + 2.5, { width: 60, align: 'center' });
-    doc.restore();
+      // Badge 3: Menores
+      doc.save();
+      doc.roundedRect(x + 156, yBadges, 60, 12, 6).fillAndStroke('#F1F5F9', '#E2E8F0');
+      doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMenores} NC Menor${res.ncMenores === 1 ? '' : 'es'}`, x + 156, yBadges + 2.5, { width: 60, align: 'center' });
+      doc.restore();
+    } else {
+      doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(7).text('Sin resultado de evaluación registrado.', x + 16, yBadges + 2.5);
+    }
 
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(7.5).text('Nivel de Riesgo: ', x + 16, yFila3 + 46, { continued: true });
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text(res.nivelRiesgo);
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text(res?.nivelRiesgo ?? NA);
 
     // Botón Derecho
     const btnW = 190;
     const btnH = 34;
     const btnX = x + anchoContenido - btnW - 16;
     const btnY = yFila3 + (altoFila3 - btnH) / 2;
-    const btnColor = res.aprueba ? AZUL_INSTITUCIONAL : ROJO_TXT;
-    const btnTexto = res.aprueba ? 'PERMISO SANITARIO APROBADO' : 'PERMISO SANITARIO NO APROBADO';
+    const btnColor = !res ? GRIS_CLARO : res.aprueba ? AZUL_INSTITUCIONAL : ROJO_TXT;
+    const btnTexto = !res ? 'RESULTADO PENDIENTE' : res.aprueba ? 'PERMISO SANITARIO APROBADO' : 'PERMISO SANITARIO NO APROBADO';
 
     doc.save();
     doc.roundedRect(btnX, btnY, btnW, btnH, 6).fill(btnColor);
@@ -527,12 +537,16 @@ export class PdfService {
       doc.save();
       doc.rect(x, currY, anchoContenido, altoRow).lineWidth(0.5).strokeColor(GRIS_BORDE).stroke();
       doc.restore();
-      doc.fillColor('#065F46').font('Helvetica').fontSize(7.5).text('No se detectaron no conformidades durante la inspección técnica. El establecimiento cumple satisfactoriamente con los estándares BPM.', x + 10, currY + 7, { width: anchoContenido - 20, align: 'center' });
+      // Solo se afirma que cumple si hay un resultado calculado; sin él no hay nada que afirmar.
+      const mensajeSinNc = data.resultado
+        ? 'No se detectaron no conformidades durante la inspección técnica. El establecimiento cumple satisfactoriamente con los estándares BPM.'
+        : 'Sin resultados de evaluación registrados: no hay no conformidades que mostrar.';
+      doc.fillColor(data.resultado ? '#065F46' : GRIS_CLARO).font('Helvetica').fontSize(7.5).text(mensajeSinNc, x + 10, currY + 7, { width: anchoContenido - 20, align: 'center' });
       currY += altoRow;
     } else {
       for (const f of ncs) {
         doc.fontSize(6.8).font('Helvetica');
-        const altoObs = doc.heightOfString(f.observacion || 'Medida correctiva requerida.', { width: colObsW - 10 });
+        const altoObs = doc.heightOfString(f.observacion || NA, { width: colObsW - 10 });
         doc.fontSize(7).font('Helvetica-Bold');
         const altoItem = doc.heightOfString(f.item, { width: colItemW - 10 });
         const altoRow = Math.max(altoObs, altoItem, 14) + 8;
@@ -559,7 +573,7 @@ export class PdfService {
         doc.restore();
 
         doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(7).text(f.calificacion, x + colItemW + colGravW + 8, currY + 4, { width: colCalifW });
-        doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(6.8).text(f.observacion || 'Medida correctiva requerida.', x + colItemW + colGravW + colCalifW + 8, currY + 4, { width: colObsW - 10 });
+        doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(6.8).text(f.observacion || NA, x + colItemW + colGravW + colCalifW + 8, currY + 4, { width: colObsW - 10 });
 
         currY += altoRow;
       }
@@ -592,7 +606,7 @@ export class PdfService {
     const wQrTxt = colFirmasW - qrTam - 16;
     doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text('Validación Digital QR', xQrTxt, yFirmasCont + 6);
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Escanee con la cámara de su teléfono para verificar la autenticidad en el servidor de DIGEMAPS.', xQrTxt, doc.y + 2, { width: wQrTxt });
-    doc.fillColor(AZUL_MEDIO).font('Helvetica-Bold').fontSize(6).text(`ID: ${data.codigo || 'F-BPM-2026-0042'}`, xQrTxt, doc.y + 3);
+    doc.fillColor(AZUL_MEDIO).font('Helvetica-Bold').fontSize(6).text(`ID: ${data.codigo || NA}`, xQrTxt, doc.y + 3);
 
     // Columna 2: Firma Manuscrita Técnico
     const xFirmaCol = x + colFirmasW + 10;
@@ -611,22 +625,23 @@ export class PdfService {
     doc.moveTo(xFirmaCol + 15, yLineaFirma).lineTo(xFirmaCol + colFirmasW - 15, yLineaFirma).lineWidth(0.6).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.tecnicoNombre || 'Lic. Roberto Morales', xFirmaCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.tecnicoNombre || NA, xFirmaCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.tecnicoCargo || 'Técnico Evaluador Autorizado', xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.tecnicoRegistro || 'Reg. Profesional: TEC-BPM-08', xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.tecnicoRegistro || NA, xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
 
     // Columna 3: Firma Electrónica Coordinador
     const xCoordCol = x + (colFirmasW + 10) * 2;
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text('FIRMADO DIGITALMENTE', xCoordCol, yFirmasCont + 8, { width: colFirmasW, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Cert: MSP-DIGEMAPS-2026', xCoordCol, doc.y + 2, { width: colFirmasW, align: 'center' });
+    const firmadoPorCoordinador = Boolean(data.coordinadorNombre);
+    doc.fillColor(firmadoPorCoordinador ? AZUL_INSTITUCIONAL : GRIS_CLARO).font('Helvetica-Bold').fontSize(7.5).text(firmadoPorCoordinador ? 'FIRMADO DIGITALMENTE' : 'PENDIENTE DE FIRMA', xCoordCol, yFirmasCont + 8, { width: colFirmasW, align: 'center' });
+    if (firmadoPorCoordinador) doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Cert: MSP-DIGEMAPS-2026', xCoordCol, doc.y + 2, { width: colFirmasW, align: 'center' });
 
     doc.save();
     doc.moveTo(xCoordCol + 15, yLineaFirma).lineTo(xCoordCol + colFirmasW - 15, yLineaFirma).lineWidth(0.6).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre || 'Ing. Carlos Peña', xCoordCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre || NA, xCoordCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.coordinadorCargo || 'Coordinador Técnico DIGEMAPS', xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.coordinadorCertificado || 'Firma Electrónica Avanzada (Ley 126-02)', xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text((firmadoPorCoordinador ? data.coordinadorCertificado || 'Firma Electrónica Avanzada (Ley 126-02)' : ' '), xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
 
     // 7. PIE DE PÁGINA DOCUMENTAL INSTITUCIONAL
     const yFooter = Math.max(yFirmasCont + altoFirmasBox + 16, 560);
@@ -635,7 +650,7 @@ export class PdfService {
     doc.restore();
 
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Este documento constituye el informe técnico oficial de evaluación sanitaria emitido por el Sistema SINEC conforme a la Norma NORDOM BPM y DIGEMAPS.', x, yFooter, { width: anchoContenido, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Hash de Integridad SHA-256: 8f9b2d4c8c6a1f8b3c5e7d9a2f4b6c8e0a1b3d5f7a9c2c4b6d8f0a2c4c6b8d0a', x, doc.y + 2, { width: anchoContenido, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(`Hash de Integridad SHA-256 (contenido del documento): ${this.calcularHashContenido(data)}`, x, doc.y + 2, { width: anchoContenido, align: 'center' });
   }
 
   // ===========================================================================
@@ -1021,9 +1036,9 @@ export class PdfService {
     doc.moveTo(col2X + 10, yLineaFirma).lineTo(col2X + col2Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.tecnicoNombre ?? 'Lic. Roberto Morales', col2X, yLineaFirma + 4, { width: col2Ancho, align: 'center' });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.tecnicoNombre ?? NA, col2X, yLineaFirma + 4, { width: col2Ancho, align: 'center' });
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text(data.tecnicoCargo ?? 'Técnico Evaluador Autorizado BPM', col2X, doc.y + 1, { width: col2Ancho, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Reg. Profesional: TEC-BPM-RD', col2X, doc.y + 1, { width: col2Ancho, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.tecnicoRegistro ?? NA, col2X, doc.y + 1, { width: col2Ancho, align: 'center' });
 
     // Columna 3: Firma / Sello Coordinador
     const col3X = x + colAncho * 2 + 5;
@@ -1035,18 +1050,19 @@ export class PdfService {
       const stampCenterY = yContenido + 28;
       this.dibujarSelloCertificacionGenerico(doc, stampCenterX, stampCenterY, fechaHoy);
 
-      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, stampCenterY + 34, { width: col3Ancho, align: 'center' });
+      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre ?? NA, col3X, stampCenterY + 34, { width: col3Ancho, align: 'center' });
       doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
     } else {
       const yCoord = yContenido + 8;
-      doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(8).text('FIRMADO DIGITALMENTE', col3X, yCoord, { width: col3Ancho, align: 'center' });
-      doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Certificado: MSP-DIGEMAPS-2026', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
+      const firmado = Boolean(data.coordinadorNombre);
+      doc.fillColor(firmado ? AZUL_INSTITUCIONAL : GRIS_CLARO).font('Helvetica-Bold').fontSize(8).text(firmado ? 'FIRMADO DIGITALMENTE' : 'PENDIENTE DE FIRMA', col3X, yCoord, { width: col3Ancho, align: 'center' });
+      if (firmado) doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Certificado: MSP-DIGEMAPS-2026', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
 
       doc.save();
       doc.moveTo(col3X + 10, yLineaFirma).lineTo(col3X + col3Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
       doc.restore();
 
-      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, yLineaFirma + 4, { width: col3Ancho, align: 'center' });
+      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.coordinadorNombre ?? NA, col3X, yLineaFirma + 4, { width: col3Ancho, align: 'center' });
       doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
     }
 
