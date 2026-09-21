@@ -1,4 +1,4 @@
-import { getPendientes, marcarEnviada, marcarError, enqueue } from './queue';
+import { getPendientes, marcarEnviada, marcarError, marcarFalloDeRed, reactivarFallidas } from './queue';
 import { isTokenValid, getSession } from '@/lib/auth/session';
 import { silentRefresh } from '@/lib/auth/refresh';
 import type { OperacionPendiente } from '@/lib/db';
@@ -32,6 +32,9 @@ export function construirFormEvidencia(payload: Record<string, unknown>): FormDa
   return form;
 }
 
+/** Fallo de red (sin conexión o timeout): no cuenta contra el límite de reintentos. */
+class ErrorDeRed extends Error {}
+
 export class SyncProcessor {
   private ejecucionActiva: Promise<void> | null = null;
   private intervaloId?: ReturnType<typeof setInterval>;
@@ -45,10 +48,12 @@ export class SyncProcessor {
   private async fetchConTimeout(url: string, init: RequestInit, timeoutMs = 10_000): Promise<Response> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error('Tiempo de espera agotado (timeout de red)')), timeoutMs);
+      timer = setTimeout(() => reject(new ErrorDeRed('Tiempo de espera agotado (timeout de red)')), timeoutMs);
     });
     try {
       return await Promise.race([fetch(url, init), timeoutPromise]);
+    } catch (e) {
+      throw e instanceof ErrorDeRed ? e : new ErrorDeRed(e instanceof Error ? e.message : 'error de red');
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
@@ -74,9 +79,15 @@ export class SyncProcessor {
 
   private async ejecutarCiclo(forzar: boolean): Promise<void> {
     try {
+      // El ciclo automático no gasta intentos cuando el navegador ya sabe que no hay red.
+      if (!forzar && typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
       if (!(await isTokenValid())) {
         await silentRefresh().catch(() => false);
       }
+
+      // Sincronizar a mano (o al volver internet) reintenta también lo que agotó sus intentos.
+      if (forzar) await reactivarFallidas();
 
       const pendientes = await getPendientes();
       if (pendientes.length === 0) return;
@@ -157,7 +168,9 @@ export class SyncProcessor {
         this.proximoIntento.set(op.uuidLocal, Date.now() + this.calcularBackoff(op.intentos + 1));
       }
     } catch (e) {
-      await marcarError(op.uuidLocal, e instanceof Error ? e.message : 'error de red');
+      const mensaje = e instanceof Error ? e.message : 'error de red';
+      if (e instanceof ErrorDeRed) await marcarFalloDeRed(op.uuidLocal, mensaje);
+      else await marcarError(op.uuidLocal, mensaje);
       this.proximoIntento.set(op.uuidLocal, Date.now() + this.calcularBackoff(op.intentos + 1));
     }
   }
