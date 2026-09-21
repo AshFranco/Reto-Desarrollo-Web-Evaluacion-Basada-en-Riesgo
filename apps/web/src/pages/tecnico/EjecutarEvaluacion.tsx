@@ -67,7 +67,7 @@ import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEval
 import { useResultadoEvaluacion } from '@/lib/motor/useResultadoEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
 import { comprimirFoto } from '@/lib/fotos/compressor';
-import { db } from '@/lib/db';
+import { db, type OperacionPendiente } from '@/lib/db';
 import type { EvaluacionDetalle, Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo, AsignacionMia } from '@/lib/types';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 
@@ -142,6 +142,36 @@ function esResultadoEncolado(resultado: unknown): boolean {
 /**
  * Adjuntar evidencia (fotos, videos cortos, documentos y geolocalización).
  */
+/**
+ * Los avisos "guardado localmente — pendiente de sincronizar" son estado de la pantalla y
+ * nadie los apagaba al sincronizar. Cuando el procesador avisa (`sync:actualizado`) y ya no
+ * queda en la cola ninguna operación pendiente de este aviso, se ejecuta `alQuedarSinPendientes`.
+ */
+function useAlSincronizar(
+  activo: boolean,
+  esDeEsteAviso: (op: OperacionPendiente) => boolean,
+  alQuedarSinPendientes: () => void
+) {
+  const esDeEsteAvisoRef = useRef(esDeEsteAviso);
+  const alQuedarSinPendientesRef = useRef(alQuedarSinPendientes);
+  esDeEsteAvisoRef.current = esDeEsteAviso;
+  alQuedarSinPendientesRef.current = alQuedarSinPendientes;
+
+  useEffect(() => {
+    if (!activo) return;
+    let cancelado = false;
+    async function revisar() {
+      const pendientes = await db.cola_sync.where('estado').anyOf('pendiente', 'enviando').toArray();
+      if (!cancelado && !pendientes.some(esDeEsteAvisoRef.current)) alQuedarSinPendientesRef.current();
+    }
+    window.addEventListener('sync:actualizado', revisar);
+    return () => {
+      cancelado = true;
+      window.removeEventListener('sync:actualizado', revisar);
+    };
+  }, [activo]);
+}
+
 function SubirEvidencia({
   evaluacionId,
   respuestaItemId,
@@ -170,6 +200,18 @@ function SubirEvidencia({
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guardadoLocalMsg, setGuardadoLocalMsg] = useState<string | null>(null);
+  useAlSincronizar(
+    guardadoLocalMsg !== null,
+    (op) => {
+      const payload = op.payload as Record<string, unknown>;
+      return (
+        op.tipo === 'EVIDENCIA' &&
+        payload.evaluacionId === evaluacionId &&
+        (payload.respuestaItemId ?? undefined) === (respuestaItemId ?? undefined)
+      );
+    },
+    () => setGuardadoLocalMsg(null)
+  );
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [evidenciaParaEliminar, setEvidenciaParaEliminar] = useState<Evidencia | null>(null);
 
@@ -675,6 +717,18 @@ function FilaCriterio({
   const [draft, setDraft] = useState<DraftRespuesta>(draftInicial);
   const [guardado, setGuardado] = useState(false);
   const [guardadoLocal, setGuardadoLocal] = useState(pendienteSyncInicial);
+  useAlSincronizar(
+    guardadoLocal,
+    (op) => {
+      const payload = op.payload as { evaluacionServerId?: string; respuestas?: { itemId: string }[] };
+      return (
+        op.tipo === 'RESPUESTAS' &&
+        payload.evaluacionServerId === evaluacionId &&
+        (payload.respuestas ?? []).some((r) => r.itemId === criterio.id)
+      );
+    },
+    () => setGuardadoLocal(false)
+  );
   const [error, setError] = useState<string | null>(null);
 
   const requiereCriticidad = draft.codigoOpcion === 'CP' || draft.codigoOpcion === 'IT';

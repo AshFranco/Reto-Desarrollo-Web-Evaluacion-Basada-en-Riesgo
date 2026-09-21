@@ -182,6 +182,79 @@ describe('EjecutarEvaluacion — sin conexión', () => {
     });
   });
 
+  describe('el aviso "guardado localmente" se quita cuando la operación se sincroniza', () => {
+    const avisoRespuesta = 'Guardado localmente — pendiente de sincronizar.';
+    const avisoGps = 'Punto GPS guardado localmente — pendiente de sincronizar.';
+    const avisoEvidencia = 'Evidencia guardada localmente — pendiente de sincronizar.';
+
+    /** Lo que hace el procesador al enviar con éxito: marca la operación y avisa con el evento. */
+    async function simularSincronizacion(tipo: 'RESPUESTAS' | 'EVIDENCIA') {
+      const ops = await db.cola_sync.where('tipo').equals(tipo).toArray();
+      for (const op of ops) await db.cola_sync.update(op.uuidLocal, { estado: 'enviado' });
+      window.dispatchEvent(new CustomEvent('sync:actualizado', { detail: { tipo, evalId: '1' } }));
+    }
+
+    it('respuesta de un criterio: desaparece tras sincronizar', async () => {
+      ponerseOffline();
+      renderPantalla();
+      await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
+      await waitFor(() => expect(screen.getByText(avisoRespuesta)).toBeInTheDocument());
+
+      await simularSincronizacion('RESPUESTAS');
+
+      await waitFor(() => expect(screen.queryByText(avisoRespuesta)).not.toBeInTheDocument());
+    });
+
+    it('respuesta de un criterio: sigue visible si el evento llega pero la operación todavía está pendiente', async () => {
+      ponerseOffline();
+      renderPantalla();
+      await waitFor(() => expect(screen.getByText('Ítem evaluable')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: 'Cumple' }));
+      await waitFor(() => expect(screen.getByText(avisoRespuesta)).toBeInTheDocument());
+
+      window.dispatchEvent(new CustomEvent('sync:actualizado'));
+      await new Promise((r) => setTimeout(r, 200));
+
+      expect(screen.getByText(avisoRespuesta)).toBeInTheDocument();
+    });
+
+    it('evidencia: desaparece tras sincronizar', async () => {
+      ponerseOffline();
+      renderPantalla();
+      await waitFor(() => expect(screen.getByText('Evidencia general de la evaluación (no ligada a un criterio puntual)')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: 'Adjuntar evidencia general' }));
+      await waitFor(() => expect(screen.getByText('Subir Fotografías, Videos o Documentos')).toBeInTheDocument());
+      const input = screen.getByLabelText('Seleccionar archivos desde el dispositivo', { selector: 'input' });
+      fireEvent.change(input, { target: { files: [new File(['x'], 'foto.jpg', { type: 'image/jpeg' })] } });
+      await waitFor(() => expect(screen.getByText(avisoEvidencia)).toBeInTheDocument());
+
+      await simularSincronizacion('EVIDENCIA');
+
+      await waitFor(() => expect(screen.queryByText(avisoEvidencia)).not.toBeInTheDocument());
+    });
+
+    it('punto GPS: desaparece tras sincronizar', async () => {
+      ponerseOffline();
+      Object.defineProperty(navigator, 'geolocation', {
+        value: { getCurrentPosition: vi.fn((ok: PositionCallback) => ok({ coords: { latitude: 18.4861, longitude: -69.9312 } } as GeolocationPosition)) },
+        configurable: true,
+      });
+      renderPantalla();
+      await waitFor(() => expect(screen.getByText('Evidencia general de la evaluación (no ligada a un criterio puntual)')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: 'Adjuntar evidencia general' }));
+      await waitFor(() => expect(screen.getByText('Capturar Geolocalización GPS en Campo')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: 'Capturar ubicación GPS' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar archivo GeoJSON' })).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar archivo GeoJSON' }));
+      await waitFor(() => expect(screen.getByText(avisoGps)).toBeInTheDocument());
+
+      await simularSincronizacion('EVIDENCIA');
+
+      await waitFor(() => expect(screen.queryByText(avisoGps)).not.toBeInTheDocument());
+    });
+  });
+
   it('muestra las operaciones que llegaron a estado error después de agotar los reintentos', async () => {
     await db.cola_sync.add({
       uuidLocal: 'op-error-1',
