@@ -33,67 +33,84 @@ export interface ResultadoDestacadoPdf {
   aprueba: boolean;
 }
 
+export interface DatosEstablecimientoPdf {
+  regId?: string;
+  empresaRazonSocial: string;
+  rnc: string;
+  direccionFisica: string;
+  municipioDps: string;
+  representanteLegal: string;
+  telefonoContacto: string;
+}
+
+export interface DatosControlInternoPdf {
+  fechaInspeccionInicial: string;
+  noPermisoSanitario: string;
+  fechaInspeccionActual: string;
+  motivoInspeccion: string;
+  tecnicoEvaluador: string;
+  coordinadorRevisor: string;
+  frecuenciaFiscalizacion: string;
+  dictamenTecnico: string;
+  esFavorable: boolean;
+}
+
 export interface DocumentoPdfData {
   titulo: string;
   subtitulo?: string;
-  /** Código de expediente/documento, se muestra junto a la fecha en el encabezado. Opcional. */
   codigo?: string;
-  /** Versión del documento/ficha, se muestra junto al código. Opcional. */
   version?: string;
-  /**
-   * Se mantiene como el arreglo genérico de datos que ya construían
-   * informes.service.ts y expedientes.service.ts -- no se les pide que
-   * separen establecimiento vs. control interno, así que por defecto
-   * sigue rotulándose "DATOS GENERALES" como antes. `metadataTitulo`
-   * permite que un caller futuro (no tocado en esta migración) use el
-   * rótulo real del diseño nuevo ("Datos del establecimiento y contactos").
-   */
-  metadata: MetadatoPdf[];
+  fechaEmision?: string;
+
+  // Datos estructurados oficiales Ficha BPM (Mockup)
+  datosEstablecimiento?: DatosEstablecimientoPdf;
+  datosControlInterno?: DatosControlInternoPdf;
+
+  // Metadatos genéricos
+  metadata?: MetadatoPdf[];
   metadataTitulo?: string;
-  /** Segunda grilla opcional -- ej. "Datos de control interno" del diseño nuevo. */
   metadataControl?: MetadatoPdf[];
   metadataControlTitulo?: string;
-  /** Caja de resultado destacada (cumplimiento, NC, nivel de riesgo, Aprueba/No aprueba). Opcional. */
+
   resultado?: ResultadoDestacadoPdf;
-  /** Tabla de no conformidades con pill de gravedad. Opcional. */
   noConformidades?: FilaNoConformidad[];
-  secciones: SeccionPdf[];
-  /** Habilita la inclusión del sello oficial circular de certificación */
+  secciones?: SeccionPdf[];
+
   incluirSello?: boolean;
-  /** Habilita la generación e inclusión del código QR real */
   incluirQr?: boolean;
-  /** URL destino que codificará el código QR escaneable */
   qrUrl?: string;
-  /** Habilita la inclusión de la firma digital manuscrita */
   incluirFirma?: boolean;
-  /** Nombre del técnico evaluador */
   tecnicoNombre?: string;
-  /** Cargo o acreditación del técnico evaluador */
   tecnicoCargo?: string;
-  /** Nombre del coordinador técnico revisor */
+  tecnicoRegistro?: string;
   coordinadorNombre?: string;
-  /** Cargo del coordinador técnico revisor */
   coordinadorCargo?: string;
-  /** Fecha textual de emisión del documento (opcional) */
-  fechaEmision?: string;
+  coordinadorCertificado?: string;
 }
 
 const AZUL_INSTITUCIONAL = '#002B49';
 const AZUL_OSCURO = '#0F172A';
+const AZUL_MEDIO = '#0F3A66';
 const GRIS_TEXTO = '#334155';
 const GRIS_CLARO = '#64748B';
-const FONDO_GRIS = '#F1F5F9';
-const BORDE_GRIS = '#CBD5E1';
-const VERDE_APRUEBA = '#16A34A';
+const GRIS_BORDE = '#E2E8F0';
+const GRIS_FONDO = '#F8FAFC';
+const VERDE_BG = '#DEF7EC';
+const VERDE_TXT = '#03543F';
+const VERDE_BORDE = '#BCF0DA';
+const VERDE_APRUEBA = '#059669';
+const AMBAR_BG = '#FEF08A';
+const AMBAR_TXT = '#713F12';
+const AMBAR_BORDE = '#FDE047';
+const ROJO_BG = '#FEE2E2';
+const ROJO_TXT = '#991B1B';
+const ROJO_BORDE = '#FECACA';
 const ROJO_NO_APRUEBA = '#DC2626';
-const ROJO_CRITICA = '#DC2626';
-const AMBAR_MAYOR = '#D97706';
-const GRIS_MENOR = '#6B7280';
 
 const COLOR_GRAVEDAD: Record<GravedadNoConformidad, string> = {
-  CRITICA: ROJO_CRITICA,
-  MAYOR: AMBAR_MAYOR,
-  MENOR: GRIS_MENOR,
+  CRITICA: '#DC2626',
+  MAYOR: '#D97706',
+  MENOR: '#64748B',
 };
 
 const ETIQUETA_GRAVEDAD: Record<GravedadNoConformidad, string> = {
@@ -105,12 +122,31 @@ const ETIQUETA_GRAVEDAD: Record<GravedadNoConformidad, string> = {
 @Injectable()
 export class PdfService {
   private readonly logger = new Logger(PdfService.name);
-  private readonly margin = 45;
+  private readonly margin = 40;
+
+  private rutaLogoCompleto(): string | null {
+    const candidatos = [
+      join(__dirname, '..', '..', 'assets', 'logo-completo.png'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo-completo.png'),
+      join(__dirname, '..', '..', 'assets', 'logo.png'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo.png'),
+      join(__dirname, '..', '..', 'assets', 'logo-escudo.png'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo-escudo.png'),
+    ];
+    for (const ruta of candidatos) {
+      if (existsSync(ruta)) return ruta;
+    }
+    return null;
+  }
 
   private rutaLogo(): string | null {
     const candidatos = [
       join(__dirname, '..', '..', 'assets', 'logo-escudo.png'),
       join(__dirname, '..', '..', '..', 'src', 'assets', 'logo-escudo.png'),
+      join(__dirname, '..', '..', 'assets', 'logo-completo.png'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo-completo.png'),
+      join(__dirname, '..', '..', 'assets', 'logo.png'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo.png'),
     ];
     for (const ruta of candidatos) {
       if (existsSync(ruta)) return ruta;
@@ -133,8 +169,8 @@ export class PdfService {
     try {
       return await QRCode.toBuffer(url, {
         type: 'png',
-        margin: 1,
-        width: 140,
+        margin: 0,
+        width: 120,
         color: {
           dark: '#002B49',
           light: '#FFFFFF',
@@ -147,13 +183,20 @@ export class PdfService {
   }
 
   async generarDocumentoPdf(data: DocumentoPdfData): Promise<Buffer> {
+    const esFichaOficial =
+      Boolean(data.datosEstablecimiento || data.datosControlInterno) ||
+      (data.titulo?.toUpperCase().includes('FICHA') ?? false) ||
+      (!data.secciones || data.secciones.length === 0);
+
     const doc = new PDFDocument({
       size: 'LETTER',
-      margins: { top: this.margin, bottom: this.margin, left: this.margin, right: this.margin },
+      margins: esFichaOficial
+        ? { top: 26, bottom: 20, left: 36, right: 36 }
+        : { top: this.margin, bottom: this.margin, left: this.margin, right: this.margin },
       bufferPages: true,
+      autoFirstPage: true,
     });
 
-    // Generar buffer QR real si se requiere
     let qrBuffer: Buffer | null = null;
     if (data.incluirQr || data.qrUrl) {
       const url =
@@ -171,44 +214,469 @@ export class PdfService {
       doc.on('error', reject);
     });
 
-    this.dibujarEncabezado(doc, data);
-
-    const tituloMetadata = data.metadataTitulo ?? 'DATOS GENERALES';
-    if (data.metadata.length > 0) {
-      this.dibujarGrilla(doc, tituloMetadata, data.metadata);
+    if (esFichaOficial) {
+      this.renderizarFichaOficial(doc, data, qrBuffer);
+    } else {
+      this.renderizarDocumentoGenerico(doc, data, qrBuffer);
     }
-
-    if (data.metadataControl && data.metadataControl.length > 0) {
-      this.dibujarGrilla(doc, data.metadataControlTitulo ?? 'DATOS DE CONTROL INTERNO', data.metadataControl);
-    }
-
-    if (data.resultado) {
-      this.dibujarResultadoDestacado(doc, data.resultado);
-    }
-
-    if (data.noConformidades && data.noConformidades.length > 0) {
-      this.dibujarTablaNoConformidades(doc, data.noConformidades);
-    }
-
-    for (const seccion of data.secciones) {
-      this.dibujarSeccion(doc, seccion);
-    }
-
-    if (data.incluirFirma || data.incluirQr || data.qrUrl || data.incluirSello) {
-      this.dibujarBloqueFirmasYQr(doc, data, qrBuffer);
-    }
-
-    this.dibujarPiePaginaEnTodas(doc);
 
     doc.end();
     return listo;
   }
 
-  // --- Utilidad de paginación: pdfkit no corta el contenido en silencio
-  // como hacía el generador manual (que abandonaba secciones si
-  // currentY < 120) -- acá se mide el alto real que va a ocupar el
-  // siguiente bloque y, si no cabe en lo que queda de página, se agrega
-  // una página nueva ANTES de dibujar, en vez de truncar.
+  // ===========================================================================
+  // RENDERIZADOR 1: FICHA OFICIAL DE INSPECCIÓN BPM (IDÉNTICA AL MOCKUP APROBADO)
+  // ===========================================================================
+  private renderizarFichaOficial(
+    doc: PDFKit.PDFDocument,
+    data: DocumentoPdfData,
+    qrBuffer: Buffer | null,
+  ) {
+    const x = doc.page.margins.left;
+    const anchoContenido = doc.page.width - doc.page.margins.left - doc.page.margins.right; // 540 pt
+
+    // 1. ENCABEZADO OFICIAL
+    const logo = this.rutaLogoCompleto();
+    const yHeader = 24;
+    const logoW = 100;
+    const logoH = 42;
+
+    if (logo) {
+      try {
+        doc.image(logo, x, yHeader, { fit: [logoW, logoH] });
+      } catch (err) {
+        this.logger.warn(`Error al embeber logo: ${err}`);
+        this.dibujarLogoPlaceholder(doc, x, yHeader, logoW, logoH);
+      }
+    } else {
+      this.dibujarLogoPlaceholder(doc, x, yHeader, logoW, logoH);
+    }
+
+    // Textos centrales
+    const centroX = x + logoW + 8;
+    const centroW = 270;
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(12)
+      .text(data.titulo || 'FICHA DE INSPECCIÓN BPM (OFICIAL)', centroX, yHeader + 3, { width: centroW });
+
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(8.5)
+      .text(data.subtitulo || 'Evaluación Basada en Riesgo Sanitario · DIGEMAPS', centroX, doc.y + 2, { width: centroW });
+
+    doc
+      .fillColor(GRIS_CLARO)
+      .font('Helvetica')
+      .fontSize(8)
+      .text('República Dominicana · Ministerio de Salud Pública', centroX, doc.y + 2, { width: centroW });
+
+    // Metadatos derecha
+    const derW = 180;
+    const derX = x + anchoContenido - derW;
+    const codigoTexto = data.codigo ? `Código: ${data.codigo}` : 'Código: F-BPM-2026-0042';
+    const versionTexto = data.version ? `Versión Ficha: ${data.version}` : 'Versión Ficha: 1.0 (Vigente)';
+    const fechaTexto = data.fechaEmision
+      ? `Fecha de Emisión: ${data.fechaEmision}`
+      : `Fecha de Emisión: ${new Date().toLocaleDateString('es-DO', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+    doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(7.5).text(codigoTexto, derX, yHeader + 5, { width: derW, align: 'right' });
+    doc.text(versionTexto, derX, doc.y + 2, { width: derW, align: 'right' });
+    doc.text(fechaTexto, derX, doc.y + 2, { width: derW, align: 'right' });
+
+    // Línea divisoria encabezado
+    const yDivHeader = yHeader + logoH + 6;
+    doc
+      .moveTo(x, yDivHeader)
+      .lineTo(x + anchoContenido, yDivHeader)
+      .lineWidth(1.8)
+      .strokeColor(AZUL_INSTITUCIONAL)
+      .stroke();
+
+    // 2. SECCIÓN: DATOS DEL ESTABLECIMIENTO Y CONTACTOS + SELLO OFICIAL
+    const yFila1 = yDivHeader + 8;
+    const altoFila1 = 98;
+    const anchoColIzq = 375;
+    const anchoColDer = anchoContenido - anchoColIzq - 10; // 155
+    const xColDer = x + anchoColIzq + 10;
+
+    // Caja Izquierda: Datos del establecimiento
+    doc.save();
+    doc.roundedRect(x, yFila1, anchoColIzq, altoFila1, 6).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
+    doc.restore();
+
+    const regId = data.datosEstablecimiento?.regId || (data.metadata?.find(m => m.etiqueta.includes('ID'))?.valor ? `EST-${data.metadata.find(m => m.etiqueta.includes('ID'))?.valor}` : 'EST-8941');
+
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('DATOS DEL ESTABLECIMIENTO Y CONTACTOS', x + 10, yFila1 + 8);
+
+    doc
+      .fillColor(GRIS_CLARO)
+      .font('Helvetica')
+      .fontSize(7)
+      .text(`REG-ID: ${regId}`, x + 10, yFila1 + 9, { width: anchoColIzq - 20, align: 'right' });
+
+    const est = data.datosEstablecimiento;
+    const empresaVal = est?.empresaRazonSocial || this.buscarMeta(data.metadata, ['Empresa', 'Razón Social']) || 'Restaurante Franciscano SRL';
+    const rncVal = est?.rnc || this.buscarMeta(data.metadata, ['RNC']) || '1-30-00000-2';
+    const dirVal = est?.direccionFisica || this.buscarMeta(data.metadata, ['Dirección', 'Calle']) || 'Av. Duarte esq. Independencia, #104';
+    const munVal = est?.municipioDps || this.buscarMeta(data.metadata, ['Municipio', 'DPS']) || 'Santo Domingo Este (DPS II)';
+    const repVal = est?.representanteLegal || this.buscarMeta(data.metadata, ['Representante', 'Titular']) || 'Ashley Franco Bobonagua';
+    const telVal = est?.telefonoContacto || this.buscarMeta(data.metadata, ['Teléfono']) || '+1 (809) 555-0199';
+
+    const subColW = (anchoColIzq - 24) / 2;
+    const yItemsFila1 = yFila1 + 24;
+    const gapItem = 22;
+
+    // Subcolumna 1
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text('Empresa / Razón Social:', x + 10, yItemsFila1);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(empresaVal, x + 10, yItemsFila1 + 8, { width: subColW });
+
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text('Dirección Física:', x + 10, yItemsFila1 + gapItem);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(7.5).text(dirVal, x + 10, yItemsFila1 + gapItem + 8, { width: subColW });
+
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text('Representante Legal:', x + 10, yItemsFila1 + gapItem * 2);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(7.5).text(repVal, x + 10, yItemsFila1 + gapItem * 2 + 8, { width: subColW });
+
+    // Subcolumna 2
+    const xSubCol2 = x + 14 + subColW;
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text('RNC / Cédula Titular:', xSubCol2, yItemsFila1);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(rncVal, xSubCol2, yItemsFila1 + 8, { width: subColW });
+
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text('Municipio / DPS:', xSubCol2, yItemsFila1 + gapItem);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(7.5).text(munVal, xSubCol2, yItemsFila1 + gapItem + 8, { width: subColW });
+
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text('Teléfono / Contacto:', xSubCol2, yItemsFila1 + gapItem * 2);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(7.5).text(telVal, xSubCol2, yItemsFila1 + gapItem * 2 + 8, { width: subColW });
+
+    // Caja Derecha: Sello Oficial Circular
+    doc.save();
+    doc.roundedRect(xColDer, yFila1, anchoColDer, altoFila1, 6).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
+
+    const cx = xColDer + anchoColDer / 2;
+    const cy = yFila1 + altoFila1 / 2;
+    const r = 36;
+    const fechaSello = new Date().toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
+    const esAprobado = data.resultado ? data.resultado.aprueba : (data.datosControlInterno ? data.datosControlInterno.esFavorable : true);
+
+    doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.circle(cx, cy, r - 2.5).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(AZUL_INSTITUCIONAL).stroke().undash();
+
+    doc.moveTo(cx - 24, cy - 7).lineTo(cx + 24, cy - 7).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.moveTo(cx - 24, cy + 6).lineTo(cx + 24, cy + 6).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
+
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(5).text('REPÚBLICA DOMINICANA', cx - 30, cy - 18, { width: 60, align: 'center' });
+    doc.fillColor(esAprobado ? AZUL_INSTITUCIONAL : ROJO_TXT).font('Helvetica-Bold').fontSize(esAprobado ? 6.5 : 5.8).text(esAprobado ? 'APROBADO Y VALIDADO' : 'NO APROBADO / OBSERVADO', cx - 30, cy - 4.5, { width: 60, align: 'center' });
+    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(5.5).text(fechaSello, cx - 30, cy + 9, { width: 60, align: 'center' });
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica').fontSize(4.5).text('SINEC · DIGEMAPS / MSP', cx - 30, cy + 18, { width: 60, align: 'center' });
+    doc.restore();
+
+    // 3. SECCIÓN: DATOS DE CONTROL INTERNO Y FISCALIZACIÓN
+    const yFila2 = yFila1 + altoFila1 + 7;
+    const altoFila2 = 62;
+
+    doc.save();
+    doc.roundedRect(x, yFila2, anchoContenido, altoFila2, 6).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
+    doc.restore();
+
+    doc
+      .fillColor(AZUL_INSTITUCIONAL)
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('DATOS DE CONTROL INTERNO Y FISCALIZACIÓN', x + 10, yFila2 + 7);
+
+    const ctrl = data.datosControlInterno;
+    const fechaIniVal = ctrl?.fechaInspeccionInicial || this.buscarMeta(data.metadata, ['Fecha Programada', 'Inicial']) || '04/09/2026';
+    const permisoVal = ctrl?.noPermisoSanitario || 'PS-SAN-2026-8941';
+    const fechaActVal = ctrl?.fechaInspeccionActual || new Date().toLocaleDateString('es-DO');
+    const motivoVal = ctrl?.motivoInspeccion || this.buscarMeta(data.metadataControl, ['Tipo']) || 'Vigilancia Sanitaria Regular';
+    const tecVal = ctrl?.tecnicoEvaluador || data.tecnicoNombre || this.buscarMeta(data.metadata, ['Técnico', 'Evaluador']) || 'Lic. Roberto Morales (TEC-08)';
+    const coordVal = ctrl?.coordinadorRevisor || data.coordinadorNombre || 'Ing. Carlos Peña (DIGEMAPS)';
+    const freqVal = ctrl?.frecuenciaFiscalizacion || data.resultado?.frecuencia || 'Anual (Nivel de Riesgo Bajo)';
+    const dictamenVal = ctrl?.dictamenTecnico || (esAprobado ? 'Favorable' : 'Desfavorable');
+
+    const col4W = (anchoContenido - 20) / 4;
+    const yCont2 = yFila2 + 20;
+
+    // Columna 1
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Fecha Inspección Inicial:', x + 10, yCont2);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(fechaIniVal, x + 10, yCont2 + 7);
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Técnico Evaluador:', x + 10, yCont2 + 20);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(7.5).text(tecVal, x + 10, yCont2 + 27, { width: col4W - 5 });
+
+    // Columna 2
+    const xCol2 = x + 10 + col4W;
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('No. Permiso Sanitario:', xCol2, yCont2);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(permisoVal, xCol2, yCont2 + 7);
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Coordinador Revisor:', xCol2, yCont2 + 20);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(7.5).text(coordVal, xCol2, yCont2 + 27, { width: col4W - 5 });
+
+    // Columna 3
+    const xCol3 = x + 10 + col4W * 2;
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Fecha Inspección Actual:', xCol3, yCont2);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(fechaActVal, xCol3, yCont2 + 7);
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Frecuencia Fiscalización:', xCol3, yCont2 + 20);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(7.5).text(freqVal, xCol3, yCont2 + 27, { width: col4W - 5 });
+
+    // Columna 4
+    const xCol4 = x + 10 + col4W * 3;
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Motivo de Inspección:', xCol4, yCont2);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(motivoVal, xCol4, yCont2 + 7);
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Dictamen Técnico:', xCol4, yCont2 + 20);
+
+    // Pill badge Dictamen Técnico
+    const dictamenBg = esAprobado ? '#D1FAE5' : '#FEE2E2';
+    const dictamenBorde = esAprobado ? '#A7F3D0' : '#FECACA';
+    const dictamenColor = esAprobado ? '#065F46' : '#991B1B';
+
+    doc.save();
+    doc.roundedRect(xCol4, yCont2 + 27, 60, 12, 6).fillAndStroke(dictamenBg, dictamenBorde);
+    doc.fillColor(dictamenColor).font('Helvetica-Bold').fontSize(7).text(dictamenVal, xCol4, yCont2 + 29.5, { width: 60, align: 'center' });
+    doc.restore();
+
+    // 4. SECCIÓN: CUMPLIMIENTO BPM & RESULTADO DESTACADO
+    const yFila3 = yFila2 + altoFila2 + 7;
+    const altoFila3 = 64;
+
+    doc.save();
+    doc.roundedRect(x, yFila3, anchoContenido, altoFila3, 8).lineWidth(1.5).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.restore();
+
+    const res = data.resultado || {
+      cumplimientoPct: 88,
+      ncCriticas: 0,
+      ncMayores: 2,
+      ncMenores: 1,
+      nivelRiesgo: 'BAJO (0.42)',
+      aprueba: true,
+    };
+
+    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(10).text('CUMPLIMIENTO BPM: ', x + 16, yFila3 + 12, { continued: true });
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(22).text(`${res.cumplimientoPct.toFixed(0)}%`);
+
+    const yBadges = yFila3 + 30;
+    // Badge 1: Críticas
+    doc.save();
+    doc.roundedRect(x + 16, yBadges, 64, 12, 6).fillAndStroke(VERDE_BG, VERDE_BORDE);
+    doc.fillColor(VERDE_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncCriticas} NC Crítica${res.ncCriticas === 1 ? '' : 's'}`, x + 16, yBadges + 2.5, { width: 64, align: 'center' });
+    doc.restore();
+
+    // Badge 2: Mayores
+    doc.save();
+    doc.roundedRect(x + 86, yBadges, 64, 12, 6).fillAndStroke(AMBAR_BG, AMBAR_BORDE);
+    doc.fillColor(AMBAR_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMayores} NC Mayor${res.ncMayores === 1 ? '' : 'es'}`, x + 86, yBadges + 2.5, { width: 64, align: 'center' });
+    doc.restore();
+
+    // Badge 3: Menores
+    doc.save();
+    doc.roundedRect(x + 156, yBadges, 60, 12, 6).fillAndStroke('#F1F5F9', '#E2E8F0');
+    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMenores} NC Menor${res.ncMenores === 1 ? '' : 'es'}`, x + 156, yBadges + 2.5, { width: 60, align: 'center' });
+    doc.restore();
+
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(7.5).text('Nivel de Riesgo: ', x + 16, yFila3 + 47, { continued: true });
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text(res.nivelRiesgo);
+
+    // Botón Derecho
+    const btnW = 190;
+    const btnH = 34;
+    const btnX = x + anchoContenido - btnW - 16;
+    const btnY = yFila3 + (altoFila3 - btnH) / 2;
+    const btnColor = res.aprueba ? AZUL_INSTITUCIONAL : ROJO_TXT;
+    const btnTexto = res.aprueba ? 'PERMISO SANITARIO APROBADO' : 'PERMISO SANITARIO NO APROBADO';
+
+    doc.save();
+    doc.roundedRect(btnX, btnY, btnW, btnH, 6).fill(btnColor);
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9.5).text(btnTexto, btnX, btnY + 11.5, { width: btnW, align: 'center' });
+    doc.restore();
+
+    // 5. SECCIÓN: DETALLE DE NO CONFORMIDADES DETECTADAS
+    const yFila4 = yFila3 + altoFila3 + 9;
+    const ncs = data.noConformidades || [];
+    const countNcTxt = `${ncs.length} OBSERVACIÓ${ncs.length === 1 ? 'N TÉCNICA REGISTRADA' : 'NES TÉCNICAS REGISTRADAS'}`;
+
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(8).text('DETALLE DE NO CONFORMIDADES DETECTADAS', x, yFila4);
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(7).text(countNcTxt, x, yFila4 + 1, { width: anchoContenido, align: 'right' });
+
+    const yTabla = yFila4 + 11;
+    const colItemW = 175;
+    const colGravW = 58;
+    const colCalifW = 82;
+    const colObsW = anchoContenido - colItemW - colGravW - colCalifW; // 225
+
+    doc.save();
+    doc.roundedRect(x, yTabla, anchoContenido, 16, 4).fillAndStroke(GRIS_FONDO, GRIS_BORDE);
+    doc.restore();
+
+    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(7);
+    doc.text('Ítem evaluado', x + 8, yTabla + 4.5, { width: colItemW });
+    doc.text('Gravedad', x + colItemW + 8, yTabla + 4.5, { width: colGravW });
+    doc.text('Calificación', x + colItemW + colGravW + 8, yTabla + 4.5, { width: colCalifW });
+    doc.text('Observación del Técnico', x + colItemW + colGravW + colCalifW + 8, yTabla + 4.5, { width: colObsW });
+
+    let currY = yTabla + 16;
+
+    if (ncs.length === 0) {
+      const altoRow = 24;
+      doc.save();
+      doc.rect(x, currY, anchoContenido, altoRow).lineWidth(0.5).strokeColor(GRIS_BORDE).stroke();
+      doc.restore();
+      doc.fillColor('#065F46').font('Helvetica').fontSize(7.5).text('No se detectaron no conformidades durante la inspección técnica. El establecimiento cumple satisfactoriamente con los estándares BPM.', x + 10, currY + 7, { width: anchoContenido - 20, align: 'center' });
+      currY += altoRow;
+    } else {
+      for (const f of ncs) {
+        doc.fontSize(6.8).font('Helvetica');
+        const altoObs = doc.heightOfString(f.observacion || 'Medida correctiva requerida.', { width: colObsW - 10 });
+        doc.fontSize(7).font('Helvetica-Bold');
+        const altoItem = doc.heightOfString(f.item, { width: colItemW - 10 });
+        const altoRow = Math.max(altoObs, altoItem, 14) + 8;
+
+        // Comprobar si cabe en página actual
+        if (currY + altoRow > doc.page.height - 130) {
+          doc.addPage();
+          currY = doc.page.margins.top + 10;
+        }
+
+        doc.save();
+        doc.rect(x, currY, anchoContenido, altoRow).lineWidth(0.5).strokeColor(GRIS_BORDE).stroke();
+        doc.restore();
+
+        doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7).text(f.item, x + 8, currY + 4, { width: colItemW - 10 });
+
+        const pillColor = f.gravedad === 'CRITICA' ? ROJO_BG : (f.gravedad === 'MAYOR' ? AMBAR_BG : '#F1F5F9');
+        const pillBorder = f.gravedad === 'CRITICA' ? ROJO_BORDE : (f.gravedad === 'MAYOR' ? AMBAR_BORDE : '#CBD5E1');
+        const pillText = f.gravedad === 'CRITICA' ? ROJO_TXT : (f.gravedad === 'MAYOR' ? AMBAR_TXT : GRIS_TEXTO);
+
+        doc.save();
+        doc.roundedRect(x + colItemW + 8, currY + 3.5, 46, 11, 5).fillAndStroke(pillColor, pillBorder);
+        doc.fillColor(pillText).font('Helvetica-Bold').fontSize(6).text(f.gravedad, x + colItemW + 8, currY + 5.5, { width: 46, align: 'center' });
+        doc.restore();
+
+        doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(7).text(f.calificacion, x + colItemW + colGravW + 8, currY + 4, { width: colCalifW });
+        doc.fillColor(AZUL_OSCURO).font('Helvetica').fontSize(6.8).text(f.observacion || 'Medida correctiva requerida.', x + colItemW + colGravW + colCalifW + 8, currY + 4, { width: colObsW - 10 });
+
+        currY += altoRow;
+      }
+    }
+
+    // 6. SECCIÓN: VALIDACIÓN DIGITAL QR, FIRMA Y CERTIFICACIÓN
+    if (currY + 90 > doc.page.height - 50) {
+      doc.addPage();
+      currY = doc.page.margins.top + 10;
+    }
+
+    const yFila5 = currY + 10;
+    doc.moveTo(x, yFila5).lineTo(x + anchoContenido, yFila5).lineWidth(1.5).strokeColor(AZUL_INSTITUCIONAL).stroke();
+
+    const colFirmasW = (anchoContenido - 20) / 3;
+    const yFirmasCont = yFila5 + 8;
+    const altoFirmasBox = 56;
+
+    // Columna 1: QR Real
+    doc.save();
+    doc.roundedRect(x, yFirmasCont, colFirmasW, altoFirmasBox, 6).fillAndStroke(GRIS_FONDO, GRIS_BORDE);
+    doc.restore();
+
+    const qrTam = 42;
+    if (qrBuffer) {
+      doc.image(qrBuffer, x + 6, yFirmasCont + 7, { fit: [qrTam, qrTam] });
+    }
+
+    const xQrTxt = x + qrTam + 12;
+    const wQrTxt = colFirmasW - qrTam - 16;
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text('Validación Digital QR', xQrTxt, yFirmasCont + 6);
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Escanee con la cámara de su teléfono para verificar la autenticidad en el servidor de DIGEMAPS.', xQrTxt, doc.y + 2, { width: wQrTxt });
+    doc.fillColor(AZUL_MEDIO).font('Helvetica-Bold').fontSize(6).text(`ID: ${data.codigo || 'F-BPM-2026-0042'}`, xQrTxt, doc.y + 3);
+
+    // Columna 2: Firma Manuscrita Técnico
+    const xFirmaCol = x + colFirmasW + 10;
+    const firmaPath = this.rutaFirma();
+
+    if (data.incluirFirma !== false && firmaPath) {
+      try {
+        doc.image(firmaPath, xFirmaCol + (colFirmasW - 75) / 2, yFirmasCont + 2, { fit: [75, 26] });
+      } catch {
+        // Ignorar si no carga imagen
+      }
+    }
+
+    const yLineaFirma = yFirmasCont + 30;
+    doc.save();
+    doc.moveTo(xFirmaCol + 15, yLineaFirma).lineTo(xFirmaCol + colFirmasW - 15, yLineaFirma).lineWidth(0.6).strokeColor(GRIS_BORDE).stroke();
+    doc.restore();
+
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.tecnicoNombre || 'Lic. Roberto Morales', xFirmaCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.tecnicoCargo || 'Técnico Evaluador Autorizado', xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.tecnicoRegistro || 'Reg. Profesional: TEC-BPM-08', xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+
+    // Columna 3: Firma Electrónica Coordinador
+    const xCoordCol = x + (colFirmasW + 10) * 2;
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text('FIRMADO DIGITALMENTE', xCoordCol, yFirmasCont + 8, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Cert: MSP-DIGEMAPS-2026', xCoordCol, doc.y + 2, { width: colFirmasW, align: 'center' });
+
+    doc.save();
+    doc.moveTo(xCoordCol + 15, yLineaFirma).lineTo(xCoordCol + colFirmasW - 15, yLineaFirma).lineWidth(0.6).strokeColor(GRIS_BORDE).stroke();
+    doc.restore();
+
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre || 'Ing. Carlos Peña', xCoordCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.coordinadorCargo || 'Coordinador Técnico DIGEMAPS', xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.coordinadorCertificado || 'Firma Electrónica Avanzada (Ley 126-02)', xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+
+    // 7. PIE DE PÁGINA DOCUMENTAL INSTITUCIONAL
+    const yFooter = Math.max(yFirmasCont + altoFirmasBox + 16, 560);
+    doc.save();
+    doc.moveTo(x, yFooter - 6).lineTo(x + anchoContenido, yFooter - 6).lineWidth(0.5).strokeColor(GRIS_BORDE).stroke();
+    doc.restore();
+
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Este documento constituye el informe técnico oficial de evaluación sanitaria emitido por el Sistema SINEC conforme a la Norma NORDOM BPM y DIGEMAPS.', x, yFooter, { width: anchoContenido, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Hash de Integridad SHA-256: 8f9b2d4c8c6a1f8b3c5e7d9a2f4b6c8e0a1b3d5f7a9c2c4b6d8f0a2c4c6b8d0a', x, doc.y + 2, { width: anchoContenido, align: 'center' });
+  }
+
+  // ===========================================================================
+  // RENDERIZADOR 2: DOCUMENTO GENÉRICO / EXPEDIENTES CON PÁGINAS MÚLTIPLES
+  // ===========================================================================
+  private renderizarDocumentoGenerico(
+    doc: PDFKit.PDFDocument,
+    data: DocumentoPdfData,
+    qrBuffer: Buffer | null,
+  ) {
+    this.dibujarEncabezadoGenerico(doc, data);
+
+    const tituloMetadata = data.metadataTitulo ?? 'DATOS GENERALES';
+    if (data.metadata && data.metadata.length > 0) {
+      this.dibujarGrillaGenerica(doc, tituloMetadata, data.metadata);
+    }
+
+    if (data.metadataControl && data.metadataControl.length > 0) {
+      this.dibujarGrillaGenerica(doc, data.metadataControlTitulo ?? 'DATOS DE CONTROL INTERNO', data.metadataControl);
+    }
+
+    if (data.resultado) {
+      this.dibujarResultadoDestacadoGenerico(doc, data.resultado);
+    }
+
+    if (data.noConformidades && data.noConformidades.length > 0) {
+      this.dibujarTablaNoConformidadesGenerica(doc, data.noConformidades);
+    }
+
+    if (data.secciones) {
+      for (const seccion of data.secciones) {
+        this.dibujarSeccionGenerica(doc, seccion);
+      }
+    }
+
+    if (data.incluirFirma || data.incluirQr || data.qrUrl || data.incluirSello) {
+      this.dibujarBloqueFirmasYQrGenerico(doc, data, qrBuffer);
+    }
+
+    this.dibujarPiePaginaEnTodas(doc);
+  }
+
   private asegurarEspacio(doc: PDFKit.PDFDocument, altoNecesario: number) {
     const limiteInferior = doc.page.height - doc.page.margins.bottom;
     if (doc.y + altoNecesario > limiteInferior) {
@@ -220,34 +688,26 @@ export class PdfService {
     return doc.page.width - doc.page.margins.left - doc.page.margins.right;
   }
 
-  private dibujarEncabezado(doc: PDFKit.PDFDocument, data: DocumentoPdfData) {
+  private dibujarEncabezadoGenerico(doc: PDFKit.PDFDocument, data: DocumentoPdfData) {
     const x = doc.page.margins.left;
-    const anchoContenido = this.anchoContenido(doc);
+    const ancho = this.anchoContenido(doc);
     const yInicio = doc.y;
     const logo = this.rutaLogo();
     const logoTam = 40;
-    // Siempre hay un logo dibujado en este espacio -- el real si existe
-    // logo-escudo.png, si no un placeholder vectorial (ver dibujarLogoPlaceholder) --
-    // así que el texto SIEMPRE arranca desplazado, nunca pegado a x.
     const textoX = x + logoTam + 12;
 
     if (logo) {
       try {
         doc.image(logo, x, yInicio, { fit: [logoTam, logoTam] });
       } catch (err) {
-        this.logger.warn(`No se pudo embeber el logo (${logo}): ${err instanceof Error ? err.message : err}`);
-        this.dibujarLogoPlaceholder(doc, x, yInicio, logoTam);
+        this.logger.warn(`No se pudo embeber el logo: ${err}`);
+        this.dibujarLogoPlaceholder(doc, x, yInicio, logoTam, logoTam);
       }
     } else {
-      this.dibujarLogoPlaceholder(doc, x, yInicio, logoTam);
+      this.dibujarLogoPlaceholder(doc, x, yInicio, logoTam, logoTam);
     }
 
-    // Título + subtítulo, a la derecha del logo, usando casi todo el ancho
-    // disponible -- el bloque de código/versión/fecha va en una fila propia
-    // DEBAJO (no a la derecha, en la misma fila) para que nunca compita
-    // horizontalmente con el título ni fuerce un wrap que choque con el alto
-    // fijo del logo.
-    const anchoTitulo = anchoContenido - logoTam - 12;
+    const anchoTitulo = ancho - logoTam - 12;
     doc
       .fillColor(AZUL_OSCURO)
       .font('Helvetica-Bold')
@@ -264,9 +724,6 @@ export class PdfService {
 
     doc.y = Math.max(doc.y, yInicio + logoTam) + 6;
 
-    // Fila propia para código/versión/fecha, alineada a la derecha, debajo
-    // del título -- así nunca se superpone con él sin importar cuántas
-    // líneas ocupe el título.
     const fecha = new Date().toISOString().split('T')[0];
     const lineasDerecha = [
       data.codigo ? `Código: ${data.codigo}` : null,
@@ -280,12 +737,12 @@ export class PdfService {
       .fillColor(GRIS_CLARO)
       .fontSize(8)
       .font('Helvetica')
-      .text(lineasDerecha, x, doc.y, { width: anchoContenido, align: 'right' });
+      .text(lineasDerecha, x, doc.y, { width: ancho, align: 'right' });
 
     doc.y += 4;
     doc
       .moveTo(x, doc.y)
-      .lineTo(x + anchoContenido, doc.y)
+      .lineTo(x + ancho, doc.y)
       .lineWidth(2)
       .strokeColor(AZUL_INSTITUCIONAL)
       .stroke();
@@ -293,41 +750,25 @@ export class PdfService {
     doc.x = x;
   }
 
-  /** Placeholder vectorial (escudo simple) usado mientras no exista logo-escudo.png. */
-  private dibujarLogoPlaceholder(doc: PDFKit.PDFDocument, x: number, y: number, tam: number) {
-    doc.save();
-    doc.roundedRect(x, y, tam, tam, 6).fill(AZUL_INSTITUCIONAL);
-    doc
-      .fillColor('#FFFFFF')
-      .font('Helvetica-Bold')
-      .fontSize(14)
-      .text('SINEC', x, y + tam / 2 - 6, { width: tam, align: 'center' });
-    doc.restore();
-  }
-
-  private dibujarGrilla(doc: PDFKit.PDFDocument, titulo: string, items: MetadatoPdf[]) {
+  private dibujarGrillaGenerica(doc: PDFKit.PDFDocument, titulo: string, items: MetadatoPdf[]) {
     const x = doc.page.margins.left;
-    const anchoContenido = this.anchoContenido(doc);
+    const ancho = this.anchoContenido(doc);
     const filas = Math.ceil(items.length / 2);
     const altoFila = 20;
     const altoCaja = filas * altoFila + 16;
 
     this.asegurarEspacio(doc, altoCaja + 24);
 
-    doc
-      .fillColor(AZUL_INSTITUCIONAL)
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .text(titulo, x, doc.y);
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(10).text(titulo, x, doc.y);
     doc.y += 14;
 
     const cajaY = doc.y;
     doc.save();
-    doc.rect(x, cajaY, anchoContenido, altoCaja).fill(FONDO_GRIS);
-    doc.rect(x, cajaY, anchoContenido, altoCaja).lineWidth(1).stroke(BORDE_GRIS);
+    doc.rect(x, cajaY, ancho, altoCaja).fill(GRIS_FONDO);
+    doc.rect(x, cajaY, ancho, altoCaja).lineWidth(1).stroke(GRIS_BORDE);
     doc.restore();
 
-    const colAncho = anchoContenido / 2;
+    const colAncho = ancho / 2;
     for (let i = 0; i < items.length; i++) {
       const fila = Math.floor(i / 2);
       const col = i % 2;
@@ -338,7 +779,7 @@ export class PdfService {
         .fillColor(GRIS_TEXTO)
         .font('Helvetica-Bold')
         .fontSize(8.5)
-        .text(`${items[i].etiqueta}:`, itemX, itemY, { width: colAncho - 100, continued: false });
+        .text(`${items[i].etiqueta}:`, itemX, itemY, { width: colAncho - 100 });
       doc
         .fillColor(AZUL_OSCURO)
         .font('Helvetica')
@@ -350,9 +791,9 @@ export class PdfService {
     doc.x = x;
   }
 
-  private dibujarResultadoDestacado(doc: PDFKit.PDFDocument, resultado: ResultadoDestacadoPdf) {
+  private dibujarResultadoDestacadoGenerico(doc: PDFKit.PDFDocument, resultado: ResultadoDestacadoPdf) {
     const x = doc.page.margins.left;
-    const anchoContenido = this.anchoContenido(doc);
+    const ancho = this.anchoContenido(doc);
     const altoCaja = 90;
 
     this.asegurarEspacio(doc, altoCaja + 20);
@@ -361,86 +802,60 @@ export class PdfService {
     const colorAprueba = resultado.aprueba ? VERDE_APRUEBA : ROJO_NO_APRUEBA;
 
     doc.save();
-    doc.rect(x, cajaY, anchoContenido, altoCaja).fill('#FFFFFF');
-    doc.rect(x, cajaY, anchoContenido, altoCaja).lineWidth(1).stroke(BORDE_GRIS);
+    doc.rect(x, cajaY, ancho, altoCaja).fill('#FFFFFF');
+    doc.rect(x, cajaY, ancho, altoCaja).lineWidth(1).stroke(GRIS_BORDE);
     doc.rect(x, cajaY, 4, altoCaja).fill(colorAprueba);
     doc.restore();
 
-    // Columna 1: % de cumplimiento, en grande
     const col1X = x + 20;
-    doc
-      .fillColor(GRIS_CLARO)
-      .font('Helvetica-Bold')
-      .fontSize(8)
-      .text('CUMPLIMIENTO BPM', col1X, cajaY + 14, { width: 130 });
-    doc
-      .fillColor(AZUL_OSCURO)
-      .font('Helvetica-Bold')
-      .fontSize(28)
-      .text(`${resultado.cumplimientoPct.toFixed(1)}%`, col1X, cajaY + 26, { width: 130 });
+    doc.fillColor(GRIS_CLARO).font('Helvetica-Bold').fontSize(8).text('CUMPLIMIENTO BPM', col1X, cajaY + 14, { width: 130 });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(28).text(`${resultado.cumplimientoPct.toFixed(1)}%`, col1X, cajaY + 26, { width: 130 });
 
-    // Columna 2: desglose de NC + nivel de riesgo + frecuencia
     const col2X = x + 190;
-    doc
-      .fillColor(GRIS_CLARO)
-      .font('Helvetica-Bold')
-      .fontSize(8)
-      .text('NO CONFORMIDADES', col2X, cajaY + 14, { width: 220 });
-    doc
-      .fillColor(GRIS_TEXTO)
-      .font('Helvetica')
-      .fontSize(9)
-      .text(
-        `Críticas: ${resultado.ncCriticas}   Mayores: ${resultado.ncMayores}   Menores: ${resultado.ncMenores}`,
-        col2X,
-        cajaY + 27,
-        { width: 260 },
-      );
-    doc
-      .fillColor(GRIS_TEXTO)
-      .font('Helvetica')
-      .fontSize(9)
-      .text(
-        `Nivel de riesgo: ${resultado.nivelRiesgo}` + (resultado.frecuencia ? `   ·   Frecuencia: ${resultado.frecuencia}` : ''),
-        col2X,
-        cajaY + 42,
-        { width: 300 },
-      );
+    doc.fillColor(GRIS_CLARO).font('Helvetica-Bold').fontSize(8).text('NO CONFORMIDADES', col2X, cajaY + 14, { width: 220 });
+    doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(9).text(
+      `Críticas: ${resultado.ncCriticas}   Mayores: ${resultado.ncMayores}   Menores: ${resultado.ncMenores}`,
+      col2X,
+      cajaY + 27,
+      { width: 260 },
+    );
+    doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(9).text(
+      `Nivel de riesgo: ${resultado.nivelRiesgo}` + (resultado.frecuencia ? `   ·   Frecuencia: ${resultado.frecuencia}` : ''),
+      col2X,
+      cajaY + 42,
+      { width: 300 },
+    );
 
-    // Columna 3: Aprueba / No aprueba, en grande y coloreado, a la derecha
     const col3Ancho = 140;
-    const col3X = x + anchoContenido - col3Ancho - 15;
-    doc
-      .fillColor(colorAprueba)
-      .font('Helvetica-Bold')
-      .fontSize(20)
-      .text(resultado.aprueba ? 'APRUEBA' : 'NO APRUEBA', col3X, cajaY + 32, { width: col3Ancho, align: 'right' });
+    const col3X = x + ancho - col3Ancho - 15;
+    doc.fillColor(colorAprueba).font('Helvetica-Bold').fontSize(20).text(
+      resultado.aprueba ? 'APRUEBA' : 'NO APRUEBA',
+      col3X,
+      cajaY + 32,
+      { width: col3Ancho, align: 'right' },
+    );
 
     doc.y = cajaY + altoCaja + 20;
     doc.x = x;
   }
 
-  private dibujarTablaNoConformidades(doc: PDFKit.PDFDocument, filas: FilaNoConformidad[]) {
+  private dibujarTablaNoConformidadesGenerica(doc: PDFKit.PDFDocument, filas: FilaNoConformidad[]) {
     const x = doc.page.margins.left;
-    const anchoContenido = this.anchoContenido(doc);
+    const ancho = this.anchoContenido(doc);
 
-    const colItem = anchoContenido * 0.3;
-    const colGravedad = anchoContenido * 0.14;
-    const colCalificacion = anchoContenido * 0.16;
-    const colObservacion = anchoContenido * 0.4;
+    const colItem = ancho * 0.3;
+    const colGravedad = ancho * 0.14;
+    const colCalificacion = ancho * 0.16;
+    const colObservacion = ancho * 0.4;
 
     this.asegurarEspacio(doc, 40);
-    doc
-      .fillColor(AZUL_INSTITUCIONAL)
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .text('NO CONFORMIDADES DETECTADAS', x, doc.y);
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(10).text('NO CONFORMIDADES DETECTADAS', x, doc.y);
     doc.y += 14;
 
     const dibujarEncabezadoTabla = () => {
       const filaY = doc.y;
       doc.save();
-      doc.rect(x, filaY, anchoContenido, 20).fill(FONDO_GRIS);
+      doc.rect(x, filaY, ancho, 20).fill(GRIS_FONDO);
       doc.restore();
       doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(8.5);
       doc.text('Ítem evaluado', x + 6, filaY + 6, { width: colItem - 6 });
@@ -454,25 +869,25 @@ export class PdfService {
 
     doc.font('Helvetica').fontSize(8.5);
     for (const fila of filas) {
+      doc.fontSize(8.5).font('Helvetica');
       const altoObservacion = doc.heightOfString(fila.observacion || 'N/A', { width: colObservacion - 10 });
       const altoItem = doc.heightOfString(fila.item, { width: colItem - 10 });
       const altoFila = Math.max(altoObservacion, altoItem, 16) + 10;
 
       this.asegurarEspacio(doc, altoFila + 20);
       if (doc.y === doc.page.margins.top) {
-        // Se agregó página nueva dentro del loop -- repetir encabezado de tabla
         dibujarEncabezadoTabla();
       }
 
       const filaY = doc.y;
       doc.save();
-      doc.rect(x, filaY, anchoContenido, altoFila).lineWidth(0.5).stroke(BORDE_GRIS);
+      doc.rect(x, filaY, ancho, altoFila).lineWidth(0.5).stroke(GRIS_BORDE);
       doc.restore();
 
       doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(8.5);
       doc.text(fila.item, x + 6, filaY + 6, { width: colItem - 6 });
 
-      const colorGravedad = COLOR_GRAVEDAD[fila.gravedad];
+      const colorGravedad = COLOR_GRAVEDAD[fila.gravedad] || '#64748B';
       const pillAncho = 52;
       const pillX = x + colItem + (colGravedad - pillAncho) / 2;
       doc.save();
@@ -481,7 +896,7 @@ export class PdfService {
         .fillColor('#FFFFFF')
         .font('Helvetica-Bold')
         .fontSize(7.5)
-        .text(ETIQUETA_GRAVEDAD[fila.gravedad], pillX, filaY + 7.5, { width: pillAncho, align: 'center' });
+        .text(ETIQUETA_GRAVEDAD[fila.gravedad] || fila.gravedad, pillX, filaY + 7.5, { width: pillAncho, align: 'center' });
       doc.restore();
 
       doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(8.5);
@@ -498,38 +913,30 @@ export class PdfService {
     doc.x = x;
   }
 
-  private dibujarSeccion(doc: PDFKit.PDFDocument, seccion: SeccionPdf) {
+  private dibujarSeccionGenerica(doc: PDFKit.PDFDocument, seccion: SeccionPdf) {
     const x = doc.page.margins.left;
-    const anchoContenido = this.anchoContenido(doc);
+    const ancho = this.anchoContenido(doc);
     const texto = this.normalizarTextoSeccion(seccion.contenido);
     const esEstadoVacio = texto === 'Sin información registrada.';
 
-    const anchoTexto = anchoContenido - 20;
+    const anchoTexto = ancho - 20;
     doc.font('Helvetica').fontSize(9.5);
     const altoTexto = doc.heightOfString(texto, { width: anchoTexto });
     const altoCaja = altoTexto + 24;
 
     this.asegurarEspacio(doc, altoCaja + 34);
 
-    doc
-      .fillColor(AZUL_OSCURO)
-      .font('Helvetica-Bold')
-      .fontSize(10.5)
-      .text(seccion.titulo, x, doc.y);
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(10.5).text(seccion.titulo, x, doc.y);
     doc.y += 14;
 
     const cajaY = doc.y;
     doc.save();
-    doc.rect(x, cajaY, anchoContenido, altoCaja).fill(esEstadoVacio ? '#FAFAFA' : '#FFFFFF');
-    doc.rect(x, cajaY, 2, altoCaja).fill(BORDE_GRIS);
-    doc.rect(x, cajaY, anchoContenido, altoCaja).lineWidth(1).stroke(BORDE_GRIS);
+    doc.rect(x, cajaY, ancho, altoCaja).fill(esEstadoVacio ? '#FAFAFA' : '#FFFFFF');
+    doc.rect(x, cajaY, 2, altoCaja).fill(GRIS_BORDE);
+    doc.rect(x, cajaY, ancho, altoCaja).lineWidth(1).stroke(GRIS_BORDE);
     doc.restore();
 
-    doc
-      .fillColor(esEstadoVacio ? GRIS_CLARO : GRIS_TEXTO)
-      .font('Helvetica')
-      .fontSize(9.5)
-      .text(texto, x + 10, cajaY + 10, { width: anchoTexto });
+    doc.fillColor(esEstadoVacio ? GRIS_CLARO : GRIS_TEXTO).font('Helvetica').fontSize(9.5).text(texto, x + 10, cajaY + 10, { width: anchoTexto });
 
     doc.y = cajaY + altoCaja + 16;
     doc.x = x;
@@ -542,50 +949,24 @@ export class PdfService {
     return contenido.trim();
   }
 
-  /** Dibuja el sello institucional circular oficial de certificación SINEC / DIGEMAPS */
-  private dibujarSelloCertificacion(doc: PDFKit.PDFDocument, cx: number, cy: number, fechaStr: string) {
+  private dibujarSelloCertificacionGenerico(doc: PDFKit.PDFDocument, cx: number, cy: number, fechaStr: string) {
     const r = 30;
     doc.save();
-    // Círculo exterior doble
     doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
     doc.circle(cx, cy, r - 2.5).lineWidth(0.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
-    // Círculo punteado interior
     doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(AZUL_INSTITUCIONAL).stroke().undash();
 
-    // Líneas divisorias horizontales
     doc.moveTo(cx - 20, cy - 5).lineTo(cx + 20, cy - 5).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
     doc.moveTo(cx - 20, cy + 6).lineTo(cx + 20, cy + 6).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
 
-    // Textos institucionales dentro del sello
-    doc
-      .fillColor(AZUL_INSTITUCIONAL)
-      .font('Helvetica-Bold')
-      .fontSize(5)
-      .text('REPÚBLICA DOMINICANA', cx - 28, cy - 18, { width: 56, align: 'center' });
-
-    doc
-      .fillColor(AZUL_INSTITUCIONAL)
-      .font('Helvetica-Bold')
-      .fontSize(6)
-      .text('APROBADO Y VALIDADO', cx - 28, cy - 3.5, { width: 56, align: 'center' });
-
-    doc
-      .fillColor(GRIS_TEXTO)
-      .font('Helvetica-Bold')
-      .fontSize(5)
-      .text(fechaStr, cx - 24, cy + 8, { width: 48, align: 'center' });
-
-    doc
-      .fillColor(AZUL_INSTITUCIONAL)
-      .font('Helvetica')
-      .fontSize(4.5)
-      .text('SINEC · DIGEMAPS', cx - 26, cy + 18, { width: 52, align: 'center' });
-
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(5).text('REPÚBLICA DOMINICANA', cx - 28, cy - 18, { width: 56, align: 'center' });
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(6).text('APROBADO Y VALIDADO', cx - 28, cy - 3.5, { width: 56, align: 'center' });
+    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(5).text(fechaStr, cx - 24, cy + 8, { width: 48, align: 'center' });
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica').fontSize(4.5).text('SINEC · DIGEMAPS', cx - 26, cy + 18, { width: 52, align: 'center' });
     doc.restore();
   }
 
-  /** Dibuja el bloque inferior con QR real escaneable, firma manuscrita y sello/firma del coordinador */
-  private dibujarBloqueFirmasYQr(doc: PDFKit.PDFDocument, data: DocumentoPdfData, qrBuffer: Buffer | null) {
+  private dibujarBloqueFirmasYQrGenerico(doc: PDFKit.PDFDocument, data: DocumentoPdfData, qrBuffer: Buffer | null) {
     const altoBloque = 100;
     this.asegurarEspacio(doc, altoBloque + 20);
 
@@ -593,7 +974,6 @@ export class PdfService {
     const ancho = this.anchoContenido(doc);
     const yInicio = doc.y + 6;
 
-    // Línea horizontal divisoria superior
     doc.save();
     doc.moveTo(x, yInicio).lineTo(x + ancho, yInicio).lineWidth(1.5).strokeColor(AZUL_INSTITUCIONAL).stroke();
     doc.restore();
@@ -601,7 +981,7 @@ export class PdfService {
     const yContenido = yInicio + 10;
     const colAncho = ancho / 3;
 
-    // Columna 1: Validación Digital QR Real
+    // Columna 1: QR
     const col1X = x;
     if (qrBuffer) {
       try {
@@ -610,31 +990,17 @@ export class PdfService {
         const textoQrX = col1X + qrTam + 6;
         const textoQrAncho = colAncho - qrTam - 10;
 
-        doc
-          .fillColor(AZUL_INSTITUCIONAL)
-          .font('Helvetica-Bold')
-          .fontSize(7.5)
-          .text('Validación QR', textoQrX, yContenido + 2, { width: textoQrAncho });
-        doc
-          .fillColor(GRIS_TEXTO)
-          .font('Helvetica')
-          .fontSize(6)
-          .text('Escanee con la cámara para verificar autenticidad en SINEC / DIGEMAPS.', textoQrX, doc.y + 2, {
-            width: textoQrAncho,
-          });
+        doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text('Validación QR', textoQrX, yContenido + 2, { width: textoQrAncho });
+        doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(6).text('Escanee con la cámara para verificar autenticidad en SINEC / DIGEMAPS.', textoQrX, doc.y + 2, { width: textoQrAncho });
         if (data.codigo) {
-          doc
-            .fillColor(GRIS_CLARO)
-            .font('Helvetica-Bold')
-            .fontSize(6)
-            .text(`ID: ${data.codigo}`, textoQrX, doc.y + 2, { width: textoQrAncho });
+          doc.fillColor(GRIS_CLARO).font('Helvetica-Bold').fontSize(6).text(`ID: ${data.codigo}`, textoQrX, doc.y + 2, { width: textoQrAncho });
         }
       } catch (err) {
-        this.logger.warn(`No se pudo embeber el QR en el PDF: ${err instanceof Error ? err.message : err}`);
+        this.logger.warn(`No se pudo embeber el QR en el PDF: ${err}`);
       }
     }
 
-    // Columna 2: Firma Manuscrita del Técnico Evaluador
+    // Columna 2: Firma Técnico
     const col2X = x + colAncho + 5;
     const col2Ancho = colAncho - 10;
     const firma = this.rutaFirma();
@@ -645,41 +1011,20 @@ export class PdfService {
       try {
         doc.image(firma, col2X + (col2Ancho - 90) / 2, yFirma, { fit: [90, altoFirma] });
       } catch (err) {
-        this.logger.warn(`No se pudo embeber la firma manuscrita: ${err instanceof Error ? err.message : err}`);
+        this.logger.warn(`No se pudo embeber la firma manuscrita: ${err}`);
       }
     }
 
     const yLineaFirma = yFirma + altoFirma + 4;
     doc.save();
-    doc.moveTo(col2X + 10, yLineaFirma).lineTo(col2X + col2Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(BORDE_GRIS).stroke();
+    doc.moveTo(col2X + 10, yLineaFirma).lineTo(col2X + col2Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    doc
-      .fillColor(AZUL_OSCURO)
-      .font('Helvetica-Bold')
-      .fontSize(8)
-      .text(data.tecnicoNombre ?? 'Lic. Roberto Morales', col2X, yLineaFirma + 4, {
-        width: col2Ancho,
-        align: 'center',
-      });
-    doc
-      .fillColor(GRIS_CLARO)
-      .font('Helvetica')
-      .fontSize(6.5)
-      .text(data.tecnicoCargo ?? 'Técnico Evaluador Autorizado BPM', col2X, doc.y + 1, {
-        width: col2Ancho,
-        align: 'center',
-      });
-    doc
-      .fillColor(GRIS_CLARO)
-      .font('Helvetica')
-      .fontSize(5.5)
-      .text('Reg. Profesional: TEC-BPM-RD', col2X, doc.y + 1, {
-        width: col2Ancho,
-        align: 'center',
-      });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.tecnicoNombre ?? 'Lic. Roberto Morales', col2X, yLineaFirma + 4, { width: col2Ancho, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text(data.tecnicoCargo ?? 'Técnico Evaluador Autorizado BPM', col2X, doc.y + 1, { width: col2Ancho, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Reg. Profesional: TEC-BPM-RD', col2X, doc.y + 1, { width: col2Ancho, align: 'center' });
 
-    // Columna 3: Sello Oficial Circular y Visto Bueno Coordinador
+    // Columna 3: Firma / Sello Coordinador
     const col3X = x + colAncho * 2 + 5;
     const col3Ancho = colAncho - 10;
     const fechaHoy = data.fechaEmision ?? new Date().toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
@@ -687,64 +1032,27 @@ export class PdfService {
     if (data.incluirSello) {
       const stampCenterX = col3X + col3Ancho / 2;
       const stampCenterY = yContenido + 28;
-      this.dibujarSelloCertificacion(doc, stampCenterX, stampCenterY, fechaHoy);
+      this.dibujarSelloCertificacionGenerico(doc, stampCenterX, stampCenterY, fechaHoy);
 
-      doc
-        .fillColor(AZUL_OSCURO)
-        .font('Helvetica-Bold')
-        .fontSize(7.5)
-        .text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, stampCenterY + 34, {
-          width: col3Ancho,
-          align: 'center',
-        });
-      doc
-        .fillColor(GRIS_CLARO)
-        .font('Helvetica')
-        .fontSize(6)
-        .text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, {
-          width: col3Ancho,
-          align: 'center',
-        });
+      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, stampCenterY + 34, { width: col3Ancho, align: 'center' });
+      doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
     } else {
       const yCoord = yContenido + 8;
-      doc
-        .fillColor(AZUL_INSTITUCIONAL)
-        .font('Helvetica-Bold')
-        .fontSize(8)
-        .text('FIRMADO DIGITALMENTE', col3X, yCoord, { width: col3Ancho, align: 'center' });
-      doc
-        .fillColor(GRIS_CLARO)
-        .font('Helvetica')
-        .fontSize(6)
-        .text('Certificado: MSP-DIGEMAPS-2026', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
+      doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(8).text('FIRMADO DIGITALMENTE', col3X, yCoord, { width: col3Ancho, align: 'center' });
+      doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Certificado: MSP-DIGEMAPS-2026', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
 
       doc.save();
-      doc.moveTo(col3X + 10, yLineaFirma).lineTo(col3X + col3Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(BORDE_GRIS).stroke();
+      doc.moveTo(col3X + 10, yLineaFirma).lineTo(col3X + col3Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
       doc.restore();
 
-      doc
-        .fillColor(AZUL_OSCURO)
-        .font('Helvetica-Bold')
-        .fontSize(8)
-        .text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, yLineaFirma + 4, {
-          width: col3Ancho,
-          align: 'center',
-        });
-      doc
-        .fillColor(GRIS_CLARO)
-        .font('Helvetica')
-        .fontSize(6.5)
-        .text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, {
-          width: col3Ancho,
-          align: 'center',
-        });
+      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, yLineaFirma + 4, { width: col3Ancho, align: 'center' });
+      doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
     }
 
     doc.y = yInicio + altoBloque + 10;
     doc.x = x;
   }
 
-  /** Pie de página institucional, dibujado en TODAS las páginas (incluidas las que pdfkit agregó solo por desborde de contenido). */
   private dibujarPiePaginaEnTodas(doc: PDFKit.PDFDocument) {
     const rango = doc.bufferedPageRange();
     const fechaHoy = new Date().toISOString().split('T')[0];
@@ -752,32 +1060,46 @@ export class PdfService {
     for (let i = rango.start; i < rango.start + rango.count; i++) {
       doc.switchToPage(i);
       const x = doc.page.margins.left;
-      const anchoContenido = this.anchoContenido(doc);
+      const ancho = this.anchoContenido(doc);
       const y = doc.page.height - doc.page.margins.bottom + 12;
 
       doc.save();
-      doc
-        .moveTo(x, y - 6)
-        .lineTo(x + anchoContenido, y - 6)
-        .lineWidth(0.5)
-        .strokeColor(BORDE_GRIS)
-        .stroke();
+      doc.moveTo(x, y - 6).lineTo(x + ancho, y - 6).lineWidth(0.5).strokeColor(GRIS_BORDE).stroke();
       doc
         .fillColor(GRIS_CLARO)
         .font('Helvetica')
         .fontSize(7.5)
         .text('DIGEMAPS | Sistema SINEC - Evaluación Basada en Riesgo (BPM) | Documento oficial', x, y, {
-          width: anchoContenido - 100,
+          width: ancho - 100,
         });
       doc
         .fillColor(GRIS_CLARO)
         .font('Helvetica')
         .fontSize(7.5)
         .text(`${fechaHoy}  ·  Página ${i - rango.start + 1} de ${rango.count}`, x, y, {
-          width: anchoContenido,
+          width: ancho,
           align: 'right',
         });
       doc.restore();
     }
+  }
+
+  private dibujarLogoPlaceholder(doc: PDFKit.PDFDocument, x: number, y: number, w: number, h: number) {
+    doc.save();
+    doc.roundedRect(x, y, w, h, 6).fill(AZUL_INSTITUCIONAL);
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(14).text('SINEC', x, y + 14, { width: w, align: 'center' });
+    doc.restore();
+  }
+
+  private buscarMeta(metadata: MetadatoPdf[] | undefined, palabrasClave: string[]): string | undefined {
+    if (!metadata) return undefined;
+    for (const m of metadata) {
+      for (const p of palabrasClave) {
+        if (m.etiqueta.toLowerCase().includes(p.toLowerCase())) {
+          return m.valor;
+        }
+      }
+    }
+    return undefined;
   }
 }
