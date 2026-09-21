@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import { fileURLToPath } from 'url';
 
 export default defineConfig({
   plugins: [
+    basicSsl(),
     react(),
     VitePWA({
       strategies: 'injectManifest',
@@ -43,11 +45,11 @@ export default defineConfig({
     host: true,
     port: 5173,
     allowedHosts: ['.loca.lt', '.ngrok-free.app'],
-    proxy: { '/api': 'http://localhost:3000' },
+    proxy: { '/api': 'http://localhost:3001' },
   },
   preview: {
     host: true,
     port: 5173,
-    proxy: { '/api': 'http://localhost:3000' },
+    proxy: { '/api': 'http://localhost:3001' },
   },
 });
