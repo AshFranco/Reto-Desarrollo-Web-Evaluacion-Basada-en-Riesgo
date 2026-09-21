@@ -92,6 +92,58 @@ describe('PdfService', () => {
     expect(cantidadPaginas).toBeGreaterThan(1);
   });
 
+  describe('páginas del documento (el pie de página no debe crear páginas en blanco)', () => {
+    const contarPaginas = (buffer: Buffer) => (buffer.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    const lineas = (n: number) =>
+      Array.from({ length: n }, (_, i) => `Línea de hallazgo número ${i + 1} con suficiente texto para ocupar espacio real en la página.`).join('\n');
+
+    it('un documento corto ocupa exactamente 1 página', async () => {
+      const buffer = await pdfService.generarDocumentoPdf({
+        titulo: 'INFORME CORTO',
+        metadata: [{ etiqueta: 'Empresa', valor: 'Planta X' }],
+        secciones: [{ titulo: 'Resumen', contenido: 'Todo en orden.' }],
+      });
+      expect(contarPaginas(buffer)).toBe(1);
+    });
+
+    it('un documento vacío ocupa exactamente 1 página', async () => {
+      const buffer = await pdfService.generarDocumentoPdf({ titulo: 'VACÍO', metadata: [], secciones: [] });
+      expect(contarPaginas(buffer)).toBe(1);
+    });
+
+    it('un documento con firmas, QR y sello ocupa solo las páginas de su contenido', async () => {
+      const buffer = await pdfService.generarDocumentoPdf({
+        titulo: 'EXPEDIENTE',
+        codigo: 'EXP-0001',
+        metadata: [{ etiqueta: 'Empresa', valor: 'Planta X' }],
+        secciones: [{ titulo: 'Dictamen', contenido: 'Aprobado.' }],
+        incluirSello: true,
+        incluirQr: true,
+        qrUrl: 'https://sinec.example/verificar/EXP-0001',
+        incluirFirma: true,
+        tecnicoNombre: 'Ana Pérez',
+        tecnicoCargo: 'Técnico Evaluador',
+        coordinadorNombre: 'Carlos Peña',
+        coordinadorCargo: 'Coordinador Técnico',
+      });
+      expect(contarPaginas(buffer)).toBe(1);
+    });
+
+    it('un documento de varias secciones tiene tantas páginas como su contenido necesita, sin sumarle páginas de pie', async () => {
+      const buffer = await pdfService.generarDocumentoPdf({
+        titulo: 'INFORME MEDIANO',
+        metadata: [{ etiqueta: 'Empresa', valor: 'Planta X' }],
+        secciones: [
+          { titulo: 'Hallazgos', contenido: lineas(25) },
+          { titulo: 'No conformidades', contenido: lineas(25) },
+          { titulo: 'Recomendaciones', contenido: lineas(25) },
+        ],
+      });
+      // Contenido real en 2 páginas; con el defecto salían 6 (2 en blanco por cada página real).
+      expect(contarPaginas(buffer)).toBe(2);
+    });
+  });
+
   it('renderiza ficha oficial BPM con código QR real escaneable, sello de certificación y firma manuscrita', async () => {
     const doc: DocumentoPdfData = {
       titulo: 'FICHA OFICIAL DE INSPECCIÓN Y EVALUACIÓN BPM',

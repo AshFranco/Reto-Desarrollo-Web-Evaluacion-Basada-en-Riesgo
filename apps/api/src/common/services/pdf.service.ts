@@ -753,8 +753,12 @@ export class PdfService {
       doc.switchToPage(i);
       const x = doc.page.margins.left;
       const anchoContenido = this.anchoContenido(doc);
-      const y = doc.page.height - doc.page.margins.bottom + 12;
+      const margenInferior = doc.page.margins.bottom;
+      const y = doc.page.height - margenInferior + 12;
 
+      // El pie queda por debajo del margen inferior: con el margen activo pdfkit
+      // agrega una página nueva por cada texto ahí. Se anula solo mientras se dibuja.
+      doc.page.margins.bottom = 0;
       doc.save();
       doc
         .moveTo(x, y - 6)
@@ -778,6 +782,7 @@ export class PdfService {
           align: 'right',
         });
       doc.restore();
+      doc.page.margins.bottom = margenInferior;
     }
   }
 }
