@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
@@ -105,8 +105,13 @@ export class CalendarioService {
   async cancelar(evaluacionId: string, motivo?: string) {
     const evaluacion = await this.prisma.evaluacion.findUnique({
       where: { id: BigInt(evaluacionId) },
+      include: { estado: true },
     });
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
+
+    if (evaluacion.estado?.codigo !== 'PROGRAMADA') {
+      throw new BadRequestException('Solo se puede cancelar una cita que esté en estado Programada.');
+    }
 
     const estadoCancelado = await this.prisma.estadoEvaluacion.findFirst({
       where: { codigo: { in: ['CANCELADA', 'CANCELADO'] } },
