@@ -457,10 +457,11 @@ export class PdfService {
       aprueba: true,
     };
 
-    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(10).text('CUMPLIMIENTO BPM: ', x + 16, yFila3 + 12, { continued: true });
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(22).text(`${res.cumplimientoPct.toFixed(0)}%`);
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(9).text('CUMPLIMIENTO BPM:', x + 16, yFila3 + 12);
+    const anchoLabel = doc.widthOfString('CUMPLIMIENTO BPM:');
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(15).text(`${res.cumplimientoPct.toFixed(0)}%`, x + 16 + anchoLabel + 6, yFila3 + 7.5);
 
-    const yBadges = yFila3 + 30;
+    const yBadges = yFila3 + 28;
     // Badge 1: Críticas
     doc.save();
     doc.roundedRect(x + 16, yBadges, 64, 12, 6).fillAndStroke(VERDE_BG, VERDE_BORDE);
@@ -479,7 +480,7 @@ export class PdfService {
     doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMenores} NC Menor${res.ncMenores === 1 ? '' : 'es'}`, x + 156, yBadges + 2.5, { width: 60, align: 'center' });
     doc.restore();
 
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(7.5).text('Nivel de Riesgo: ', x + 16, yFila3 + 47, { continued: true });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(7.5).text('Nivel de Riesgo: ', x + 16, yFila3 + 46, { continued: true });
     doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text(res.nivelRiesgo);
 
     // Botón Derecho
