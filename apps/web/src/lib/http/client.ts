@@ -1,7 +1,7 @@
 import { getSession, clearSession } from '@/lib/auth/session';
 import { silentRefresh } from '@/lib/auth/refresh';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /**
  * Se lanza cuando una petición sigue devolviendo 401 después de intentar

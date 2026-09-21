@@ -3,7 +3,7 @@ import { isTokenValid, getSession } from '@/lib/auth/session';
 import { silentRefresh } from '@/lib/auth/refresh';
 import type { OperacionPendiente } from '@/lib/db';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 const POLL_INTERVAL_MS = 30_000;
 
