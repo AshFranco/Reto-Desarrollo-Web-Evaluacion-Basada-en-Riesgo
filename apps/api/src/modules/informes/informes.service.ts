@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
 import { PdfService } from '../../common/services/pdf.service';
-import { mapearResultadoDestacado, mapearNoConformidades } from '../../common/utils/informe-pdf-mapper';
+import { mapearResultadoDestacado, mapearNoConformidades, construirNombreArchivoFichaPdf } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
 import type { JwtPayload } from '../auth/token.service';
@@ -118,7 +118,7 @@ export class InformesService {
     const esFavorable = resultadoDestacado?.aprueba ?? true;
     const dictamenTecnico = esFavorable ? 'Favorable' : 'Desfavorable';
 
-    return this.pdfService.generarDocumentoPdf({
+    const buffer = await this.pdfService.generarDocumentoPdf({
       titulo: 'FICHA DE INSPECCIÓN BPM (OFICIAL)',
       subtitulo: 'Evaluación Basada en Riesgo Sanitario · DIGEMAPS',
       codigo: codigoDoc,
@@ -157,6 +157,20 @@ export class InformesService {
       coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
       coordinadorCertificado: 'Firma Electrónica Avanzada (Ley 126-02)',
     });
+
+    const nombreArchivo = construirNombreArchivoFichaPdf(
+      est?.nombre || emp?.razonSocial || 'Establecimiento',
+      codigoDoc,
+      evaluacion?.fechaRevision || evaluacion?.fechaFinalizacion || new Date(),
+    );
+    (buffer as any).nombreArchivo = nombreArchivo;
+    return buffer;
+  }
+
+  async generarPdfConMetadatos(evaluacionId: string, user: JwtPayload): Promise<{ buffer: Buffer; nombreArchivo: string }> {
+    const buffer = await this.generarPdf(evaluacionId, user);
+    const nombreArchivo = (buffer as any).nombreArchivo || `Ficha_BPM_${evaluacionId}.pdf`;
+    return { buffer, nombreArchivo };
   }
 
   async generar(dto: GenerarInformeDto, tecnicoId: string) {

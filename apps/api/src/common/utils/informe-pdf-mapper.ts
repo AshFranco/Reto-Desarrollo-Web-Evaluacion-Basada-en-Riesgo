@@ -82,3 +82,49 @@ export function mapearNoConformidades(respuestas: RespuestaParaPdf[]): FilaNoCon
       };
     });
 }
+
+/**
+ * Sanitiza una cadena para su uso seguro y legible en nombres de archivo de sistemas operativos.
+ */
+export function sanitizarNombreArchivo(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+    .replace(/[^a-zA-Z0-9_-]/g, '_') // Quitar caracteres especiales y reemplazar espacios
+    .replace(/_+/g, '_') // Quitar guiones repetidos
+    .replace(/^_|_$/g, '') // Quitar guiones al borde
+    .slice(0, 35);
+}
+
+/**
+ * Genera un nombre de archivo institucional, claro y único para la Ficha Oficial BPM.
+ * Ej: Ficha_BPM_Restaurante_Franciscano_F-BPM-2026-0042_2026-09-21.pdf
+ */
+export function construirNombreArchivoFichaPdf(
+  nombreEstablecimiento: string,
+  codigoDoc: string,
+  fecha?: Date | string | null,
+): string {
+  const slug = sanitizarNombreArchivo(nombreEstablecimiento || 'Establecimiento');
+  const d = fecha ? new Date(fecha) : new Date();
+  const fechaStr = isNaN(d.getTime()) ? new Date().toISOString().split('T')[0] : d.toISOString().split('T')[0];
+  const codigoLimpio = codigoDoc.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `Ficha_BPM_${slug}_${codigoLimpio}_${fechaStr}.pdf`;
+}
+
+/**
+ * Genera un nombre de archivo institucional para el Expediente de Cierre BPM.
+ * Ej: Expediente_BPM_Restaurante_Franciscano_EXP-DICTAMEN-0005_2026-09-21.pdf
+ */
+export function construirNombreArchivoExpedientePdf(
+  nombreEstablecimiento: string,
+  codigoExp: string,
+  fecha?: Date | string | null,
+): string {
+  const slug = sanitizarNombreArchivo(nombreEstablecimiento || 'Establecimiento');
+  const d = fecha ? new Date(fecha) : new Date();
+  const fechaStr = isNaN(d.getTime()) ? new Date().toISOString().split('T')[0] : d.toISOString().split('T')[0];
+  const codigoLimpio = codigoExp.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `Expediente_BPM_${slug}_${codigoLimpio}_${fechaStr}.pdf`;
+}
+
