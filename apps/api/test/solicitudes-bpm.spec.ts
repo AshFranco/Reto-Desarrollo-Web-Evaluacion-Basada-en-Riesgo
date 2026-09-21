@@ -45,6 +45,28 @@ describe('SolicitudesBpmService', () => {
     });
   });
 
+  describe('misSolicitudes', () => {
+    it('filtra por la empresa del usuario', async () => {
+      prismaMock.solicitudBpm.findMany.mockResolvedValue([]);
+
+      await service.misSolicitudes(user);
+
+      expect(prismaMock.solicitudBpm.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { idEmpresa: 1n } }),
+      );
+    });
+
+    it.each([null, undefined, ''])(
+      'rechaza a un usuario sin empresa (%p) en vez de listar las solicitudes de todas las empresas',
+      async (empresaId) => {
+        await expect(
+          service.misSolicitudes({ sub: '2', rol: 'ADMINISTRADOR_EMPRESA', empresaId } as any),
+        ).rejects.toThrow(ForbiddenException);
+        expect(prismaMock.solicitudBpm.findMany).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   describe('subirAdjunto', () => {
     const file = { buffer: Buffer.from('x'), mimetype: 'application/pdf', size: 10, originalname: 'croquis.pdf' } as any;
 

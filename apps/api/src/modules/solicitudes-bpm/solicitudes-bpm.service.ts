@@ -86,8 +86,11 @@ export class SolicitudesBpmService {
   }
 
   async misSolicitudes(user: JwtPayload) {
+    if (!user.empresaId) {
+      throw new ForbiddenException('El usuario no está asociado a una empresa.');
+    }
     const solicitudes = await this.prisma.solicitudBpm.findMany({
-      where: { idEmpresa: user.empresaId ? BigInt(user.empresaId) : undefined },
+      where: { idEmpresa: BigInt(user.empresaId) },
       orderBy: { fechaCreacion: 'desc' },
     });
     return solicitudes.map((s) => this.serializar(s));
