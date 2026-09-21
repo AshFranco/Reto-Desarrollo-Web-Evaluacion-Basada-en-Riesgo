@@ -3,7 +3,7 @@
  * Utiliza el API nativa del navegador (window.print) para asegurar compatibilidad
  * sin dependencias externas y un peso mínimo en el bundle.
  */
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo-completo.png';
 
 function generarHtmlOriginal(caso: any): string {
   // 1. Extracción y validación de datos
@@ -115,9 +115,9 @@ function generarHtmlOriginal(caso: any): string {
       margin-bottom: 25px;
     }
     .header-logo {
-      height: 42px;
+      height: 72px;
       width: auto;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
     .header-section h1 {
       font-size: 16px;

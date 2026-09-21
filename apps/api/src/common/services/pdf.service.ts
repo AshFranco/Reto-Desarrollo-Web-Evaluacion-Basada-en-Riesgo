@@ -109,8 +109,8 @@ export class PdfService {
 
   private rutaLogo(): string | null {
     const candidatos = [
-      join(__dirname, '..', '..', 'assets', 'logo.png'),
-      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo.png'),
+      join(__dirname, '..', '..', 'assets', 'logo-escudo.png'),
+      join(__dirname, '..', '..', '..', 'src', 'assets', 'logo-escudo.png'),
     ];
     for (const ruta of candidatos) {
       if (existsSync(ruta)) return ruta;
@@ -227,7 +227,7 @@ export class PdfService {
     const logo = this.rutaLogo();
     const logoTam = 40;
     // Siempre hay un logo dibujado en este espacio -- el real si existe
-    // logo.png, si no un placeholder vectorial (ver dibujarLogoPlaceholder) --
+    // logo-escudo.png, si no un placeholder vectorial (ver dibujarLogoPlaceholder) --
     // así que el texto SIEMPRE arranca desplazado, nunca pegado a x.
     const textoX = x + logoTam + 12;
 
@@ -293,7 +293,7 @@ export class PdfService {
     doc.x = x;
   }
 
-  /** Placeholder vectorial (escudo simple) usado mientras no exista un logo.png real. */
+  /** Placeholder vectorial (escudo simple) usado mientras no exista logo-escudo.png. */
   private dibujarLogoPlaceholder(doc: PDFKit.PDFDocument, x: number, y: number, tam: number) {
     doc.save();
     doc.roundedRect(x, y, tam, tam, 6).fill(AZUL_INSTITUCIONAL);

@@ -14,7 +14,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { registro, type DatosRegistro, type RolRegistrable } from '@/lib/auth/registro';
 import { useEmpresasPublicas } from '@/lib/empresa/useEmpresas';
-import logo from '@/assets/logo.png';
+import { LogoSinec } from '@/components/ui/LogoSinec';
 
 const ROLES: { valor: RolRegistrable; etiqueta: string }[] = [
   { valor: 'ADMINISTRADOR_EMPRESA', etiqueta: 'Administrador de empresa' },
@@ -77,22 +77,7 @@ export default function Registro() {
         variant="outlined"
         sx={{ padding: 4, width: '100%', maxWidth: 440 }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Box
-            component="img"
-            src={logo}
-            alt="SINEC"
-            sx={{ width: 48, height: 48, flexShrink: 0, objectFit: 'contain' }}
-          />
-          <Box>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              SINEC
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Sistema de Evaluación y BPM
-            </Typography>
-          </Box>
-        </Box>
+        <LogoSinec />
 
         {enviado ? (
           <>

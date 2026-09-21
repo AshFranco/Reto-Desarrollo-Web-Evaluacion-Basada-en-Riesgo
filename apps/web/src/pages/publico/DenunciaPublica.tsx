@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { denunciaPublica, listarEmpresasPublicas, type DatosDenunciaPublica } from '@/lib/publico/denunciaPublica';
-import logo from '@/assets/logo.png';
+import { LogoSinec } from '@/components/ui/LogoSinec';
 
 const DATOS_VACIOS: DatosDenunciaPublica = {
   tipoDenuncia: '',
@@ -81,22 +81,7 @@ export default function DenunciaPublica() {
         variant="outlined"
         sx={{ padding: 4, width: '100%', maxWidth: 480 }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Box
-            component="img"
-            src={logo}
-            alt="SINEC"
-            sx={{ width: 48, height: 48, flexShrink: 0, objectFit: 'contain' }}
-          />
-          <Box>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              SINEC
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Portal ciudadano de denuncias
-            </Typography>
-          </Box>
-        </Box>
+        <LogoSinec subtitulo="Portal ciudadano de denuncias" />
 
         {referencia ? (
           <>

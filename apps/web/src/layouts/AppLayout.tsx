@@ -32,7 +32,7 @@ import { useFotoPerfil } from '@/lib/perfil/useFotoPerfil';
 import type { UsuarioLocal } from '@/lib/types';
 import { DialogPerfil } from '@/pages/perfil/DialogPerfil';
 import { NotificacionesMenu } from './NotificacionesMenu';
-import logo from '@/assets/logo.png';
+import logoEscudo from '@/assets/logo-escudo.png';
 
 const sxItemNav = {
   borderRadius: 2,
@@ -222,9 +222,9 @@ export function AppLayout() {
 
           <Box
             component="img"
-            src={logo}
+            src={logoEscudo}
             alt="SINEC"
-            sx={{ width: 32, height: 32, flexShrink: 0, objectFit: 'contain' }}
+            sx={{ height: 40, width: 'auto', flexShrink: 0 }}
           />
           <Box sx={{ flexGrow: 1 }}>
             <Typography variant="subtitle1" fontWeight={700} color="primary.main" sx={{ lineHeight: 1.1 }}>

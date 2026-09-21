@@ -17,7 +17,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined';
 import { restablecerContrasena } from '@/lib/auth/recuperacion';
-import logo from '@/assets/logo.png';
+import { LogoSinec } from '@/components/ui/LogoSinec';
 
 export default function RestablecerContrasena() {
   const navigate = useNavigate();
@@ -80,22 +80,7 @@ export default function RestablecerContrasena() {
         sx={{ padding: 4, width: '100%', maxWidth: 440, borderRadius: 3 }}
       >
         {/* Encabezado institucional */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Box
-            component="img"
-            src={logo}
-            alt="SINEC"
-            sx={{ width: 48, height: 48, flexShrink: 0, objectFit: 'contain' }}
-          />
-          <Box>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              DIGEMAPS — SINEC
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Seguridad y Control de Acceso
-            </Typography>
-          </Box>
-        </Box>
+        <LogoSinec subtitulo="Seguridad y control de acceso" />
 
         {exito ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 2 }}>
