@@ -65,7 +65,7 @@ describe('PDF: nunca se inventan datos (N/A cuando no hay dato real)', () => {
 
     it('no afirma aprobación ni dictamen favorable', () => {
       expect(texto).not.toContain('PERMISO SANITARIO APROBADO');
-      expect(texto).not.toContain('APROBADO Y VALIDADO');
+      expect(texto).not.toContain('APROBADO YVALIDADO');
       expect(texto).not.toContain('Favorable');
       expect(texto).not.toContain('Desfavorable');
     });
@@ -98,7 +98,7 @@ describe('PDF: nunca se inventan datos (N/A cuando no hay dato real)', () => {
       expect(texto).toContain('76%');
       expect(texto).toContain('cumple satisfactoriamente');
       expect(texto).toContain('PERMISO SANITARIO APROBADO');
-      expect(texto).toContain('APROBADO Y VALIDADO');
+      expect(texto).toContain('APROBADO YVALIDADO');
       expect(texto).toContain('Favorable');
       expect(texto).toContain('FIRMADO DIGITALMENTE');
       expect(texto).not.toContain('88%');
@@ -107,9 +107,9 @@ describe('PDF: nunca se inventan datos (N/A cuando no hay dato real)', () => {
     it('no aprobada: lo dice y no usa el sello de aprobación', async () => {
       const texto = textoDelPdf(await pdf.generarDocumentoPdf(fichaSinDatos({ resultado: resultado(false) })));
       expect(texto).toContain('PERMISO SANITARIO NO APROBADO');
-      expect(texto).toContain('NO APROBADO / OBSERVADO');
+      expect(texto).toContain('NO APROBADOOBSERVADO');
       expect(texto).toContain('Desfavorable');
-      expect(texto).not.toContain('APROBADO Y VALIDADO');
+      expect(texto).not.toContain('APROBADO YVALIDADO');
     });
   });
 
