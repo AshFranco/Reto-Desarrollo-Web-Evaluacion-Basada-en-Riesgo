@@ -58,11 +58,12 @@ export class EmpresasService {
   }
 
   async listar(user: JwtPayload) {
-    const empresas = ROLES_INTERNOS.includes(user.rol)
+    const esInterno = ROLES_INTERNOS.includes(user.rol);
+    // Sin empresa asignada el filtro quedaría vacío y devolvería todas las empresas.
+    if (!esInterno && !user.empresaId) return [];
+    const empresas = esInterno
       ? await this.prisma.empresa.findMany({ orderBy: { razonSocial: 'asc' } })
-      : await this.prisma.empresa.findMany({
-          where: { id: user.empresaId ? BigInt(user.empresaId) : undefined },
-        });
+      : await this.prisma.empresa.findMany({ where: { id: BigInt(user.empresaId!) } });
     return empresas.map((e) => this.serializar(e));
   }
 
