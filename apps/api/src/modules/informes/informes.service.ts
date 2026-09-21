@@ -90,7 +90,13 @@ export class InformesService {
   }
 
   async generar(dto: GenerarInformeDto, tecnicoId: string) {
-    const evaluacion = await this.prisma.evaluacion.findUnique({ where: { id: BigInt(dto.evaluacionId) } });
+    const evaluacion = await this.prisma.evaluacion.findUnique({
+      where: { id: BigInt(dto.evaluacionId) },
+      include: {
+        establecimiento: { select: { nombre: true } },
+        evaluador: { select: { nombreCompleto: true } },
+      },
+    });
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
     if (evaluacion.idEvaluador.toString() !== tecnicoId) {
       throw new ForbiddenException('Esta evaluación no está asignada a usted.');
@@ -134,6 +140,40 @@ export class InformesService {
       idUsuario: tecnicoId,
       valoresNuevos: { resumenEjecutivo: dto.resumenEjecutivo, hallazgos: dto.hallazgos },
     });
+
+    try {
+      const nombreEstablecimiento = (evaluacion as any).establecimiento?.nombre ?? 'Establecimiento';
+      const nombreTecnico = (evaluacion as any).evaluador?.nombreCompleto ?? 'El técnico evaluador';
+
+      await this.notificaciones.notificarPorRol('ADMINISTRADOR', {
+        tipo: 'INFORME_EN_REVISION',
+        titulo: 'Informe técnico generado',
+        mensaje: `${nombreTecnico} generó el informe de la evaluación #${dto.evaluacionId} (${nombreEstablecimiento}), en revisión.`,
+        entidad: 'evaluacion',
+        idEntidad: dto.evaluacionId,
+      });
+
+      if (evaluacion.idCoordinador) {
+        await this.notificaciones.crear({
+          idUsuario: evaluacion.idCoordinador,
+          tipo: 'INFORME_EN_REVISION',
+          titulo: 'Informe técnico pendiente de revisión',
+          mensaje: `El informe técnico de la evaluación #${dto.evaluacionId} (${nombreEstablecimiento}) está listo para su revisión.`,
+          entidad: 'evaluacion',
+          idEntidad: dto.evaluacionId,
+        });
+      } else {
+        await this.notificaciones.notificarPorRol('COORDINADOR', {
+          tipo: 'INFORME_EN_REVISION',
+          titulo: 'Informe técnico pendiente de revisión',
+          mensaje: `El informe técnico de la evaluación #${dto.evaluacionId} (${nombreEstablecimiento}) está listo para su revisión.`,
+          entidad: 'evaluacion',
+          idEntidad: dto.evaluacionId,
+        });
+      }
+    } catch {
+      // La notificación no bloquea la respuesta
+    }
 
     return { ...informe, id: informe.id.toString(), idEvaluacion: informe.idEvaluacion.toString() };
   }

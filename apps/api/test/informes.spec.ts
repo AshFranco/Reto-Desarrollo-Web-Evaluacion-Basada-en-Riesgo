@@ -16,7 +16,10 @@ describe('InformesService', () => {
     };
     pdfServiceMock = { generarDocumentoPdf: jest.fn() };
     const auditoriaMock = { registrar: jest.fn().mockResolvedValue(null) };
-    notificacionesMock = { crear: jest.fn() };
+    notificacionesMock = {
+      crear: jest.fn(),
+      notificarPorRol: jest.fn().mockResolvedValue(null),
+    };
 
     service = new InformesService(prismaMock, pdfServiceMock, auditoriaMock as any, notificacionesMock);
   });

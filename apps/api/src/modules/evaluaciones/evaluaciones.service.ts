@@ -181,6 +181,43 @@ export class EvaluacionesService {
       },
     });
     await this.registrarHistorial(actualizada.id, evaluacion.idEstado, estadoFinalizada.id, tecnicoId);
+
+    try {
+      const nombreTecnico = (evaluacion as any).evaluador?.nombreCompleto ?? 'Un técnico evaluador';
+      const nombreEstablecimiento = (evaluacion as any).establecimiento?.nombre ?? 'Establecimiento';
+
+      // 1. Notificar al Administrador
+      await this.notificaciones.notificarPorRol(RolUsuario.ADMINISTRADOR, {
+        tipo: 'EVALUACION_FINALIZADA',
+        titulo: 'Evaluación finalizada',
+        mensaje: `${nombreTecnico} ha finalizado la evaluación #${evaluacionId} del establecimiento "${nombreEstablecimiento}".`,
+        entidad: 'evaluacion',
+        idEntidad: actualizada.id,
+      });
+
+      // 2. Notificar al Coordinador
+      if (evaluacion.idCoordinador) {
+        await this.notificaciones.crear({
+          idUsuario: evaluacion.idCoordinador,
+          tipo: 'EVALUACION_FINALIZADA',
+          titulo: 'Evaluación finalizada para revisión',
+          mensaje: `${nombreTecnico} ha finalizado la evaluación #${evaluacionId} del establecimiento "${nombreEstablecimiento}".`,
+          entidad: 'evaluacion',
+          idEntidad: actualizada.id,
+        });
+      } else {
+        await this.notificaciones.notificarPorRol(RolUsuario.COORDINADOR, {
+          tipo: 'EVALUACION_FINALIZADA',
+          titulo: 'Evaluación finalizada para revisión',
+          mensaje: `${nombreTecnico} ha finalizado la evaluación #${evaluacionId} del establecimiento "${nombreEstablecimiento}".`,
+          entidad: 'evaluacion',
+          idEntidad: actualizada.id,
+        });
+      }
+    } catch {
+      // La notificación no bloquea la finalización exitosa
+    }
+
     return this.serializar(actualizada);
   }
 
@@ -236,7 +273,13 @@ export class EvaluacionesService {
   }
 
   private async obtenerYValidarPropiedad(evaluacionId: string, tecnicoId: string) {
-    const evaluacion = await this.prisma.evaluacion.findUnique({ where: { id: BigInt(evaluacionId) } });
+    const evaluacion = await this.prisma.evaluacion.findUnique({
+      where: { id: BigInt(evaluacionId) },
+      include: {
+        establecimiento: { select: { nombre: true } },
+        evaluador: { select: { nombreCompleto: true } },
+      },
+    });
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
     if (evaluacion.idEvaluador.toString() !== tecnicoId) {
       throw new ForbiddenException('Esta evaluación no está asignada a usted.');
