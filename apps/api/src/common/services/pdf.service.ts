@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import PDFDocument from 'pdfkit';
@@ -52,7 +53,7 @@ export interface DatosControlInternoPdf {
   coordinadorRevisor: string;
   frecuenciaFiscalizacion: string;
   dictamenTecnico: string;
-  esFavorable: boolean;
+  esFavorable?: boolean | null;
 }
 
 export interface DocumentoPdfData {
@@ -61,6 +62,7 @@ export interface DocumentoPdfData {
   codigo?: string;
   version?: string;
   fechaEmision?: string;
+  hashIntegridad?: string;
 
   // Datos estructurados oficiales Ficha BPM (Mockup)
   datosEstablecimiento?: DatosEstablecimientoPdf;
@@ -307,7 +309,7 @@ export class PdfService {
     doc.roundedRect(x, yFila1, anchoColIzq, altoFila1, 6).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    const regId = data.datosEstablecimiento?.regId || (data.metadata?.find(m => m.etiqueta.includes('ID'))?.valor ? `EST-${data.metadata.find(m => m.etiqueta.includes('ID'))?.valor}` : 'EST-8941');
+    const regId = data.datosEstablecimiento?.regId || (data.metadata?.find(m => m.etiqueta.includes('ID'))?.valor ? `EST-${data.metadata.find(m => m.etiqueta.includes('ID'))?.valor}` : 'N/A');
 
     doc
       .fillColor(AZUL_INSTITUCIONAL)
@@ -322,12 +324,12 @@ export class PdfService {
       .text(`REG-ID: ${regId}`, x + 10, yFila1 + 9, { width: anchoColIzq - 20, align: 'right' });
 
     const est = data.datosEstablecimiento;
-    const empresaVal = est?.empresaRazonSocial || this.buscarMeta(data.metadata, ['Empresa', 'Razón Social']) || 'Restaurante Franciscano SRL';
-    const rncVal = est?.rnc || this.buscarMeta(data.metadata, ['RNC']) || '1-30-00000-2';
-    const dirVal = est?.direccionFisica || this.buscarMeta(data.metadata, ['Dirección', 'Calle']) || 'Av. Duarte esq. Independencia, #104';
-    const munVal = est?.municipioDps || this.buscarMeta(data.metadata, ['Municipio', 'DPS']) || 'Santo Domingo Este (DPS II)';
-    const repVal = est?.representanteLegal || this.buscarMeta(data.metadata, ['Representante', 'Titular']) || 'Ashley Franco Bobonagua';
-    const telVal = est?.telefonoContacto || this.buscarMeta(data.metadata, ['Teléfono']) || '+1 (809) 555-0199';
+    const empresaVal = est?.empresaRazonSocial || this.buscarMeta(data.metadata, ['Empresa', 'Razón Social']) || 'N/A';
+    const rncVal = est?.rnc || this.buscarMeta(data.metadata, ['RNC']) || 'N/A';
+    const dirVal = est?.direccionFisica || this.buscarMeta(data.metadata, ['Dirección', 'Calle']) || 'N/A';
+    const munVal = est?.municipioDps || this.buscarMeta(data.metadata, ['Municipio', 'DPS']) || 'N/A';
+    const repVal = est?.representanteLegal || this.buscarMeta(data.metadata, ['Representante', 'Titular']) || 'N/A';
+    const telVal = est?.telefonoContacto || this.buscarMeta(data.metadata, ['Teléfono']) || 'N/A';
 
     const subColW = (anchoColIzq - 24) / 2;
     const yItemsFila1 = yFila1 + 24;
@@ -362,19 +364,22 @@ export class PdfService {
     const cy = yFila1 + altoFila1 / 2;
     const r = 36;
     const fechaSello = new Date().toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
-    const esAprobado = data.resultado ? data.resultado.aprueba : (data.datosControlInterno ? data.datosControlInterno.esFavorable : true);
+    const esAprobado = data.resultado ? data.resultado.aprueba : (data.datosControlInterno ? data.datosControlInterno.esFavorable ?? null : null);
 
-    doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
-    doc.circle(cx, cy, r - 2.5).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
-    doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(AZUL_INSTITUCIONAL).stroke().undash();
+    const colorSello = esAprobado === null ? '#475569' : (esAprobado ? AZUL_INSTITUCIONAL : ROJO_TXT);
+    const textoSello = esAprobado === null ? 'PENDIENTE DE DICTAMEN' : (esAprobado ? 'APROBADO Y VALIDADO' : 'NO APROBADO / OBSERVADO');
 
-    doc.moveTo(cx - 24, cy - 7).lineTo(cx + 24, cy - 7).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
-    doc.moveTo(cx - 24, cy + 6).lineTo(cx + 24, cy + 6).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
+    doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(colorSello).stroke();
+    doc.circle(cx, cy, r - 2.5).lineWidth(0.6).strokeColor(colorSello).stroke();
+    doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(colorSello).stroke().undash();
 
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(5).text('REPÚBLICA DOMINICANA', cx - 30, cy - 18, { width: 60, align: 'center' });
-    doc.fillColor(esAprobado ? AZUL_INSTITUCIONAL : ROJO_TXT).font('Helvetica-Bold').fontSize(esAprobado ? 6.5 : 5.8).text(esAprobado ? 'APROBADO Y VALIDADO' : 'NO APROBADO / OBSERVADO', cx - 30, cy - 4.5, { width: 60, align: 'center' });
+    doc.moveTo(cx - 24, cy - 7).lineTo(cx + 24, cy - 7).lineWidth(0.6).strokeColor(colorSello).stroke();
+    doc.moveTo(cx - 24, cy + 6).lineTo(cx + 24, cy + 6).lineWidth(0.6).strokeColor(colorSello).stroke();
+
+    doc.fillColor(colorSello).font('Helvetica-Bold').fontSize(5).text('REPÚBLICA DOMINICANA', cx - 30, cy - 18, { width: 60, align: 'center' });
+    doc.fillColor(colorSello).font('Helvetica-Bold').fontSize(esAprobado === null ? 5.2 : (esAprobado ? 6.5 : 5.8)).text(textoSello, cx - 30, cy - 4.5, { width: 60, align: 'center' });
     doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(5.5).text(fechaSello, cx - 30, cy + 9, { width: 60, align: 'center' });
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica').fontSize(4.5).text('SINEC · DIGEMAPS / MSP', cx - 30, cy + 18, { width: 60, align: 'center' });
+    doc.fillColor(colorSello).font('Helvetica').fontSize(4.5).text('SINEC · DIGEMAPS / MSP', cx - 30, cy + 18, { width: 60, align: 'center' });
     doc.restore();
 
     // 3. SECCIÓN: DATOS DE CONTROL INTERNO Y FISCALIZACIÓN
@@ -392,14 +397,14 @@ export class PdfService {
       .text('DATOS DE CONTROL INTERNO Y FISCALIZACIÓN', x + 10, yFila2 + 7);
 
     const ctrl = data.datosControlInterno;
-    const fechaIniVal = ctrl?.fechaInspeccionInicial || this.buscarMeta(data.metadata, ['Fecha Programada', 'Inicial']) || '04/09/2026';
-    const permisoVal = ctrl?.noPermisoSanitario || 'PS-SAN-2026-8941';
+    const fechaIniVal = ctrl?.fechaInspeccionInicial || this.buscarMeta(data.metadata, ['Fecha Programada', 'Inicial']) || 'N/A';
+    const permisoVal = ctrl?.noPermisoSanitario || 'N/A';
     const fechaActVal = ctrl?.fechaInspeccionActual || new Date().toLocaleDateString('es-DO');
     const motivoVal = ctrl?.motivoInspeccion || this.buscarMeta(data.metadataControl, ['Tipo']) || 'Vigilancia Sanitaria Regular';
-    const tecVal = ctrl?.tecnicoEvaluador || data.tecnicoNombre || this.buscarMeta(data.metadata, ['Técnico', 'Evaluador']) || 'Lic. Roberto Morales (TEC-08)';
-    const coordVal = ctrl?.coordinadorRevisor || data.coordinadorNombre || 'Ing. Carlos Peña (DIGEMAPS)';
-    const freqVal = ctrl?.frecuenciaFiscalizacion || data.resultado?.frecuencia || 'Anual (Nivel de Riesgo Bajo)';
-    const dictamenVal = ctrl?.dictamenTecnico || (esAprobado ? 'Favorable' : 'Desfavorable');
+    const tecVal = ctrl?.tecnicoEvaluador || data.tecnicoNombre || this.buscarMeta(data.metadata, ['Técnico', 'Evaluador']) || 'N/A';
+    const coordVal = ctrl?.coordinadorRevisor || data.coordinadorNombre || 'N/A';
+    const freqVal = ctrl?.frecuenciaFiscalizacion || data.resultado?.frecuencia || 'N/A';
+    const dictamenVal = ctrl?.dictamenTecnico || (esAprobado === null ? 'Pendiente' : (esAprobado ? 'Favorable' : 'Desfavorable'));
 
     const col4W = (anchoContenido - 20) / 4;
     const yCont2 = yFila2 + 20;
@@ -431,9 +436,19 @@ export class PdfService {
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Dictamen Técnico:', xCol4, yCont2 + 20);
 
     // Pill badge Dictamen Técnico
-    const dictamenBg = esAprobado ? '#D1FAE5' : '#FEE2E2';
-    const dictamenBorde = esAprobado ? '#A7F3D0' : '#FECACA';
-    const dictamenColor = esAprobado ? '#065F46' : '#991B1B';
+    let dictamenBg = '#F1F5F9';
+    let dictamenBorde = '#CBD5E1';
+    let dictamenColor = '#475569';
+
+    if (esAprobado === true) {
+      dictamenBg = '#D1FAE5';
+      dictamenBorde = '#A7F3D0';
+      dictamenColor = '#065F46';
+    } else if (esAprobado === false) {
+      dictamenBg = '#FEE2E2';
+      dictamenBorde = '#FECACA';
+      dictamenColor = '#991B1B';
+    }
 
     doc.save();
     doc.roundedRect(xCol4, yCont2 + 27, 60, 12, 6).fillAndStroke(dictamenBg, dictamenBorde);
@@ -448,48 +463,47 @@ export class PdfService {
     doc.roundedRect(x, yFila3, anchoContenido, altoFila3, 8).lineWidth(1.5).strokeColor(AZUL_INSTITUCIONAL).stroke();
     doc.restore();
 
-    const res = data.resultado || {
-      cumplimientoPct: 88,
-      ncCriticas: 0,
-      ncMayores: 2,
-      ncMenores: 1,
-      nivelRiesgo: 'BAJO (0.42)',
-      aprueba: true,
-    };
+    const res = data.resultado;
+    const pctTexto = res ? `${res.cumplimientoPct.toFixed(0)}%` : 'N/A';
+
+    const ncCriticas = res ? res.ncCriticas : (data.noConformidades ? data.noConformidades.filter(n => n.gravedad === 'CRITICA').length : 0);
+    const ncMayores = res ? res.ncMayores : (data.noConformidades ? data.noConformidades.filter(n => n.gravedad === 'MAYOR').length : 0);
+    const ncMenores = res ? res.ncMenores : (data.noConformidades ? data.noConformidades.filter(n => n.gravedad === 'MENOR').length : 0);
+    const nivelRiesgoTexto = res ? res.nivelRiesgo : 'N/A';
 
     doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(9).text('CUMPLIMIENTO BPM:', x + 16, yFila3 + 12);
     const anchoLabel = doc.widthOfString('CUMPLIMIENTO BPM:');
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(15).text(`${res.cumplimientoPct.toFixed(0)}%`, x + 16 + anchoLabel + 6, yFila3 + 7.5);
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(15).text(pctTexto, x + 16 + anchoLabel + 6, yFila3 + 7.5);
 
     const yBadges = yFila3 + 28;
     // Badge 1: Críticas
     doc.save();
     doc.roundedRect(x + 16, yBadges, 64, 12, 6).fillAndStroke(VERDE_BG, VERDE_BORDE);
-    doc.fillColor(VERDE_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncCriticas} NC Crítica${res.ncCriticas === 1 ? '' : 's'}`, x + 16, yBadges + 2.5, { width: 64, align: 'center' });
+    doc.fillColor(VERDE_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${ncCriticas} NC Crítica${ncCriticas === 1 ? '' : 's'}`, x + 16, yBadges + 2.5, { width: 64, align: 'center' });
     doc.restore();
 
     // Badge 2: Mayores
     doc.save();
     doc.roundedRect(x + 86, yBadges, 64, 12, 6).fillAndStroke(AMBAR_BG, AMBAR_BORDE);
-    doc.fillColor(AMBAR_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMayores} NC Mayor${res.ncMayores === 1 ? '' : 'es'}`, x + 86, yBadges + 2.5, { width: 64, align: 'center' });
+    doc.fillColor(AMBAR_TXT).font('Helvetica-Bold').fontSize(6.5).text(`${ncMayores} NC Mayor${ncMayores === 1 ? '' : 'es'}`, x + 86, yBadges + 2.5, { width: 64, align: 'center' });
     doc.restore();
 
     // Badge 3: Menores
     doc.save();
     doc.roundedRect(x + 156, yBadges, 60, 12, 6).fillAndStroke('#F1F5F9', '#E2E8F0');
-    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(6.5).text(`${res.ncMenores} NC Menor${res.ncMenores === 1 ? '' : 'es'}`, x + 156, yBadges + 2.5, { width: 60, align: 'center' });
+    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(6.5).text(`${ncMenores} NC Menor${ncMenores === 1 ? '' : 'es'}`, x + 156, yBadges + 2.5, { width: 60, align: 'center' });
     doc.restore();
 
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(7.5).text('Nivel de Riesgo: ', x + 16, yFila3 + 46, { continued: true });
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text(res.nivelRiesgo);
+    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text(nivelRiesgoTexto);
 
     // Botón Derecho
     const btnW = 190;
     const btnH = 34;
     const btnX = x + anchoContenido - btnW - 16;
     const btnY = yFila3 + (altoFila3 - btnH) / 2;
-    const btnColor = res.aprueba ? AZUL_INSTITUCIONAL : ROJO_TXT;
-    const btnTexto = res.aprueba ? 'PERMISO SANITARIO APROBADO' : 'PERMISO SANITARIO NO APROBADO';
+    const btnColor = res ? (res.aprueba ? AZUL_INSTITUCIONAL : ROJO_TXT) : '#475569';
+    const btnTexto = res ? (res.aprueba ? 'PERMISO SANITARIO APROBADO' : 'PERMISO SANITARIO NO APROBADO') : 'PENDIENTE DE DICTAMEN';
 
     doc.save();
     doc.roundedRect(btnX, btnY, btnW, btnH, 6).fill(btnColor);
@@ -635,7 +649,21 @@ export class PdfService {
     doc.restore();
 
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Este documento constituye el informe técnico oficial de evaluación sanitaria emitido por el Sistema SINEC conforme a la Norma NORDOM BPM y DIGEMAPS.', x, yFooter, { width: anchoContenido, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Hash de Integridad SHA-256: 8f9b2d4c8c6a1f8b3c5e7d9a2f4b6c8e0a1b3d5f7a9c2c4b6d8f0a2c4c6b8d0a', x, doc.y + 2, { width: anchoContenido, align: 'center' });
+    const hashVal = data.hashIntegridad || (data.resultado ? this.calcularHashIntegridad(data) : 'N/A');
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(`Hash de Integridad SHA-256: ${hashVal}`, x, doc.y + 2, { width: anchoContenido, align: 'center' });
+  }
+
+  private calcularHashIntegridad(data: DocumentoPdfData): string {
+    const payload = JSON.stringify({
+      codigo: data.codigo || '',
+      titulo: data.titulo || '',
+      fecha: data.fechaEmision || '',
+      resultado: data.resultado || null,
+      ncs: (data.noConformidades || []).map((nc) => ({ item: nc.item, gravedad: nc.gravedad })),
+      tecnico: data.tecnicoNombre || '',
+      coordinador: data.coordinadorNombre || '',
+    });
+    return createHash('sha256').update(payload).digest('hex');
   }
 
   // ===========================================================================

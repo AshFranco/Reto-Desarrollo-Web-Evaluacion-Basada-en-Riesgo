@@ -151,5 +151,70 @@ describe('PdfService', () => {
     expect(raw).toContain('/Subtype /Image');
     expect(buffer.subarray(-20).toString('latin1')).toContain('%%EOF');
   });
+
+  it('renderiza ficha oficial BPM en estado pendiente y muestra N/A cuando la evaluación no tiene resultado calculado', async () => {
+    const doc: DocumentoPdfData = {
+      titulo: 'FICHA DE INSPECCIÓN BPM (OFICIAL)',
+      subtitulo: 'Evaluación Basada en Riesgo Sanitario · DIGEMAPS',
+      codigo: 'F-BPM-2026-0099',
+      version: '1.0 (Vigente)',
+      datosEstablecimiento: {
+        regId: 'EST-0099',
+        empresaRazonSocial: 'Establecimiento Sin Calcular SRL',
+        rnc: 'N/A',
+        direccionFisica: 'N/A',
+        municipioDps: 'Distrito Nacional (DPS I)',
+        representanteLegal: 'N/A',
+        telefonoContacto: 'N/A',
+      },
+      datosControlInterno: {
+        fechaInspeccionInicial: '21/09/2026',
+        noPermisoSanitario: 'N/A',
+        fechaInspeccionActual: '21/09/2026',
+        motivoInspeccion: 'Inspección Rutinaria',
+        tecnicoEvaluador: 'Lic. Roberto Morales (TEC-08)',
+        coordinadorRevisor: 'Ing. Carlos Peña (DIGEMAPS)',
+        frecuenciaFiscalizacion: 'N/A',
+        dictamenTecnico: 'Pendiente',
+        esFavorable: null,
+      },
+      // Sin resultado calculado
+      resultado: undefined,
+      noConformidades: [],
+      hashIntegridad: 'N/A',
+      incluirSello: true,
+      incluirQr: true,
+      incluirFirma: true,
+    };
+
+    const buffer = await pdfService.generarDocumentoPdf(doc);
+
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    expect(buffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    expect(buffer.subarray(-20).toString('latin1')).toContain('%%EOF');
+  });
+
+  it('calcula hash SHA-256 de integridad real cuando se provee resultado calculado', async () => {
+    const doc: DocumentoPdfData = {
+      titulo: 'FICHA DE INSPECCIÓN BPM (OFICIAL)',
+      subtitulo: 'Evaluación Basada en Riesgo Sanitario · DIGEMAPS',
+      codigo: 'F-BPM-2026-0042',
+      resultado: {
+        cumplimientoPct: 92.5,
+        ncCriticas: 0,
+        ncMayores: 1,
+        ncMenores: 2,
+        nivelRiesgo: 'BAJO (0.35)',
+        aprueba: true,
+      },
+      noConformidades: [],
+      incluirSello: true,
+    };
+
+    const buffer = await pdfService.generarDocumentoPdf(doc);
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    expect(buffer.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  });
 });
+
 

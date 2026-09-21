@@ -82,8 +82,8 @@ export class InformesService {
       est?.contactos?.[0] ||
       emp?.contactos?.[0];
 
-    const representanteLegal = contactoRep?.nombreCompleto || 'Ashley Franco Bobonagua';
-    const telefonoContacto = est?.telefono || emp?.telefono || contactoRep?.telefono || '+1 (809) 555-0199';
+    const representanteLegal = contactoRep?.nombreCompleto || 'N/A';
+    const telefonoContacto = est?.telefono || emp?.telefono || contactoRep?.telefono || 'N/A';
 
     // Municipio / DPS
     const nombreMunicipio = est?.municipio?.nombre || 'Santo Domingo Este';
@@ -112,11 +112,11 @@ export class InformesService {
     const motivoInspeccion = (evaluacion as any).caso?.origen?.nombre || 'Vigilancia Sanitaria Regular';
     const noPermisoSanitario = est?.numeroPermisoSanitario || `PS-SAN-${anio}-${(est?.id ?? evaluacion.id).toString().padStart(4, '0')}`;
 
-    const nivelRiesgoTexto = evaluacion.calculoRiesgo?.nivelRiesgo?.nombre || 'Bajo';
-    const frecuenciaTexto = resultadoDestacado?.frecuencia || `Anual (Nivel de Riesgo ${nivelRiesgoTexto})`;
+    const nivelRiesgoTexto = evaluacion.calculoRiesgo?.nivelRiesgo?.nombre;
+    const frecuenciaTexto = resultadoDestacado?.frecuencia || (nivelRiesgoTexto ? `Anual (Nivel de Riesgo ${nivelRiesgoTexto})` : 'N/A');
 
-    const esFavorable = resultadoDestacado?.aprueba ?? true;
-    const dictamenTecnico = esFavorable ? 'Favorable' : 'Desfavorable';
+    const esFavorable = resultadoDestacado ? resultadoDestacado.aprueba : null;
+    const dictamenTecnico = esFavorable === null ? 'Pendiente' : (esFavorable ? 'Favorable' : 'Desfavorable');
 
     const buffer = await this.pdfService.generarDocumentoPdf({
       titulo: 'FICHA DE INSPECCIÓN BPM (OFICIAL)',
@@ -124,11 +124,12 @@ export class InformesService {
       codigo: codigoDoc,
       version: `${evaluacion.versionFicha?.numeroVersion || '1.0'} (${evaluacion.versionFicha?.estado || 'Vigente'})`,
       fechaEmision: fechaEmisionTexto,
+      hashIntegridad: evaluacion.calculoRiesgo ? undefined : 'N/A',
       datosEstablecimiento: {
         regId: `EST-${(est?.id ?? evaluacion.id).toString().padStart(4, '0')}`,
-        empresaRazonSocial: emp?.razonSocial || est?.nombre || 'Restaurante Franciscano SRL',
-        rnc: est?.rnc || emp?.rnc || '1-30-00000-2',
-        direccionFisica: est?.calle || emp?.direccion || 'Av. Duarte esq. Independencia, #104',
+        empresaRazonSocial: emp?.razonSocial || est?.nombre || 'N/A',
+        rnc: est?.rnc || emp?.rnc || 'N/A',
+        direccionFisica: est?.calle || emp?.direccion || 'N/A',
         municipioDps,
         representanteLegal,
         telefonoContacto,
