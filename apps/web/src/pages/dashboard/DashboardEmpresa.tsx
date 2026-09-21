@@ -320,6 +320,23 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
   );
 }
 
+const ESTADO_BORRADOR = 'Pendiente de Asignacion';
+
+// Para la empresa, "Pendiente de Asignacion" es un borrador sin enviar y "Asignada" una solicitud ya enviada.
+function etiquetaEstadoSolicitud(estado: string) {
+  if (estado === ESTADO_BORRADOR) return 'Borrador';
+  if (estado === 'Asignada') return 'Enviada';
+  return estado;
+}
+
+function BotonContinuar({ id }: { id: string }) {
+  return (
+    <Button size="small" variant="outlined" component={RouterLink} to={`/empresa/solicitudes/${id}/continuar`}>
+      Continuar
+    </Button>
+  );
+}
+
 function ListaSolicitudes() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -342,7 +359,7 @@ function ListaSolicitudes() {
               <Typography variant="subtitle2" fontWeight={600}>
                 {s.tipoEstablecimiento}
               </Typography>
-              <EstadoChip estado={s.estado} />
+              <EstadoChip estado={etiquetaEstadoSolicitud(s.estado)} />
             </Box>
             <Typography variant="body2" color="text.secondary">
               Motivo: {s.motivo}
@@ -350,6 +367,11 @@ function ListaSolicitudes() {
             <Typography variant="caption" color="text.secondary">
               Fecha: {new Date(s.fechaCreacion).toLocaleDateString()}
             </Typography>
+            {s.estado === ESTADO_BORRADOR && (
+              <Box>
+                <BotonContinuar id={s.id} />
+              </Box>
+            )}
           </Paper>
         ))}
       </Box>
@@ -365,6 +387,7 @@ function ListaSolicitudes() {
             <TableCell>Motivo</TableCell>
             <TableCell>Estado</TableCell>
             <TableCell>Fecha</TableCell>
+            <TableCell align="right">Acción</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -373,9 +396,10 @@ function ListaSolicitudes() {
               <TableCell>{s.tipoEstablecimiento}</TableCell>
               <TableCell>{s.motivo}</TableCell>
               <TableCell>
-                <EstadoChip estado={s.estado} />
+                <EstadoChip estado={etiquetaEstadoSolicitud(s.estado)} />
               </TableCell>
               <TableCell>{new Date(s.fechaCreacion).toLocaleDateString()}</TableCell>
+              <TableCell align="right">{s.estado === ESTADO_BORRADOR && <BotonContinuar id={s.id} />}</TableCell>
             </TableRow>
           ))}
         </TableBody>

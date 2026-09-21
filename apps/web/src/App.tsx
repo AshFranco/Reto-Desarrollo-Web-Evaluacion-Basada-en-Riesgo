@@ -85,6 +85,7 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/empresa" element={<DashboardEmpresa />} />
                 <Route path="/empresa/solicitudes/nueva" element={<FormularioSolicitud />} />
+                <Route path="/empresa/solicitudes/:id/continuar" element={<FormularioSolicitud />} />
                 <Route path="/empresa/establecimientos/nuevo" element={<FormularioEstablecimiento />} />
                 <Route path="/empresa/establecimientos/:id/editar" element={<FormularioEstablecimiento />} />
               </Route>
