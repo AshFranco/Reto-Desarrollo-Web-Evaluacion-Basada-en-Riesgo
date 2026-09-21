@@ -57,11 +57,10 @@ describe('SolicitudesBpmService', () => {
     });
 
     it.each([null, undefined, ''])(
-      'rechaza a un usuario sin empresa (%p) en vez de listar las solicitudes de todas las empresas',
+      'devuelve una lista vacía a un usuario sin empresa (%p) en vez de las solicitudes de todas las empresas',
       async (empresaId) => {
-        await expect(
-          service.misSolicitudes({ sub: '2', rol: 'ADMINISTRADOR_EMPRESA', empresaId } as any),
-        ).rejects.toThrow(ForbiddenException);
+        const res = await service.misSolicitudes({ sub: '2', rol: 'ADMINISTRADOR_EMPRESA', empresaId } as any);
+        expect(res).toEqual([]);
         expect(prismaMock.solicitudBpm.findMany).not.toHaveBeenCalled();
       },
     );
