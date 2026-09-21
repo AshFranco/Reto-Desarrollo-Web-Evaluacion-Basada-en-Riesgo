@@ -1,3 +1,4 @@
+import PDFDocument from 'pdfkit';
 import { PdfService, DocumentoPdfData } from '../src/common/services/pdf.service';
 
 describe('PdfService', () => {
@@ -203,5 +204,90 @@ describe('PdfService', () => {
     expect(raw).toContain('/Subtype /Image');
     expect(buffer.subarray(-20).toString('latin1')).toContain('%%EOF');
   });
+
+  describe('detalles visuales del documento', () => {
+    const nuevoDoc = () => new PDFDocument({ size: 'LETTER', margins: { top: 45, bottom: 45, left: 45, right: 45 } });
+    const contarPaginas = (buffer: Buffer) => (buffer.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    const lineas = (n: number) =>
+      Array.from({ length: n }, (_, i) => `Línea de hallazgo número ${i + 1} con suficiente texto para ocupar espacio real en la página.`).join('\n');
+
+    describe('caja de resultado', () => {
+      const casos = [
+        { aprueba: false, frecuencia: 'TRIMESTRAL' },
+        { aprueba: true, frecuencia: 'SEMESTRAL' },
+        { aprueba: false, frecuencia: undefined },
+      ];
+      it.each(casos)('el desglose no invade el veredicto (aprueba=$aprueba, frecuencia=$frecuencia)', ({ aprueba, frecuencia }) => {
+        const c = (pdfService as any).calcularColumnasResultado(nuevoDoc(), 45, 522, {
+          cumplimientoPct: 61.4, ncCriticas: 1, ncMayores: 2, ncMenores: 3, nivelRiesgo: 'ALTO', frecuencia, aprueba,
+        });
+        expect(c.col2X + c.col2Ancho).toBeLessThanOrEqual(c.veredictoX - 8);
+        expect(c.col2Ancho).toBeGreaterThan(100);
+      });
+    });
+
+    describe('sello de certificación', () => {
+      const r = 36;
+      const sello = () => (pdfService as any).calcularFilasSello(nuevoDoc(), r, '21 SEPT DE 2026');
+
+      it('todo el texto cabe dentro del círculo interior, sin tocar el borde', () => {
+        const { filas } = sello();
+        const radioInterior = r - 6;
+        for (const fila of filas) {
+          const mitadAlto = fila.tamano * 0.6;
+          const cuerdaMaxima = 2 * Math.sqrt(Math.max(0, radioInterior ** 2 - (Math.abs(fila.dy) + mitadAlto) ** 2));
+          expect({ texto: fila.texto, cabe: fila.ancho <= cuerdaMaxima + 0.01 }).toEqual({ texto: fila.texto, cabe: true });
+        }
+      });
+
+      it('ningún texto queda cruzado por una línea divisoria y todos son legibles', () => {
+        const { filas, divisores } = sello();
+        for (const fila of filas) {
+          expect(fila.tamano).toBeGreaterThanOrEqual(3.8);
+          for (const d of divisores) expect(Math.abs(fila.dy - d)).toBeGreaterThan(fila.tamano * 0.6);
+        }
+      });
+
+      it('conserva los textos institucionales', () => {
+        const { filas } = sello();
+        const textos = filas.map((f: any) => f.texto).join(' ');
+        for (const t of ['REPÚBLICA', 'DOMINICANA', 'APROBADO Y', 'VALIDADO', '21 SEPT DE 2026', 'SINEC · DIGEMAPS']) {
+          expect(textos).toContain(t);
+        }
+      });
+    });
+
+    describe('sección más alta que una página', () => {
+      it('se parte entre páginas: 80 líneas ocupan 2 páginas reales, sin caja desbordada', async () => {
+        const buffer = await pdfService.generarDocumentoPdf({
+          titulo: 'INFORME LARGO',
+          metadata: [],
+          secciones: [{ titulo: 'Hallazgos', contenido: lineas(80) }],
+        });
+        expect(contarPaginas(buffer)).toBe(2);
+      });
+
+      it('no pierde ni duplica texto al partirla', () => {
+        const doc = nuevoDoc();
+        doc.font('Helvetica').fontSize(9.5);
+        const texto = lineas(80);
+        const trozos: string[] = (pdfService as any).partirTextoPorAltura(doc, texto, 502, [300, 650, 650]);
+        expect(trozos.length).toBeGreaterThan(1);
+        expect(trozos.join(' ').replace(/\s+/g, ' ').trim()).toBe(texto.replace(/\s+/g, ' ').trim());
+        trozos.forEach((t, i) => {
+          const limite = [300, 650, 650][Math.min(i, 2)];
+          expect(doc.heightOfString(t, { width: 502 })).toBeLessThanOrEqual(limite);
+        });
+      });
+
+      it('una sola palabra enorme no provoca un bucle infinito', () => {
+        const doc = nuevoDoc();
+        doc.font('Helvetica').fontSize(9.5);
+        const trozos: string[] = (pdfService as any).partirTextoPorAltura(doc, 'x'.repeat(5000), 502, [40, 40]);
+        expect(trozos.join('')).toBe('x'.repeat(5000));
+      });
+    });
+  });
+
 });
 
