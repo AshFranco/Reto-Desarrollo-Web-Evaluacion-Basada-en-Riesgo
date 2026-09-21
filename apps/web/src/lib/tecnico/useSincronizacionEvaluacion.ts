@@ -28,7 +28,11 @@ export function useSincronizacionEvaluacion(evaluacionId: string | undefined) {
     const todas = await db.cola_sync.where('estado').anyOf('pendiente', 'enviando', 'error').toArray();
     setOperaciones(
       todas
-        .filter((op) => (op.payload as Record<string, unknown>).evaluacionServerId === evaluacionId)
+        // La evidencia guarda su evaluación como `evaluacionId`; el resto de operaciones, como `evaluacionServerId`.
+        .filter((op) => {
+          const payload = op.payload as Record<string, unknown>;
+          return (payload.evaluacionServerId ?? payload.evaluacionId) === evaluacionId;
+        })
         // Orden ascendente por timestamp: al armar respuestasEncoladasPorItem
         // más abajo, la última que pisa el Map debe ser la más reciente.
         .sort((a, b) => a.timestamp - b.timestamp)

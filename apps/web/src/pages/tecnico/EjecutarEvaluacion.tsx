@@ -1600,7 +1600,26 @@ export default function EjecutarEvaluacion() {
       )}
 
       {sincronizacion.errores.length > 0 && (
-        <Alert severity="error">
+        <Alert
+          severity="error"
+          action={
+            sync.enLinea && !sync.sincronizando ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={async () => {
+                  await sync.sincronizar();
+                  void sincronizacion.refrescar();
+                  if (evaluacionId) {
+                    queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+                  }
+                }}
+              >
+                Reintentar
+              </Button>
+            ) : undefined
+          }
+        >
           {sincronizacion.errores.length} cambio(s) no se pudieron enviar al servidor después de varios intentos y
           quedaron sin sincronizar. Revisa la conexión y avisa a soporte si el problema persiste:
           <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
