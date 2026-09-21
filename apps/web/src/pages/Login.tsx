@@ -107,7 +107,7 @@ export default function Login() {
 
         {mfaRequerido ? (
           <>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
+            <Typography variant="h6" fontWeight={700} gutterBottom align="center">
               Verificación de seguridad
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -160,7 +160,7 @@ export default function Login() {
           </>
         ) : (
           <>
-            <Typography variant="h5" gutterBottom>
+            <Typography variant="h5" gutterBottom align="center">
               Iniciar sesión
             </Typography>
 
