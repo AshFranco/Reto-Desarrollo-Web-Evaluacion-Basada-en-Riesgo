@@ -43,11 +43,22 @@ export default defineConfig({
     host: true,
     port: 5173,
     allowedHosts: ['.loca.lt', '.ngrok-free.app'],
-    proxy: { '/api': 'http://localhost:3000' },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     host: true,
     port: 5173,
-    proxy: { '/api': 'http://localhost:3000' },
+    allowedHosts: ['.loca.lt', '.ngrok-free.app'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
 });

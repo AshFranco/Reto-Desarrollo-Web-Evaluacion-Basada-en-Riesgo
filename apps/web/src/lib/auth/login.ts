@@ -4,7 +4,7 @@ import { descargarCatalogoMotor } from '@/lib/catalogo/loaderMotor';
 import { fetchAsignacionesMias } from '@/lib/tecnico/useEvaluacionesAsignadas';
 import type { LoginResult } from '@/lib/types';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /**
  * Inicia sesión contra el backend y guarda el resultado con saveSession().
