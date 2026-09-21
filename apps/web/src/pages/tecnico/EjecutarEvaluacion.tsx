@@ -1535,7 +1535,7 @@ export default function EjecutarEvaluacion() {
             {!sync.enLinea && <Chip size="small" color="warning" label="Sin conexión" />}
           </Box>
           <Typography color="text.secondary">
-            {evaluacion.establecimiento.empresa?.razonSocial} · Versión {evaluacion.versionFicha.numeroVersion}
+            {evaluacion.establecimiento.empresa?.razonSocial}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
