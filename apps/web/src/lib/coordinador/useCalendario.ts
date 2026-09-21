@@ -67,12 +67,7 @@ export function useCalendarioEquipo(rango: RangoFechas = {}) {
  * PATCH /api/v1/calendario/:id/reprogramar — DTO confirmado en
  * calendario.controller.ts (ReprogramarCitaDto): nuevaFecha obligatoria,
  * comentario opcional. El `:id` es el id de la Evaluación, no de una cita
- * separada (confirmado en calendario.service.ts#reprogramar). NO existe un
- * equivalente para "cancelar" en esta pantalla a propósito: confirmado en
- * vivo que PATCH /calendario/:id/cancelar responde 200 pero no cambia nada
- * (no hay ningún estado CANCELADA/CANCELADO en el catálogo sembrado) -- es
- * un placebo, así que no se ofrece esa acción para no sugerir algo que no
- * funciona.
+ * separada (confirmado en calendario.service.ts#reprogramar).
  */
 export function useReprogramarEvaluacion() {
   const queryClient = useQueryClient();
@@ -82,6 +77,25 @@ export function useReprogramarEvaluacion() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nuevaFecha, comentario }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendario'] });
+    },
+  });
+}
+
+/**
+ * PATCH /api/v1/calendario/:id/cancelar -- body opcional { motivo } (CancelarCitaDto).
+ * Solo aplica a citas en estado Programada: el backend responde 400 en cualquier otro caso.
+ */
+export function useCancelarCita() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo?: string }) =>
+      apiFetchJson<{ mensaje: string }>(`/api/v1/calendario/${id}/cancelar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['calendario'] });

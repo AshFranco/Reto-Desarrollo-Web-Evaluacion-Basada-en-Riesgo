@@ -583,6 +583,9 @@ export const handlers = [
   http.patch(`${BASE}/api/v1/calendario/:id/reprogramar`, () =>
     HttpResponse.json({ mensaje: 'Evaluación reprogramada exitosamente.' })
   ),
+  http.patch(`${BASE}/api/v1/calendario/:id/cancelar`, () =>
+    HttpResponse.json({ mensaje: 'Cita de evaluación cancelada exitosamente.' })
+  ),
   http.get(`${BASE}/api/v1/usuarios/por-rol/:codigoRol`, () => HttpResponse.json([MOCK_TECNICO])),
   http.get(`${BASE}/api/v1/usuarios/registros/pendientes`, () =>
     HttpResponse.json([

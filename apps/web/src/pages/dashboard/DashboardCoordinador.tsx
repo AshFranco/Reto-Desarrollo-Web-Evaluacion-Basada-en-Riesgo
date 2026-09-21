@@ -39,7 +39,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import UndoOutlinedIcon from '@mui/icons-material/UndoOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
-import { useCasos, useCasoDetalle, useAsignarEvaluador, useDesasignarEvaluador } from '@/lib/coordinador/useCasos';
+import { useCasos, useCasoDetalle, useAsignarEvaluador, useDesasignarEvaluador, ID_ESTADO_EVALUACION } from '@/lib/coordinador/useCasos';
 import { useTecnicos } from '@/lib/coordinador/useTecnicos';
 import { ModalInspeccionCaso } from '@/components/casos/ModalInspeccionCaso';
 
@@ -47,9 +47,11 @@ import {
   useCalendario,
   useCalendarioEquipo,
   useReprogramarEvaluacion,
+  useCancelarCita,
   type EvaluacionCalendario,
 } from '@/lib/coordinador/useCalendario';
 import EventRepeatOutlinedIcon from '@mui/icons-material/EventRepeatOutlined';
+import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import {
   useInformesPendientes,
   useInformesDevueltos,
@@ -622,10 +624,6 @@ function TablaCasos() {
  * Diálogo de reprogramar, compartido entre la vista combinada y la
  * individual. Body confirmado contra ReprogramarCitaDto
  * (calendario.controller.ts): nuevaFecha obligatoria, comentario opcional.
- * No hay acción de "cancelar" a propósito -- confirmado en vivo que
- * PATCH /calendario/:id/cancelar responde 200 pero no cambia nada (no
- * existe ningún estado CANCELADA/CANCELADO en el catálogo sembrado), así
- * que no se ofrece esa opción para no sugerir algo que no funciona.
  */
 function DialogoReprogramar({
   evaluacion,
@@ -712,14 +710,118 @@ function DialogoReprogramar({
   );
 }
 
+function DialogoCancelarCita({
+  evaluacion,
+  open,
+  onClose,
+}: {
+  evaluacion: EvaluacionCalendario | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const cancelar = useCancelarCita();
+  const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  function cerrar() {
+    setError(null);
+    setMotivo('');
+    onClose();
+  }
+
+  async function confirmar() {
+    if (!evaluacion) return;
+    setError(null);
+    try {
+      await cancelar.mutateAsync({ id: evaluacion.id, motivo: motivo.trim() || undefined });
+      cerrar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cancelar la cita');
+    }
+  }
+
+  return (
+    <Dialog open={open} onClose={cancelar.isPending ? undefined : cerrar} maxWidth="xs" fullWidth>
+      <DialogTitle>Cancelar cita de evaluación</DialogTitle>
+      <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <DialogContentText sx={{ mb: 2 }}>
+          Se cancelará la cita en <strong>{evaluacion?.establecimiento.nombre}</strong> y se avisará al técnico evaluador. Esta acción no se puede deshacer.
+        </DialogContentText>
+        <TextField
+          label="Motivo (opcional)"
+          fullWidth
+          multiline
+          rows={2}
+          margin="dense"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          disabled={cancelar.isPending}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={cerrar} disabled={cancelar.isPending}>
+          Volver
+        </Button>
+        <Button variant="contained" color="error" disabled={cancelar.isPending} onClick={confirmar}>
+          {cancelar.isPending ? <CircularProgress size={18} /> : 'Cancelar cita'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function AccionesCita({
+  ev,
+  onReprogramar,
+  onCancelar,
+}: {
+  ev: EvaluacionCalendario;
+  onReprogramar: (ev: EvaluacionCalendario) => void;
+  onCancelar: (ev: EvaluacionCalendario) => void;
+}) {
+  if (ev.idEstado === ID_ESTADO_EVALUACION.CANCELADA) {
+    return <Chip label="Cancelada" size="small" color="error" variant="outlined" />;
+  }
+  return (
+    <Box sx={{ display: 'inline-flex', gap: 1, flexWrap: 'wrap' }}>
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<EventRepeatOutlinedIcon fontSize="small" />}
+        onClick={() => onReprogramar(ev)}
+      >
+        Reprogramar
+      </Button>
+      {ev.idEstado === ID_ESTADO_EVALUACION.PROGRAMADA && (
+        <Button
+          size="small"
+          variant="outlined"
+          color="error"
+          startIcon={<EventBusyOutlinedIcon fontSize="small" />}
+          onClick={() => onCancelar(ev)}
+        >
+          Cancelar cita
+        </Button>
+      )}
+    </Box>
+  );
+}
+
 function TablaEventos({
   eventos,
   isMobile,
   onReprogramar,
+  onCancelar,
 }: {
   eventos: EvaluacionCalendario[];
   isMobile: boolean;
   onReprogramar: (ev: EvaluacionCalendario) => void;
+  onCancelar: (ev: EvaluacionCalendario) => void;
 }) {
   if (isMobile) {
     return (
@@ -732,9 +834,7 @@ function TablaEventos({
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, mb: 1 }}>
               Fecha programada: <strong>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha asignada'}</strong>
             </Typography>
-            <Button size="small" startIcon={<EventRepeatOutlinedIcon fontSize="small" />} onClick={() => onReprogramar(ev)}>
-              Reprogramar
-            </Button>
+            <AccionesCita ev={ev} onReprogramar={onReprogramar} onCancelar={onCancelar} />
           </Paper>
         ))}
       </Box>
@@ -757,14 +857,7 @@ function TablaEventos({
               <TableCell>{ev.establecimiento.nombre}</TableCell>
               <TableCell>{ev.fechaProgramada ? new Date(ev.fechaProgramada).toLocaleDateString() : 'Sin fecha'}</TableCell>
               <TableCell align="right">
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<EventRepeatOutlinedIcon fontSize="small" />}
-                  onClick={() => onReprogramar(ev)}
-                >
-                  Reprogramar
-                </Button>
+                <AccionesCita ev={ev} onReprogramar={onReprogramar} onCancelar={onCancelar} />
               </TableCell>
             </TableRow>
           ))}
@@ -786,6 +879,7 @@ function Calendario() {
   const { data: tecnicos, isLoading: cargandoTecnicos } = useTecnicos();
   const [evaluadorId, setEvaluadorId] = useState('');
   const [evaluacionReprogramar, setEvaluacionReprogramar] = useState<EvaluacionCalendario | null>(null);
+  const [evaluacionCancelar, setEvaluacionCancelar] = useState<EvaluacionCalendario | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -834,7 +928,12 @@ function Calendario() {
                       Sin evaluaciones programadas.
                     </Typography>
                   ) : (
-                    <TablaEventos eventos={tecnico.evaluaciones} isMobile={isMobile} onReprogramar={setEvaluacionReprogramar} />
+                    <TablaEventos
+                      eventos={tecnico.evaluaciones}
+                      isMobile={isMobile}
+                      onReprogramar={setEvaluacionReprogramar}
+                      onCancelar={setEvaluacionCancelar}
+                    />
                   )}
                 </Box>
               ))}
@@ -853,7 +952,12 @@ function Calendario() {
             <Typography color="text.secondary">Este técnico no tiene evaluaciones programadas.</Typography>
           )}
           {vistaIndividual.data && vistaIndividual.data.length > 0 && (
-            <TablaEventos eventos={vistaIndividual.data} isMobile={isMobile} onReprogramar={setEvaluacionReprogramar} />
+            <TablaEventos
+              eventos={vistaIndividual.data}
+              isMobile={isMobile}
+              onReprogramar={setEvaluacionReprogramar}
+              onCancelar={setEvaluacionCancelar}
+            />
           )}
         </>
       )}
@@ -862,6 +966,11 @@ function Calendario() {
         evaluacion={evaluacionReprogramar}
         open={!!evaluacionReprogramar}
         onClose={() => setEvaluacionReprogramar(null)}
+      />
+      <DialogoCancelarCita
+        evaluacion={evaluacionCancelar}
+        open={!!evaluacionCancelar}
+        onClose={() => setEvaluacionCancelar(null)}
       />
     </Box>
   );

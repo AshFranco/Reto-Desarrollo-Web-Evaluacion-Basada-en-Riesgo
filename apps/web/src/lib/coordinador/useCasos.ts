@@ -21,6 +21,7 @@ export const ID_ESTADO_EVALUACION = {
   APROBADA: 5,
   DEVUELTA: 6,
   CERRADA: 7,
+  CANCELADA: 8,
 } as const;
 
 /**
