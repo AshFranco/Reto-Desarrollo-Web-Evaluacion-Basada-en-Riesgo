@@ -37,7 +37,7 @@ import {
   useCrearEmpresa,
   type DatosEmpresa,
 } from '@/lib/empresa/useEmpresas';
-import { useSolicitudesPropias } from '@/lib/empresa/useSolicitudes';
+import { useSolicitudesPropias, useDescartarSolicitud } from '@/lib/empresa/useSolicitudes';
 import { useEstablecimientos } from '@/lib/empresa/useEstablecimientos';
 import {
   useDelegados,
@@ -329,11 +329,51 @@ function etiquetaEstadoSolicitud(estado: string) {
   return estado;
 }
 
-function BotonContinuar({ id }: { id: string }) {
+function AccionesBorrador({ id, motivo }: { id: string; motivo: string }) {
+  const descartar = useDescartarSolicitud();
+  const [confirmar, setConfirmar] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirmarDescarte() {
+    setError(null);
+    try {
+      await descartar.mutateAsync(id);
+      setConfirmar(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al descartar el borrador');
+    }
+  }
+
   return (
-    <Button size="small" variant="outlined" component={RouterLink} to={`/empresa/solicitudes/${id}/continuar`}>
-      Continuar
-    </Button>
+    <Box sx={{ display: 'inline-flex', gap: 1 }}>
+      <Button size="small" variant="outlined" component={RouterLink} to={`/empresa/solicitudes/${id}/continuar`}>
+        Continuar
+      </Button>
+      <Button size="small" color="error" onClick={() => setConfirmar(true)}>
+        Descartar
+      </Button>
+      <Dialog open={confirmar} onClose={() => !descartar.isPending && setConfirmar(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Descartar borrador</DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <DialogContentText>
+            Se eliminará el borrador «{motivo}» junto con sus documentos adjuntos. Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmar(false)} disabled={descartar.isPending}>
+            Volver
+          </Button>
+          <Button color="error" variant="contained" onClick={confirmarDescarte} disabled={descartar.isPending}>
+            {descartar.isPending ? <CircularProgress size={18} /> : 'Descartar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
 
@@ -369,7 +409,7 @@ function ListaSolicitudes() {
             </Typography>
             {s.estado === ESTADO_BORRADOR && (
               <Box>
-                <BotonContinuar id={s.id} />
+                <AccionesBorrador id={s.id} motivo={s.motivo} />
               </Box>
             )}
           </Paper>
@@ -399,7 +439,7 @@ function ListaSolicitudes() {
                 <EstadoChip estado={etiquetaEstadoSolicitud(s.estado)} />
               </TableCell>
               <TableCell>{new Date(s.fechaCreacion).toLocaleDateString()}</TableCell>
-              <TableCell align="right">{s.estado === ESTADO_BORRADOR && <BotonContinuar id={s.id} />}</TableCell>
+              <TableCell align="right">{s.estado === ESTADO_BORRADOR && <AccionesBorrador id={s.id} motivo={s.motivo} />}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -720,7 +760,7 @@ function ResumenEmpresa() {
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
       <StatCard icono={<DomainOutlinedIcon />} valor={establecimientos?.length ?? 0} etiqueta="Establecimientos" />
-      <StatCard icono={<DescriptionOutlinedIcon />} valor={solicitudes?.length ?? 0} etiqueta="Solicitudes BPM" />
+      <StatCard icono={<DescriptionOutlinedIcon />} valor={solicitudes?.filter((s) => s.estado !== ESTADO_BORRADOR).length ?? 0} etiqueta="Solicitudes BPM" />
     </Box>
   );
 }

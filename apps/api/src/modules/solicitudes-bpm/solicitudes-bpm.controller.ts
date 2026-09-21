@@ -62,6 +62,15 @@ export class SolicitudesBpmController {
     return this.solicitudesBpmService.misSolicitudes(user);
   }
 
+  @Delete(':id')
+  @Roles(RolUsuario.ADMINISTRADOR_EMPRESA, RolUsuario.USUARIO_DELEGADO)
+  @ApiOperation({ summary: 'Descartar un borrador de solicitud BPM (no enviada)' })
+  @ApiResponse({ status: 200, description: 'Borrador descartado.' })
+  @ApiResponse({ status: 400, description: 'La solicitud ya fue enviada.' })
+  descartar(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.solicitudesBpmService.descartar(id, user);
+  }
+
   @Post(':id/adjuntos')
   @Roles(RolUsuario.ADMINISTRADOR_EMPRESA, RolUsuario.USUARIO_DELEGADO)
   @ApiOperation({ summary: 'Adjuntar documentación (croquis, memoria descriptiva) a una solicitud BPM en borrador' })

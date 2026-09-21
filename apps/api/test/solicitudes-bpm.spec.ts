@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SolicitudesBpmService } from '../src/modules/solicitudes-bpm/solicitudes-bpm.service';
 
 describe('SolicitudesBpmService', () => {
@@ -42,6 +42,67 @@ describe('SolicitudesBpmService', () => {
         'COORDINADOR',
         expect.objectContaining({ tipo: 'SOLICITUD_BPM_RECIBIDA' }),
       );
+    });
+  });
+
+  describe('descartar', () => {
+    const borrador = (extra: any = {}) => ({
+      id: 7n,
+      idEmpresa: 1n,
+      estado: 'Pendiente de Asignacion',
+      adjuntos: [{ rutaAlmacenamiento: 'a.pdf' }, { rutaAlmacenamiento: 'b.pdf' }],
+      ...extra,
+    });
+
+    beforeEach(() => {
+      prismaMock.solicitudBpm.delete = jest.fn();
+    });
+
+    it('rechaza si la solicitud no existe', async () => {
+      prismaMock.solicitudBpm.findUnique.mockResolvedValue(null);
+      await expect(service.descartar('7', user)).rejects.toThrow(NotFoundException);
+      expect(prismaMock.solicitudBpm.delete).not.toHaveBeenCalled();
+    });
+
+    it('rechaza descartar la solicitud de otra empresa', async () => {
+      prismaMock.solicitudBpm.findUnique.mockResolvedValue(borrador({ idEmpresa: 2n }));
+      await expect(service.descartar('7', user)).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.solicitudBpm.delete).not.toHaveBeenCalled();
+      expect(storageMock.eliminar).not.toHaveBeenCalled();
+    });
+
+    it.each([null, undefined, ''])('rechaza a un usuario sin empresa (%p)', async (empresaId) => {
+      prismaMock.solicitudBpm.findUnique.mockResolvedValue(borrador());
+      await expect(
+        service.descartar('7', { sub: '2', rol: 'ADMINISTRADOR_EMPRESA', empresaId } as any),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.solicitudBpm.delete).not.toHaveBeenCalled();
+    });
+
+    it.each(['Asignada', 'Rechazada'])('rechaza descartar una solicitud en estado %s', async (estado) => {
+      prismaMock.solicitudBpm.findUnique.mockResolvedValue(borrador({ estado }));
+      await expect(service.descartar('7', user)).rejects.toThrow(BadRequestException);
+      expect(prismaMock.solicitudBpm.delete).not.toHaveBeenCalled();
+      expect(storageMock.eliminar).not.toHaveBeenCalled();
+    });
+
+    it('borra el borrador y retira sus archivos del almacenamiento', async () => {
+      prismaMock.solicitudBpm.findUnique.mockResolvedValue(borrador());
+
+      const res = await service.descartar('7', user);
+
+      expect(prismaMock.solicitudBpm.delete).toHaveBeenCalledWith({ where: { id: 7n } });
+      expect(storageMock.eliminar).toHaveBeenCalledWith('a.pdf');
+      expect(storageMock.eliminar).toHaveBeenCalledWith('b.pdf');
+      expect(res.mensaje).toMatch(/descartado/i);
+    });
+
+    it('un fallo al borrar un archivo no deshace el descarte', async () => {
+      prismaMock.solicitudBpm.findUnique.mockResolvedValue(borrador());
+      storageMock.eliminar.mockRejectedValue(new Error('disco no disponible'));
+
+      await expect(service.descartar('7', user)).resolves.toEqual(expect.objectContaining({ mensaje: expect.any(String) }));
+      expect(prismaMock.solicitudBpm.delete).toHaveBeenCalled();
     });
   });
 
