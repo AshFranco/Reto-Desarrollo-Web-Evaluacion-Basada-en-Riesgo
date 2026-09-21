@@ -20,7 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { login } from '@/lib/auth/login';
 import { solicitarRecuperacionContrasena } from '@/lib/auth/recuperacion';
 import { rutaPorRol } from '@/routes/rutaPorRol';
-import logo from '@/assets/logo.png';
+import { LogoSinec } from '@/components/ui/LogoSinec';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -103,22 +103,7 @@ export default function Login() {
         variant="outlined"
         sx={{ padding: { xs: 2.5, sm: 4 }, width: '100%', maxWidth: 400 }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Box
-            component="img"
-            src={logo}
-            alt="SINEC"
-            sx={{ width: 48, height: 48, flexShrink: 0, objectFit: 'contain' }}
-          />
-          <Box>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              SINEC
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Sistema de Evaluación y BPM
-            </Typography>
-          </Box>
-        </Box>
+        <LogoSinec />
 
         {mfaRequerido ? (
           <>
