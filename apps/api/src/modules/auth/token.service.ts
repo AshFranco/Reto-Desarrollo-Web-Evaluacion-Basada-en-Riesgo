@@ -104,11 +104,12 @@ export class TokenService {
   }
 
   setRefreshCookie(res: Response, rawToken: string) {
+    const isProd = Boolean(this.config.isProduction);
     res.cookie('refresh_token', rawToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      domain: this.config.cookieDomain,
+      secure: isProd,
+      sameSite: isProd ? 'strict' : 'lax',
+      domain: isProd ? this.config.cookieDomain : undefined,
       path: '/api/v1/auth',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       signed: true,
@@ -116,11 +117,12 @@ export class TokenService {
   }
 
   clearRefreshCookie(res: Response) {
+    const isProd = Boolean(this.config.isProduction);
     res.clearCookie('refresh_token', {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      domain: this.config.cookieDomain,
+      secure: isProd,
+      sameSite: isProd ? 'strict' : 'lax',
+      domain: isProd ? this.config.cookieDomain : undefined,
       path: '/api/v1/auth',
     });
   }

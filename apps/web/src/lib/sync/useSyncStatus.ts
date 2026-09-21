@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/db';
-import { SyncProcessor } from './processor';
+import { syncProcessor } from './processor';
 
 export interface SyncStatus {
   enLinea: boolean;
@@ -9,8 +9,6 @@ export interface SyncStatus {
   ultimaSync: number | null;
   sincronizar: () => void;
 }
-
-const processor = new SyncProcessor();
 
 export function useSyncStatus(): SyncStatus {
   const [enLinea, setEnLinea] = useState(navigator.onLine);
@@ -26,7 +24,7 @@ export function useSyncStatus(): SyncStatus {
   const sincronizar = useCallback(async () => {
     setSincronizando(true);
     try {
-      await processor.procesarCola();
+      await syncProcessor.procesarCola(true);
       setUltimaSync(Date.now());
     } finally {
       setSincronizando(false);
@@ -35,16 +33,19 @@ export function useSyncStatus(): SyncStatus {
   }, [contarPendientes]);
 
   useEffect(() => {
-    contarPendientes();
+    void contarPendientes();
     const id = setInterval(contarPendientes, 5_000);
     const online = () => { setEnLinea(true); void sincronizar(); };
     const offline = () => setEnLinea(false);
+    const alActualizar = () => { void contarPendientes(); };
     window.addEventListener('online', online);
     window.addEventListener('offline', offline);
+    window.addEventListener('sync:actualizado', alActualizar);
     return () => {
       clearInterval(id);
       window.removeEventListener('online', online);
       window.removeEventListener('offline', offline);
+      window.removeEventListener('sync:actualizado', alActualizar);
     };
   }, [contarPendientes, sincronizar]);
 

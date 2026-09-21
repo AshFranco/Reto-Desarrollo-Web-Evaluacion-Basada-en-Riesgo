@@ -1549,7 +1549,13 @@ export default function EjecutarEvaluacion() {
                 <SyncIcon />
               )
             }
-            onClick={() => void sync.sincronizar()}
+            onClick={async () => {
+              await sync.sincronizar();
+              void sincronizacion.refrescar();
+              if (evaluacionId) {
+                queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+              }
+            }}
             disabled={!sync.enLinea || sync.sincronizando}
             title={
               !sync.enLinea
@@ -1574,7 +1580,13 @@ export default function EjecutarEvaluacion() {
               <Button
                 color="inherit"
                 size="small"
-                onClick={() => void sync.sincronizar()}
+                onClick={async () => {
+                  await sync.sincronizar();
+                  void sincronizacion.refrescar();
+                  if (evaluacionId) {
+                    queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+                  }
+                }}
               >
                 Sincronizar
               </Button>

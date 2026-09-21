@@ -149,4 +149,38 @@ describe('SyncProcessor', () => {
 
     expect((await db.cola_sync.get(uuid))?.estado).toBe('error');
   });
+
+  it('procesarCola(true) fuerza la sincronización ignorando el backoff programado', async () => {
+    let intentosServidor = 0;
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => {
+        intentosServidor++;
+        if (intentosServidor === 1) {
+          return new HttpResponse('Falla transitoria', { status: 503 });
+        }
+        return HttpResponse.json({ procesadas: 1 });
+      })
+    );
+
+    const uuid = await enqueue('RESPUESTAS', {
+      evaluacionServerId: '42',
+      respuestas: [{ itemId: '1', codigoOpcion: 'C' }],
+    });
+
+    const proc = new SyncProcessor();
+
+    // Primer intento: falla con 503 y fija un backoff futuro
+    await proc.procesarCola();
+    expect((await db.cola_sync.get(uuid))?.estado).toBe('pendiente');
+    expect((await db.cola_sync.get(uuid))?.intentos).toBe(1);
+
+    // Segundo intento normal inmediato: se salta por el backoff
+    await proc.procesarCola(false);
+    expect(intentosServidor).toBe(1); // No llamó al servidor
+
+    // Tercer intento forzado (usuario pulsa Sincronizar): limpia backoff y envía
+    await proc.procesarCola(true);
+    expect(intentosServidor).toBe(2);
+    expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+  });
 });

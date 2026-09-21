@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { SyncProcessor } from '@/lib/sync/processor';
+import { syncProcessor } from '@/lib/sync/processor';
 import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { theme } from '@/theme';
 import Login from '@/pages/Login';
@@ -36,12 +36,10 @@ const queryClient = new QueryClient({
   },
 });
 
-const processor = new SyncProcessor();
-
 export default function App() {
   useEffect(() => {
-    processor.iniciar();
-    return () => processor.detener();
+    syncProcessor.iniciar();
+    return () => syncProcessor.detener();
   }, []);
 
   return (

@@ -33,33 +33,62 @@ export function construirFormEvidencia(payload: Record<string, unknown>): FormDa
 }
 
 export class SyncProcessor {
-  private procesando = false;
+  private ejecucionActiva: Promise<void> | null = null;
   private intervaloId?: ReturnType<typeof setInterval>;
   private readonly proximoIntento = new Map<string, number>();
+  private readonly handleOnline = () => void this.procesarCola();
 
   calcularBackoff(intentos: number): number {
     return Math.min(Math.pow(2, intentos) * 1000, 300_000);
   }
 
-  async procesarCola(): Promise<void> {
-    if (this.procesando) return;
-    this.procesando = true;
+  private async fetchConTimeout(url: string, init: RequestInit, timeoutMs = 10_000): Promise<Response> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Tiempo de espera agotado (timeout de red)')), timeoutMs);
+    });
+    try {
+      return await Promise.race([fetch(url, init), timeoutPromise]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
 
+  async procesarCola(forzar = false): Promise<void> {
+    if (forzar) {
+      this.proximoIntento.clear();
+    }
+    if (this.ejecucionActiva) {
+      if (!forzar) return this.ejecucionActiva;
+      await this.ejecucionActiva;
+      return this.procesarCola(true);
+    }
+
+    this.ejecucionActiva = this.ejecutarCiclo(forzar);
+    try {
+      await this.ejecucionActiva;
+    } finally {
+      this.ejecucionActiva = null;
+    }
+  }
+
+  private async ejecutarCiclo(forzar: boolean): Promise<void> {
     try {
       if (!(await isTokenValid())) {
-        const ok = await silentRefresh();
-        if (!ok) return;
+        await silentRefresh().catch(() => false);
       }
 
       const pendientes = await getPendientes();
       if (pendientes.length === 0) return;
 
       const ahora = Date.now();
-      const listos = pendientes.filter(op => {
-        if (op.intentos === 0) return true;
-        const next = this.proximoIntento.get(op.uuidLocal);
-        return !next || ahora >= next;
-      });
+      const listos = forzar
+        ? pendientes
+        : pendientes.filter(op => {
+            if (op.intentos === 0) return true;
+            const next = this.proximoIntento.get(op.uuidLocal);
+            return !next || ahora >= next;
+          });
       if (listos.length === 0) return;
 
       const sesion = await getSession();
@@ -76,8 +105,8 @@ export class SyncProcessor {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('sync:actualizado'));
       }
-    } finally {
-      this.procesando = false;
+    } catch {
+      // Registrado por operación individual
     }
   }
 
@@ -89,26 +118,26 @@ export class SyncProcessor {
       let res: Response;
 
       if (op.tipo === 'INICIAR_EVALUACION' && evalId) {
-        res = await fetch(`${API_BASE}/api/v1/evaluaciones/${evalId}/iniciar`, { method: 'POST', headers });
+        res = await this.fetchConTimeout(`${API_BASE}/api/v1/evaluaciones/${evalId}/iniciar`, { method: 'POST', headers });
       } else if (op.tipo === 'RESPUESTAS' && evalId) {
-        res = await fetch(`${API_BASE}/api/v1/evaluaciones/${evalId}/respuestas`, {
+        res = await this.fetchConTimeout(`${API_BASE}/api/v1/evaluaciones/${evalId}/respuestas`, {
           method: 'POST', headers,
           body: JSON.stringify({ respuestas: payload['respuestas'] ?? [] }),
         });
       } else if (op.tipo === 'EVIDENCIA') {
         const authHeader = headers['Authorization'];
-        res = await fetch(`${API_BASE}/api/v1/evidencias`, {
+        res = await this.fetchConTimeout(`${API_BASE}/api/v1/evidencias`, {
           method: 'POST',
           headers: authHeader ? { Authorization: authHeader } : undefined,
           body: construirFormEvidencia(payload),
         });
       } else if (op.tipo === 'FINALIZAR_EVALUACION' && evalId) {
-        res = await fetch(`${API_BASE}/api/v1/evaluaciones/${evalId}/finalizar`, {
+        res = await this.fetchConTimeout(`${API_BASE}/api/v1/evaluaciones/${evalId}/finalizar`, {
           method: 'POST', headers,
           body: JSON.stringify({ observacionesFinales: payload['observacionesFinales'] }),
         });
       } else if (op.tipo === 'GENERAR_INFORME' && evalId) {
-        res = await fetch(`${API_BASE}/api/v1/informes`, {
+        res = await this.fetchConTimeout(`${API_BASE}/api/v1/informes`, {
           method: 'POST', headers,
           body: JSON.stringify({ evaluacionId: evalId }),
         });
@@ -134,15 +163,22 @@ export class SyncProcessor {
   }
 
   iniciar(): void {
-    window.addEventListener('online', () => void this.procesarCola());
-    if (navigator.onLine) void this.procesarCola();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', this.handleOnline);
+    }
+    if (typeof navigator !== 'undefined' && navigator.onLine) void this.procesarCola();
     this.intervaloId = setInterval(() => void this.procesarCola(), POLL_INTERVAL_MS);
   }
 
   detener(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.handleOnline);
+    }
     if (this.intervaloId !== undefined) {
       clearInterval(this.intervaloId);
       this.intervaloId = undefined;
     }
   }
 }
+
+export const syncProcessor = new SyncProcessor();
