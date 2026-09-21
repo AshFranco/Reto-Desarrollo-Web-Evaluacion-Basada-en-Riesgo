@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
 import { PdfService } from '../../common/services/pdf.service';
-import { mapearResultadoDestacado, mapearNoConformidades } from '../../common/utils/informe-pdf-mapper';
+import { mapearResultadoDestacado, mapearNoConformidades, construirNombreArchivoExpedientePdf } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
 
@@ -44,7 +44,7 @@ export class ExpedientesService {
     const codigoExp = `EXP-DICTAMEN-${expediente.id.toString().padStart(4, '0')}`;
     const qrUrl = `https://sinec.msp.gob.do/verificar/expediente/${expediente.id}`;
 
-    return this.pdfService.generarDocumentoPdf({
+    const buffer = await this.pdfService.generarDocumentoPdf({
       titulo: 'EXPEDIENTE Y DICTAMEN DE CIERRE DE EVALUACIÓN BPM',
       subtitulo: `Establecimiento: ${caso.establecimiento.nombre}`,
       codigo: codigoExp,
@@ -81,6 +81,20 @@ export class ExpedientesService {
       coordinadorNombre: 'Ing. Carlos Peña',
       coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
     });
+
+    const nombreArchivo = construirNombreArchivoExpedientePdf(
+      caso?.establecimiento?.nombre || caso?.establecimiento?.empresa?.razonSocial || 'Establecimiento',
+      codigoExp,
+      expediente.fechaCierre || new Date(),
+    );
+    (buffer as any).nombreArchivo = nombreArchivo;
+    return buffer;
+  }
+
+  async generarPdfConMetadatos(casoId: string, user: JwtPayload): Promise<{ buffer: Buffer; nombreArchivo: string }> {
+    const buffer = await this.generarPdf(casoId, user);
+    const nombreArchivo = (buffer as any).nombreArchivo || `Expediente_Caso_${casoId}.pdf`;
+    return { buffer, nombreArchivo };
   }
 
   async cerrar(casoId: string) {

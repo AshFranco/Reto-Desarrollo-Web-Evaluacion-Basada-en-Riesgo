@@ -34,10 +34,11 @@ export class ExpedientesController {
     @CurrentUser() user: JwtPayload,
     @Res() res: Response,
   ) {
-    const pdfBuffer = await this.expedientesService.generarPdf(casoId, user);
+    const { buffer, nombreArchivo } = await this.expedientesService.generarPdfConMetadatos(casoId, user);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=expediente_caso_${casoId}.pdf`);
-    res.send(pdfBuffer);
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.send(buffer);
   }
 
   @Patch(':casoId/cerrar')

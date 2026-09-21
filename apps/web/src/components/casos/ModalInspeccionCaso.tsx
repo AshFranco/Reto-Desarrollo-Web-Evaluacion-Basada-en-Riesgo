@@ -394,7 +394,7 @@ export function ModalInspeccionCaso({ casoId, open, onClose, soloLectura = false
             startIcon={<PictureAsPdfOutlinedIcon />}
             onClick={() => {
               const evalId = caso?.evaluaciones?.[caso.evaluaciones.length - 1]?.id;
-              if (evalId) descargarActaPdf(evalId);
+              if (evalId) descargarActaPdf(evalId, caso?.establecimiento?.nombre);
             }}
           >
             Descargar Acta PDF

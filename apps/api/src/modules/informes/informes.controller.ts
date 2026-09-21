@@ -34,10 +34,11 @@ export class InformesController {
     @CurrentUser() user: JwtPayload,
     @Res() res: Response,
   ) {
-    const pdfBuffer = await this.informesService.generarPdf(evaluacionId, user);
+    const { buffer, nombreArchivo } = await this.informesService.generarPdfConMetadatos(evaluacionId, user);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=informe_${evaluacionId}.pdf`);
-    res.send(pdfBuffer);
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.send(buffer);
   }
 
   @Post()

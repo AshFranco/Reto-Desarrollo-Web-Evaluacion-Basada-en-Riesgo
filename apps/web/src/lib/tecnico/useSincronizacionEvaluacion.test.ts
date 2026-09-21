@@ -35,6 +35,19 @@ describe('useSincronizacionEvaluacion', () => {
     expect(result.current.errores[0]?.errorMsg).toBe('fallo de red');
   });
 
+  it('incluye la evidencia encolada (guarda su id como evaluacionId) entre las pendientes y las fallidas de su evaluación', async () => {
+    const blob = new Blob(['{}'], { type: 'application/geo+json' });
+    const pendiente = await enqueue('EVIDENCIA', { evaluacionId: '1', tipo: 'DOCUMENTO', blob, nombreArchivo: 'a.geojson' });
+    const fallida = await enqueue('EVIDENCIA', { evaluacionId: '1', tipo: 'FOTO', blob, nombreArchivo: 'b.png' });
+    await enqueue('EVIDENCIA', { evaluacionId: '999', tipo: 'FOTO', blob, nombreArchivo: 'otra.png' });
+    for (let i = 0; i < 10; i++) await marcarError(fallida, 'HTTP 500');
+
+    const { result } = renderHook(() => useSincronizacionEvaluacion('1'));
+    await waitFor(() => expect(result.current.operaciones).toHaveLength(2));
+    expect(result.current.pendientes.map((o) => o.uuidLocal)).toEqual([pendiente]);
+    expect(result.current.errores.map((o) => o.uuidLocal)).toEqual([fallida]);
+  });
+
   it('arma el mapa de respuestas encoladas por itemId, quedándose con la más reciente', async () => {
     await enqueue('RESPUESTAS', { evaluacionServerId: '1', respuestas: [{ itemId: '2', codigoOpcion: 'C' }] });
     await enqueue('RESPUESTAS', {

@@ -34,6 +34,20 @@ export async function marcarEnviada(uuidLocal: string): Promise<void> {
   await db.cola_sync.update(uuidLocal, { estado: 'enviado' });
 }
 
+/**
+ * Falla de red (sin conexión, timeout): la operación NO se rechazó, solo no se
+ * pudo intentar. Se guarda el motivo pero no se gasta ninguno de los intentos,
+ * para que un rato largo sin internet no la mande a 'error' de forma definitiva.
+ */
+export async function marcarFalloDeRed(uuidLocal: string, errorMsg: string): Promise<void> {
+  await db.cola_sync.update(uuidLocal, { errorMsg });
+}
+
+/** Devuelve a la cola las operaciones que agotaron sus intentos, para reintentarlas desde cero. */
+export async function reactivarFallidas(): Promise<void> {
+  await db.cola_sync.where('estado').equals('error').modify({ estado: 'pendiente', intentos: 0 });
+}
+
 export async function marcarError(uuidLocal: string, errorMsg: string): Promise<void> {
   const op = await db.cola_sync.get(uuidLocal);
   if (!op) return;
