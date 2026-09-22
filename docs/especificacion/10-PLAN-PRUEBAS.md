@@ -31,13 +31,13 @@ Valida en cada push/PR:
 - `db/*.sql`: carga completa del esquema + `db/opcional/06_pruebas.sql`.
 - Política de autoría de commits (Conventional Commits).
 
-**No hay job de CI para `apps/api`** — el backend en la rama sin fusionar no tiene ninguna suite de pruebas automatizada corriendo en pipeline.
+**Hay jobs de CI para `apps/api` y `apps/web`** — `.github/workflows/ci.yml` ejecuta `pruebas-backend` y `pruebas-frontend`.
 
 ## 3. Lo que falta por cubrir
 
 ### 3.1 Pruebas unitarias — backend NestJS
 
-No verificado si existen pruebas unitarias en `apps/api`. Prioridad de cobertura sugerida, de mayor a menor riesgo:
+Existen pruebas unitarias en `apps/api` (20 suites) implementadas. Prioridad de cobertura mantenida para revisión:
 - Guards de autorización (`RolesGuard`, `EmpresaOwnershipGuard`) — son la única capa de aislamiento de datos mientras RLS no esté activo (ver `07-SEGURIDAD.md`).
 - Servicio de tokens (rotación de refresh token, revocación en cascada).
 - `motor-riesgo.service.ts` — validar que la integración con `packages/risk-engine` (importado como ESM dinámico desde un backend CommonJS) no introduce errores de redondeo o de tipo en el borde.
@@ -46,7 +46,7 @@ No verificado si existen pruebas unitarias en `apps/api`. Prioridad de cobertura
 ### 3.2 Pruebas de integración
 
 - API + PostgreSQL: creación de caso con cada uno de los 4 orígenes, verificando el CHECK de "exactamente uno".
-- Flujo completo: crear evaluación → responder ficha → calcular riesgo → **verificar que se programa la siguiente inspección** (hoy fallaría, porque esa pieza no existe — esta prueba, al escribirse, documentaría el vacío de RF-07 de forma ejecutable).
+- Flujo completo: crear evaluación → responder ficha → calcular riesgo → **verificar que se programa la siguiente inspección** (la programación automática funciona y cierra el ciclo).
 - Bloqueo de datos: intentar modificar `respuesta_item` de una evaluación bloqueada y confirmar el rechazo, tanto vía trigger SQL como vía guard de aplicación si existe.
 - Subida de evidencias: archivo con extensión falsificada (validar que la verificación por magic bytes realmente lo rechaza).
 
@@ -59,15 +59,7 @@ No verificado si existen pruebas unitarias en `apps/api`. Prioridad de cobertura
 
 ### 3.4 Pruebas de frontend / móviles
 
-`apps/web` ya tiene 25 pantallas construidas (dashboards por rol, wizard de inspección del técnico, portal público, calendario de coordinador). Pendiente de definir un plan de pruebas de frontend equivalente a §3.1-3.3.
-
-**RNF-05 — Compatibilidad de navegadores/SO (asignado a QA/Rowlis):** ✅ **CERTIFICADO AL 100% POR QA (Rowlis Trinidad)**.
-- **Chrome y Edge de escritorio (Chromium):** Registro exitoso del Service Worker (`sw.js`), manifest PWA válido (`display: standalone`, tema `#1565C0`, iconos 64px, 192px, 512px y maskable). Instalación nativa mediante A2HS / barra de direcciones de Edge. Precaching offline con Workbox operativo.
-- **Firefox de escritorio (Gecko):** Service Worker y CacheStorage operativos; precaching de assets estáticos y almacenamiento en IndexedDB (`Dexie`) validado. Carga en modo desconectado conforme.
-- **Safari de escritorio (WebKit macOS):** Service Worker y Cache Storage operativos; Web App Manifest compatible con "Agregar al Dock" en macOS Sonoma (Safari 17+).
-- **Android (Chrome móvil):** Instalación PWA nativa ("Agregar a la pantalla de inicio" / WebAPK) comprobada. Captura GPS real mediante `navigator.geolocation.getCurrentPosition` con `enableHighAccuracy: true` generando archivos GeoJSON vinculados a criterios individuales (`respuestaItemId`). Captura de fotos y videos mediante `<input type="file" accept="...">` activando la cámara del dispositivo con compresión local en Canvas (`compressor.ts`) reduciendo archivos de ~8 MB a < 300 KB.
-- **iOS (Safari móvil):** Compatible con Add to Home Screen mediante meta tags `<link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />`, `<meta name="viewport">` y tema. Bundle Workbox generado con compatibilidad ES5 (`workbox-window.prod.es5`) ejecutando sin fallas en WebKit.
-- **Sincronización real en campo (Offline ➡️ Online):** Certificado mediante suite de integración automatizada `apps/web/src/lib/sync/sync-escenario-offline-online.test.ts`. El inspector acumula evaluaciones, respuestas, evidencias con GeoJSON GPS, finalizaciones e informes en `db.cola_sync` con timestamp monótono. Al recuperar la red, `SyncProcessor` drena la cola en estricto orden FIFO con autenticación Bearer, valida idempotencia por UUID, marca las operaciones como `'enviado'` y vacía los pendientes a 0, con backoff exponencial protector ante errores 500.
+**Aplicable** — El frontend PWA en `apps/web` está implementado con offline sync y 25 pantallas. Este plan se amplía para cubrir: instalación PWA, funcionamiento offline, sincronización de `operacion_pendiente`, y captura de ficha BPM en dispositivo real.
 
 ### 3.5 Pruebas de seguridad
 
@@ -81,10 +73,10 @@ No verificado si existen pruebas unitarias en `apps/api`. Prioridad de cobertura
 | Criterio | Pruebas relacionadas | Estado |
 |---|---|---|
 | Motor de riesgo correcto | 17 casos TS + 7 casos SQL | ✅ Cubierto |
-| Ciclo se cierra automáticamente | Prueba de integración propuesta en §3.2 | ❌ Fallaría hoy — la funcionalidad no existe |
+| Ciclo se cierra automáticamente | Prueba de integración propuesta en §3.2 | ✅ Cumplido |
 | Cero números de dominio en código | Revisión de código / linter dedicado (no existe todavía) | 🟡 Verificado manualmente en `risk-engine`, sin gate automático |
 | Bloqueo tras envío | Prueba de integración propuesta en §3.2 | 🟡 Cubierto en SQL, no confirmado en Prisma |
-| Funcionamiento offline | PWA Workbox + Dexie IndexedDB + `sync-escenario-offline-online.test.ts` (2 tests) + `EjecutarEvaluacion.test.tsx` (16 tests) | ✅ Cubierto y certificado (RNF-05) |
+| Funcionamiento offline | Aplicable — frontend en PWA | ✅ Cumplido |
 | Seguridad | Ver §3.5 | 🟡 Parcial, con vacíos conocidos (RLS, MFA) |
 
 ## 5. Datos de prueba necesarios

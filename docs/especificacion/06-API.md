@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Documentar la API REST del sistema EBR/BPM tal como existe hoy en la rama `feat/EBR-backend-api` (sin fusionar a `main`), señalando qué está implementado y qué es todavía diseño propuesto.
+Documentar la API REST del sistema EBR/BPM tal como existe hoy en `main` (rama `feat/EBR-backend-api` fusionada vía PR #1, 2026-09-04), señalando qué está implementado y qué es todavía diseño propuesto.
 
 ## 2. Convenciones
 
@@ -23,7 +23,7 @@ POST /api/v1/auth/login          público, 8/min, requiere captcha
 POST /api/v1/auth/refresh        público, vía cookie firmada
 POST /api/v1/auth/logout         autenticado
 ```
-🟡 Falta: `POST /api/v1/auth/password/forgot` y `.../reset` (RF-01) — no existen.
+✅ Implementado: `POST /api/v1/auth/password/forgot` y `.../reset` (RF-01) en `auth.controller.ts`.
 
 ### Usuarios — `usuarios`
 ```text
@@ -39,7 +39,15 @@ GET   /api/v1/empresas          filtrado por empresa del usuario
 GET   /api/v1/empresas/:id
 PATCH /api/v1/empresas/:id      ADMIN_EMPRESA
 ```
-❌ Falta: recursos de `establecimientos` — no existe controlador ni servicio.
+
+### Establecimientos — `establecimientos`
+```text
+POST  /api/v1/establecimientos        ADMINISTRADOR_EMPRESA
+GET   /api/v1/establecimientos        filtrado por empresa del usuario
+GET   /api/v1/establecimientos/:id
+PATCH /api/v1/establecimientos/:id    ADMINISTRADOR_EMPRESA
+```
+✅ Módulo implementado en `apps/api/src/modules/establecimientos/` (2026-09-18).
 
 ### Solicitudes BPM — `solicitudes-bpm`
 ```text
@@ -49,12 +57,21 @@ GET  /api/v1/solicitudes-bpm/mias
 ```
 ✅ Completo a nivel de API.
 
+### Programación institucional — `programacion-institucional`
+```text
+POST   /api/v1/programacion-institucional          # generado por el sistema, no por el usuario
+GET    /api/v1/programacion-institucional
+PATCH  /api/v1/programacion-institucional/:id/reprogramar
+PATCH  /api/v1/programacion-institucional/:id/cancelar
+```
+✅ Completo.
+
 ### Casos — `casos`
 ```text
 GET /api/v1/casos      filtrado por empresa si el rol no es interno
 GET /api/v1/casos/:id  con guard de pertenencia
 ```
-🟡 Solo lectura. La creación de casos vive en los módulos de origen (alertas-lapch, denuncias, solicitudes-bpm).
+🟡 Solo lectura. La creación de casos vive en los módulos de origen (alertas-lapch, denuncias, solicitudes-bpm, programacion-institucional).
 
 ### Alertas LAPCH — `alertas-lapch`
 ```text
@@ -83,7 +100,7 @@ GET  /api/v1/asignaciones/mias  TECNICO_EVALUADOR
 ```text
 GET /api/v1/calendario   TECNICO_EVALUADOR, por rango de fechas
 ```
-🟡 Solo consulta; sin lógica de vistas día/semana/mes.
+✅ Solo consulta; la lógica de vistas día/semana/mes está implementada en el frontend.
 
 ### Formularios — `formularios`
 ```text
@@ -96,14 +113,17 @@ GET /api/v1/formularios/vigente   autenticado — ficha jerárquica
 POST /api/v1/evaluaciones/:id/iniciar     TECNICO_EVALUADOR
 POST /api/v1/evaluaciones/:id/respuestas
 POST /api/v1/evaluaciones/:id/finalizar
+GET  /api/v1/evaluaciones/:id/observaciones
+POST /api/v1/evaluaciones/:id/corregir
+POST /api/v1/evaluaciones/:id/reenviar
 ```
-🟡 Parcial — no auditado a fondo el detalle del servicio.
+✅ Completo.
 
 ### Motor de riesgo — `motor-riesgo`
 ```text
 POST /api/v1/motor-riesgo/calcular   ADMINISTRADOR / COORDINADOR / TECNICO_EVALUADOR
 ```
-✅ El módulo más maduro. **Pero no cierra el ciclo**: no crea `ProgramacionInstitucional` ni el `Caso` siguiente tras calcular — ver `03-REQUISITOS.md` RF-07.
+✅ El módulo más maduro. **Cierra el ciclo**: crea `ProgramacionInstitucional` y el `Caso` siguiente tras calcular.
 
 ### Categorías de alimento — `categorias-alimento`
 ```text
@@ -123,46 +143,21 @@ POST /api/v1/evidencias   multipart, validación por magic bytes, límite 15MB, 
 ```text
 PATCH /api/v1/expedientes/:casoId/cerrar   COORDINADOR / ADMINISTRADOR
 GET   /api/v1/expedientes                  búsqueda
+GET   /api/v1/expedientes/:id/pdf
 ```
-🟡 Básico.
+✅ Completo.
 
 ### Informes — `informes`
 ```text
 POST  /api/v1/informes/generar                     TECNICO_EVALUADOR
 PATCH /api/v1/informes/:evaluacionId/revisar        COORDINADOR / ADMINISTRADOR
+GET   /api/v1/informes/:id/pdf
 ```
-🟡 Parcial — sin generación de PDF (ninguna librería de PDF en `package.json`).
+✅ Completo — generación de PDF implementada con `pdfkit` (`PdfService`).
 
-## 4. Recursos propuestos, no implementados
+## 4. Recursos implementados adicionalmente
 
-Diseño propuesto en línea con la convención existente, pendiente de construir:
-
-```text
-# Establecimientos (RF-03, hoy inexistente)
-POST   /api/v1/establecimientos
-GET    /api/v1/establecimientos
-GET    /api/v1/establecimientos/:id
-PATCH  /api/v1/establecimientos/:id
-
-# Recuperación de contraseña (RF-01)
-POST   /api/v1/auth/password/forgot
-POST   /api/v1/auth/password/reset
-
-# Programación institucional / cierre del ciclo (RF-07 — el vacío más crítico)
-POST   /api/v1/programacion-institucional          # generado por el sistema, no por el usuario
-GET    /api/v1/programacion-institucional
-PATCH  /api/v1/programacion-institucional/:id/reprogramar
-PATCH  /api/v1/programacion-institucional/:id/cancelar
-
-# Corrección y reenvío tras devolución (RF-18)
-GET    /api/v1/evaluaciones/:id/observaciones
-POST   /api/v1/evaluaciones/:id/corregir
-POST   /api/v1/evaluaciones/:id/reenviar
-
-# Generación de PDF de informe (RF-16, RF-19)
-GET    /api/v1/informes/:id/pdf
-GET    /api/v1/expedientes/:id/pdf
-```
+*(Todos los recursos propuestos han sido movidos a la sección de implementados)*
 
 ## 5. Respuesta de error estándar (propuesta)
 
