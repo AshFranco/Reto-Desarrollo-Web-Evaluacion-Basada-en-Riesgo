@@ -6,6 +6,7 @@ describe('ExpedientesService', () => {
   let prismaMock: any;
   let pdfServiceMock: any;
   let notificacionesMock: any;
+  let emailServiceMock: any;
 
   beforeEach(() => {
     prismaMock = {
@@ -18,8 +19,9 @@ describe('ExpedientesService', () => {
     };
     pdfServiceMock = { generarDocumentoPdf: jest.fn() };
     notificacionesMock = { notificarPorEmpresa: jest.fn() };
+    emailServiceMock = { enviarResultadoExpediente: jest.fn().mockResolvedValue({ ok: true }) };
 
-    service = new ExpedientesService(prismaMock, pdfServiceMock, notificacionesMock);
+    service = new ExpedientesService(prismaMock, pdfServiceMock, notificacionesMock, emailServiceMock);
   });
 
   const CASO_ID = '1';
@@ -60,6 +62,102 @@ describe('ExpedientesService', () => {
       expect(notificacionesMock.notificarPorEmpresa).toHaveBeenCalledWith(
         9n,
         expect.objectContaining({ tipo: 'EXPEDIENTE_CERRADO' }),
+      );
+    });
+
+    it('envía el acta en PDF al correo de la empresa cuando el expediente se cierra', async () => {
+      prismaMock.caso.findUnique.mockResolvedValue({
+        id: 1n,
+        evaluaciones: [{ id: 50n, idEstado: 5 }],
+        expediente: null,
+        establecimiento: {
+          idEmpresa: 9n,
+          nombre: 'Planta Santo Domingo',
+          empresa: { razonSocial: 'Alimentos del Caribe SRL', correo: 'contacto@alimentoscaribe.com', contactos: [] },
+        },
+      });
+      prismaMock.estadoEvaluacion.findUniqueOrThrow
+        .mockResolvedValueOnce({ id: 5, codigo: 'APROBADA' })
+        .mockResolvedValueOnce({ id: 7, codigo: 'CERRADA' });
+      prismaMock.calculoRiesgo.findUnique.mockResolvedValue({ calificacionTexto: 'Riesgo Bajo' });
+      prismaMock.expediente.upsert.mockResolvedValue({
+        id: 3n,
+        idCaso: 1n,
+        estado: 'Cerrado',
+        resultadoFinal: 'Riesgo Bajo',
+      });
+      const pdfBuffer = Buffer.from('pdf-falso');
+      jest.spyOn(service, 'generarPdfConMetadatos').mockResolvedValue({ buffer: pdfBuffer, nombreArchivo: 'acta.pdf' });
+
+      await service.cerrar(CASO_ID);
+
+      expect(emailServiceMock.enviarResultadoExpediente).toHaveBeenCalledWith(
+        'contacto@alimentoscaribe.com',
+        'Alimentos del Caribe SRL',
+        'Planta Santo Domingo',
+        'Riesgo Bajo',
+        pdfBuffer,
+        'acta.pdf',
+      );
+    });
+
+    it('usa el correo del contacto principal si la empresa no tiene correo propio', async () => {
+      prismaMock.caso.findUnique.mockResolvedValue({
+        id: 1n,
+        evaluaciones: [{ id: 50n, idEstado: 5 }],
+        expediente: null,
+        establecimiento: {
+          idEmpresa: 9n,
+          nombre: 'Planta Santo Domingo',
+          empresa: {
+            razonSocial: 'Alimentos del Caribe SRL',
+            correo: null,
+            contactos: [
+              { tipoContacto: { codigo: 'LEGAL' }, correo: 'legal@alimentoscaribe.com' },
+              { tipoContacto: { codigo: 'PRINCIPAL' }, correo: 'principal@alimentoscaribe.com' },
+            ],
+          },
+        },
+      });
+      prismaMock.estadoEvaluacion.findUniqueOrThrow
+        .mockResolvedValueOnce({ id: 5, codigo: 'APROBADA' })
+        .mockResolvedValueOnce({ id: 7, codigo: 'CERRADA' });
+      prismaMock.calculoRiesgo.findUnique.mockResolvedValue({ calificacionTexto: 'Riesgo Bajo' });
+      prismaMock.expediente.upsert.mockResolvedValue({ id: 3n, idCaso: 1n, estado: 'Cerrado', resultadoFinal: 'Riesgo Bajo' });
+      jest.spyOn(service, 'generarPdfConMetadatos').mockResolvedValue({ buffer: Buffer.from('x'), nombreArchivo: 'acta.pdf' });
+
+      await service.cerrar(CASO_ID);
+
+      expect(emailServiceMock.enviarResultadoExpediente).toHaveBeenCalledWith(
+        'principal@alimentoscaribe.com',
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('no revierte el cierre del expediente si el envío del correo falla', async () => {
+      prismaMock.caso.findUnique.mockResolvedValue({
+        id: 1n,
+        evaluaciones: [{ id: 50n, idEstado: 5 }],
+        expediente: null,
+        establecimiento: {
+          idEmpresa: 9n,
+          nombre: 'Planta Santo Domingo',
+          empresa: { razonSocial: 'Alimentos del Caribe SRL', correo: 'contacto@alimentoscaribe.com', contactos: [] },
+        },
+      });
+      prismaMock.estadoEvaluacion.findUniqueOrThrow
+        .mockResolvedValueOnce({ id: 5, codigo: 'APROBADA' })
+        .mockResolvedValueOnce({ id: 7, codigo: 'CERRADA' });
+      prismaMock.calculoRiesgo.findUnique.mockResolvedValue({ calificacionTexto: 'Riesgo Bajo' });
+      prismaMock.expediente.upsert.mockResolvedValue({ id: 3n, idCaso: 1n, estado: 'Cerrado', resultadoFinal: 'Riesgo Bajo' });
+      jest.spyOn(service, 'generarPdfConMetadatos').mockRejectedValue(new Error('PDF roto'));
+
+      await expect(service.cerrar(CASO_ID)).resolves.toEqual(
+        expect.objectContaining({ estado: 'Cerrado' }),
       );
     });
   });

@@ -3,11 +3,18 @@ import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { AppConfigService } from '../../config/app-config.service';
 
+export interface AdjuntoCorreo {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
 export interface EnviarCorreoOpciones {
   para: string;
   asunto: string;
   html: string;
   texto?: string;
+  adjuntos?: AdjuntoCorreo[];
 }
 
 export interface ResultadoEnvioCorreo {
@@ -76,6 +83,7 @@ export class EmailService {
         subject: opciones.asunto,
         text: opciones.texto ?? opciones.html.replace(/<[^>]*>?/gm, ''),
         html: opciones.html,
+        attachments: opciones.adjuntos,
       });
 
       const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -163,6 +171,63 @@ export class EmailService {
       para,
       asunto,
       html,
+    });
+  }
+
+  async enviarResultadoExpediente(
+    para: string,
+    nombreEmpresa: string,
+    nombreEstablecimiento: string,
+    resultadoFinal: string,
+    pdfBuffer: Buffer,
+    nombreArchivo: string,
+  ): Promise<ResultadoEnvioCorreo> {
+    const asunto = `Resultado de evaluación BPM — ${nombreEstablecimiento}`;
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>${asunto}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; color: #1e293b; }
+    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    .header { background: #0f4c81; color: #ffffff; padding: 28px 24px; text-align: center; }
+    .header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .header p { margin: 6px 0 0 0; font-size: 13px; opacity: 0.9; }
+    .content { padding: 32px 28px; line-height: 1.6; }
+    .content h2 { margin-top: 0; font-size: 18px; color: #0f172a; }
+    .resultado { background: #f1f5f9; border-left: 4px solid #0f4c81; padding: 12px 16px; margin: 20px 0; font-size: 14px; border-radius: 0 6px 6px 0; }
+    .footer { background: #f8fafc; padding: 18px 24px; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>DIGEMAPS — EBR / BPM</h1>
+      <p>Evaluación Basada en Riesgo · Inocuidad de Alimentos</p>
+    </div>
+    <div class="content">
+      <h2>Expediente cerrado</h2>
+      <p>Estimados <strong>${nombreEmpresa}</strong>:</p>
+      <p>El expediente de la evaluación BPM correspondiente al establecimiento <strong>${nombreEstablecimiento}</strong> ha sido cerrado formalmente.</p>
+      <div class="resultado"><strong>Resultado final:</strong> ${resultadoFinal}</div>
+      <p>Adjunto a este correo encontrará el acta oficial en formato PDF con el detalle completo de la evaluación.</p>
+    </div>
+    <div class="footer">
+      <p>© ${new Date().getFullYear()} Dirección General de Medicamentos, Alimentos y Productos Sanitarios (DIGEMAPS). Todos los derechos reservados.</p>
+      <p>Este es un correo automático del sistema, por favor no respondas a este remitente.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `.trim();
+
+    return this.enviarCorreo({
+      para,
+      asunto,
+      html,
+      adjuntos: [{ filename: nombreArchivo, content: pdfBuffer, contentType: 'application/pdf' }],
     });
   }
 }

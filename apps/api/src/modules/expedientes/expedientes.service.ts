@@ -1,19 +1,27 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
 import { PdfService } from '../../common/services/pdf.service';
+import { EmailService } from '../../common/services/email.service';
 import { mapearResultadoDestacado, mapearNoConformidades, construirNombreArchivoExpedientePdf } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 
+// Usado solo para generar el PDF internamente al cerrar (no proviene de una petición HTTP real):
+// rol interno para que verificarAccesoEmpresa() no lo bloquee.
+const USUARIO_SISTEMA: JwtPayload = { sub: '0', rol: 'ADMINISTRADOR', empresaId: null };
+
 @Injectable()
 export class ExpedientesService {
+  private readonly logger = new Logger(ExpedientesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
     private readonly notificaciones: NotificacionesService,
+    private readonly emailService: EmailService,
   ) {}
 
   async generarPdf(casoId: string, user: JwtPayload): Promise<Buffer> {
@@ -152,8 +160,54 @@ export class ExpedientesService {
         entidad: 'expediente',
         idEntidad: resultado.id,
       });
+      await this.enviarActaPorCorreo(casoId, resultado.resultadoFinal ?? 'N/A');
       return resultado;
     });
+  }
+
+  /**
+   * Envía el acta en PDF a la empresa cuando se cierra el expediente (RF-19).
+   * Falla en silencio (solo se registra en el log): un problema de correo
+   * nunca debe deshacer un cierre de expediente ya persistido.
+   */
+  private async enviarActaPorCorreo(casoId: string, resultadoFinal: string): Promise<void> {
+    try {
+      const caso = await this.prisma.caso.findUnique({
+        where: { id: BigInt(casoId) },
+        include: {
+          establecimiento: {
+            include: {
+              empresa: { include: { contactos: { include: { tipoContacto: true } } } },
+            },
+          },
+        },
+      });
+      const empresa = caso?.establecimiento?.empresa;
+      if (!empresa) return;
+
+      const contactoPrincipal = empresa.contactos.find((c) => c.tipoContacto.codigo === 'PRINCIPAL');
+      const destinatario = empresa.correo ?? contactoPrincipal?.correo;
+      if (!destinatario) {
+        this.logger.warn(`Expediente del caso #${casoId} cerrado sin correo de destino (empresa "${empresa.razonSocial}" sin correo ni contacto principal con correo).`);
+        return;
+      }
+
+      const { buffer, nombreArchivo } = await this.generarPdfConMetadatos(casoId, USUARIO_SISTEMA);
+      const resultado = await this.emailService.enviarResultadoExpediente(
+        destinatario,
+        empresa.razonSocial,
+        caso.establecimiento.nombre,
+        resultadoFinal,
+        buffer,
+        nombreArchivo,
+      );
+      if (!resultado.ok) {
+        this.logger.error(`No se pudo enviar el acta del caso #${casoId} a ${destinatario}: ${resultado.error}`);
+      }
+    } catch (err) {
+      const mensaje = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Error inesperado enviando el acta del caso #${casoId} por correo: ${mensaje}`);
+    }
   }
 
   async reabrir(casoId: string) {
