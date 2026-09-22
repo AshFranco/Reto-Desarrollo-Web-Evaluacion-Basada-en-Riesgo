@@ -2,12 +2,21 @@ import { useState, useEffect, useCallback } from 'react';
 
 const EVENTO_FOTO = 'foto-perfil:cambiada';
 
+function almacenamiento(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function guardarFotoPerfil(usuarioId: string, base64: string | null) {
   const clave = `avatar_img_${usuarioId}`;
+  const storage = almacenamiento();
   if (base64) {
-    localStorage.setItem(clave, base64);
+    storage?.setItem(clave, base64);
   } else {
-    localStorage.removeItem(clave);
+    storage?.removeItem(clave);
   }
   window.dispatchEvent(new CustomEvent(EVENTO_FOTO, { detail: { usuarioId, base64 } }));
 }
@@ -15,7 +24,7 @@ export function guardarFotoPerfil(usuarioId: string, base64: string | null) {
 export function useFotoPerfil(usuarioId?: string | null): [string | null, (base64: string | null) => void] {
   const [fotoUrl, setFotoUrl] = useState<string | null>(() => {
     if (!usuarioId) return null;
-    return localStorage.getItem(`avatar_img_${usuarioId}`);
+    return almacenamiento()?.getItem(`avatar_img_${usuarioId}`) ?? null;
   });
 
   useEffect(() => {
@@ -23,7 +32,7 @@ export function useFotoPerfil(usuarioId?: string | null): [string | null, (base6
       setFotoUrl(null);
       return;
     }
-    setFotoUrl(localStorage.getItem(`avatar_img_${usuarioId}`));
+    setFotoUrl(almacenamiento()?.getItem(`avatar_img_${usuarioId}`) ?? null);
 
     const handleCambio = (e: Event) => {
       const customEvent = e as CustomEvent<{ usuarioId: string; base64: string | null }>;

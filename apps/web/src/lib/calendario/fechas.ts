@@ -13,7 +13,7 @@ const MS_DIA = 86_400_000;
 export const DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 function aUtc(clave: string): number {
-  const [anio, mes, dia] = clave.split('-').map(Number);
+  const [anio, mes, dia] = clave.split('-').map(Number) as [number, number, number];
   return Date.UTC(anio, mes - 1, dia);
 }
 
@@ -55,13 +55,13 @@ export function inicioMes(clave: string): string {
 }
 
 export function finMes(clave: string): string {
-  const [anio, mes] = clave.split('-').map(Number);
+  const [anio, mes] = clave.split('-').map(Number) as [number, number, number];
   return formatoClave(anio, mes, new Date(Date.UTC(anio, mes, 0)).getUTCDate());
 }
 
 /** Suma meses conservando el día, o el último día del mes destino si no existe (31 ene + 1 mes = 28/29 feb). */
 export function sumarMeses(clave: string, meses: number): string {
-  const [anio, mes, dia] = clave.split('-').map(Number);
+  const [anio, mes, dia] = clave.split('-').map(Number) as [number, number, number];
   const total = anio * 12 + (mes - 1) + meses;
   const nuevoAnio = Math.floor(total / 12);
   const nuevoMes = total % 12;
