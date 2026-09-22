@@ -29,6 +29,7 @@ describe('Gabriela Backend Integration Tests', () => {
       },
       origenCaso: {
         findFirst: jest.fn(),
+        findFirstOrThrow: jest.fn(),
       },
       caso: {
         create: jest.fn(),
@@ -91,7 +92,11 @@ describe('Gabriela Backend Integration Tests', () => {
         frecuenciaAplicada: 'SEMESTRAL',
         prioridad: 'NORMAL',
       });
-      prismaMock.origenCaso.findFirst.mockResolvedValue({ id: 4, codigo: 'PROGRAMACION_INSTITUCIONAL' });
+      // Codigo real del catalogo (db/02_seed_catalogos.sql): 'PROGRAMACION', no 'PROGRAMACION_INSTITUCIONAL'.
+      prismaMock.origenCaso.findFirstOrThrow.mockImplementation(({ where }: any) => {
+        if (where?.codigo !== 'PROGRAMACION') return Promise.reject(new Error('no encontrado'));
+        return Promise.resolve({ id: 4, codigo: 'PROGRAMACION' });
+      });
       prismaMock.caso.create.mockResolvedValue({
         id: 500n,
         idEstablecimiento: 10n,

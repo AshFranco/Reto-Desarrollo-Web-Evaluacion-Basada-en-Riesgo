@@ -99,7 +99,7 @@ describe('ExpedientesService.generarPdf — aislamiento entre empresas', () => {
   beforeEach(() => {
     prismaMock = { caso: { findUnique: jest.fn() } };
     pdfServiceMock = { generarDocumentoPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-')) };
-    service = new ExpedientesService(prismaMock, pdfServiceMock, {} as any);
+    service = new ExpedientesService(prismaMock, pdfServiceMock, {} as any, {} as any, {} as any);
   });
 
   it('rechaza a un usuario de OTRA empresa y no llega a generar el PDF', async () => {

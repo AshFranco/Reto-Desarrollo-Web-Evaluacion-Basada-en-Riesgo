@@ -8,5 +8,6 @@ import { NotificacionesModule } from '../notificaciones/notificaciones.module';
   imports: [NotificacionesModule],
   controllers: [InformesController],
   providers: [InformesService, PdfService],
+  exports: [InformesService],
 })
 export class InformesModule {}

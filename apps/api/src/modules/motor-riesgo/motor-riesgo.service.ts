@@ -266,7 +266,7 @@ export class MotorRiesgoService {
         });
 
         const origenProg = await this.prisma.origenCaso.findFirst({
-          where: { codigo: 'PROGRAMACION_INSTITUCIONAL' },
+          where: { codigo: 'PROGRAMACION' },
         });
 
         if (origenProg) {

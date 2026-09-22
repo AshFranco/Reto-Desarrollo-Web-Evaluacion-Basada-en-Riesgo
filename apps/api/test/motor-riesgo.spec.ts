@@ -118,7 +118,11 @@ describe('MotorRiesgoService', () => {
         create: jest.fn().mockResolvedValue({ id: 1n }),
       },
       origenCaso: {
-        findFirst: jest.fn().mockResolvedValue({ id: 4, codigo: 'PROGRAMACION_INSTITUCIONAL' }),
+        // Filtra por codigo de verdad (como Prisma real) para que un typo en el
+        // codigo que busca el servicio haga fallar este test, no lo esconda.
+        findFirst: jest.fn().mockImplementation(({ where }: any) =>
+          Promise.resolve(where?.codigo === 'PROGRAMACION' ? { id: 4, codigo: 'PROGRAMACION' } : null),
+        ),
       },
       caso: {
         create: jest.fn().mockResolvedValue({ id: 100n }),

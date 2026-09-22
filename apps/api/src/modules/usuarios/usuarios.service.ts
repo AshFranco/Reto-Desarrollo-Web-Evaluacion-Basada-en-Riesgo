@@ -83,7 +83,14 @@ export class UsuariosService {
       idEntidad: actualizado.id,
     });
 
-    return { ...actualizado, id: actualizado.id.toString(), idEmpresa: actualizado.idEmpresa?.toString() ?? null };
+    return {
+      id: actualizado.id.toString(),
+      nombreCompleto: actualizado.nombreCompleto,
+      correoElectronico: actualizado.correoElectronico,
+      idEmpresa: actualizado.idEmpresa?.toString() ?? null,
+      estado: actualizado.estado,
+      motivoRechazo: actualizado.motivoRechazo,
+    };
   }
 
   async perfil(usuarioId: string) {
