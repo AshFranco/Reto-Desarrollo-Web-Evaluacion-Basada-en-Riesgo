@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -19,6 +19,7 @@ import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import { useEvaluacionesAsignadas } from '@/lib/tecnico/useEvaluacionesAsignadas';
 import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import type { AsignacionMia } from '@/lib/types';
@@ -302,7 +303,16 @@ export default function DashboardTecnico() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <PageHeader etiqueta="Técnico evaluador" titulo="Panel de técnico evaluador" icono={<AssignmentOutlinedIcon />} />
+      <PageHeader
+        etiqueta="Técnico evaluador"
+        titulo="Panel de técnico evaluador"
+        icono={<AssignmentOutlinedIcon />}
+        accion={
+          <Button variant="outlined" component={RouterLink} to="/tecnico/calendario" startIcon={<CalendarMonthOutlinedIcon />}>
+            Mi calendario
+          </Button>
+        }
+      />
 
       {!sync.enLinea && (
         <Alert severity="info">

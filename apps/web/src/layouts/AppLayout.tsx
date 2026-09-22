@@ -22,6 +22,7 @@ import { alpha, useTheme, type Theme } from '@mui/material/styles';
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
@@ -136,6 +137,20 @@ export function AppLayout() {
                 primary={panelPropio.etiqueta}
                 primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
               />
+            </ListItemButton>
+          )}
+          {usuario?.rol === 'TECNICO_EVALUADOR' && (
+            <ListItemButton
+              component={RouterLink}
+              to="/tecnico/calendario"
+              selected={location.pathname === '/tecnico/calendario'}
+              sx={sxItemNav}
+              onClick={() => setMobileOpen(false)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <CalendarMonthOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Mi calendario" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
             </ListItemButton>
           )}
           {usuario?.rol !== 'TECNICO_EVALUADOR' && (
