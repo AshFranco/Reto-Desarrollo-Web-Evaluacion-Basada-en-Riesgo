@@ -625,22 +625,23 @@ export class PdfService {
     doc.moveTo(xFirmaCol + 15, yLineaFirma).lineTo(xFirmaCol + colFirmasW - 15, yLineaFirma).lineWidth(0.6).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.tecnicoNombre || 'Lic. Roberto Morales', xFirmaCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.tecnicoNombre || 'N/A', xFirmaCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.tecnicoCargo || 'Técnico Evaluador Autorizado', xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.tecnicoRegistro || 'Reg. Profesional: TEC-BPM-08', xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.tecnicoRegistro || 'N/A', xFirmaCol, doc.y + 1, { width: colFirmasW, align: 'center' });
 
-    // Columna 3: Firma Electrónica Coordinador
+    // Columna 3: Firma Electrónica Coordinador -- "firmado" solo si de verdad hay un coordinador registrado.
     const xCoordCol = x + (colFirmasW + 10) * 2;
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(7.5).text('FIRMADO DIGITALMENTE', xCoordCol, yFirmasCont + 8, { width: colFirmasW, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Cert: MSP-DIGEMAPS-2026', xCoordCol, doc.y + 2, { width: colFirmasW, align: 'center' });
+    const coordinadorFirmaReal = Boolean(data.coordinadorNombre);
+    doc.fillColor(coordinadorFirmaReal ? AZUL_INSTITUCIONAL : GRIS_CLARO).font('Helvetica-Bold').fontSize(7.5).text(coordinadorFirmaReal ? 'FIRMADO DIGITALMENTE' : 'PENDIENTE DE FIRMA', xCoordCol, yFirmasCont + 8, { width: colFirmasW, align: 'center' });
+    if (coordinadorFirmaReal) doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Cert: MSP-DIGEMAPS-2026', xCoordCol, doc.y + 2, { width: colFirmasW, align: 'center' });
 
     doc.save();
     doc.moveTo(xCoordCol + 15, yLineaFirma).lineTo(xCoordCol + colFirmasW - 15, yLineaFirma).lineWidth(0.6).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre || 'Ing. Carlos Peña', xCoordCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre || 'N/A', xCoordCol, yLineaFirma + 3, { width: colFirmasW, align: 'center' });
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.coordinadorCargo || 'Coordinador Técnico DIGEMAPS', xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
-    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text(data.coordinadorCertificado || 'Firma Electrónica Avanzada (Ley 126-02)', xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
+    doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text((coordinadorFirmaReal && (data.coordinadorCertificado || 'Firma Electrónica Avanzada (Ley 126-02)')) || ' ', xCoordCol, doc.y + 1, { width: colFirmasW, align: 'center' });
 
     // 7. PIE DE PÁGINA DOCUMENTAL INSTITUCIONAL
     const yFooter = Math.max(yFirmasCont + altoFirmasBox + 16, 560);
@@ -1049,7 +1050,7 @@ export class PdfService {
     doc.moveTo(col2X + 10, yLineaFirma).lineTo(col2X + col2Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
     doc.restore();
 
-    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.tecnicoNombre ?? 'Lic. Roberto Morales', col2X, yLineaFirma + 4, { width: col2Ancho, align: 'center' });
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.tecnicoNombre ?? 'N/A', col2X, yLineaFirma + 4, { width: col2Ancho, align: 'center' });
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text(data.tecnicoCargo ?? 'Técnico Evaluador Autorizado BPM', col2X, doc.y + 1, { width: col2Ancho, align: 'center' });
     doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(5.5).text('Reg. Profesional: TEC-BPM-RD', col2X, doc.y + 1, { width: col2Ancho, align: 'center' });
 
