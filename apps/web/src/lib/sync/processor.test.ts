@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/mocks/node';
 import { db } from '@/lib/db';
@@ -12,7 +12,10 @@ beforeEach(async () => {
     usuario: { id: '1', nombreCompleto: 'Ana', rol: 'TECNICO_EVALUADOR', empresaId: null },
   });
 });
-afterEach(() => db.delete());
+afterEach(async () => {
+  vi.restoreAllMocks();
+  await db.delete();
+});
 
 describe('SyncProcessor', () => {
   it('calcularBackoff es exponencial con máximo 300 000 ms', () => {
@@ -105,13 +108,12 @@ describe('SyncProcessor', () => {
     });
   });
 
-  it('tras FINALIZAR_EVALUACION exitoso, encadena POST /informes para llegar a revisión', async () => {
+  it('FINALIZAR_EVALUACION por sí solo NO llama a POST /informes -- generar el informe es una operación aparte', async () => {
     let seLlamoInformes = false;
     server.use(
       http.post('http://localhost:3000/api/v1/evaluaciones/:id/finalizar', () => HttpResponse.json({ idEstado: 3 })),
-      http.post('http://localhost:3000/api/v1/informes', async ({ request }) => {
+      http.post('http://localhost:3000/api/v1/informes', () => {
         seLlamoInformes = true;
-        expect(await request.json()).toEqual({ evaluacionId: '42' });
         return HttpResponse.json({ id: '1' }, { status: 201 });
       })
     );
@@ -120,26 +122,8 @@ describe('SyncProcessor', () => {
     const proc = new SyncProcessor();
     await proc.procesarCola();
 
-    expect(seLlamoInformes).toBe(true);
+    expect(seLlamoInformes).toBe(false);
     expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
-  });
-
-  it('si POST /informes falla tras finalizar, encola GENERAR_INFORME aparte en vez de reintentar finalizar', async () => {
-    server.use(
-      http.post('http://localhost:3000/api/v1/evaluaciones/:id/finalizar', () => HttpResponse.json({ idEstado: 3 })),
-      http.post('http://localhost:3000/api/v1/informes', () =>
-        HttpResponse.json({ message: 'Error interno' }, { status: 500 })
-      )
-    );
-
-    const uuid = await enqueue('FINALIZAR_EVALUACION', { evaluacionServerId: '42', observacionesFinales: undefined });
-    const proc = new SyncProcessor();
-    await proc.procesarCola();
-
-    expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
-    const pendientesInforme = await db.cola_sync.where('tipo').equals('GENERAR_INFORME').toArray();
-    expect(pendientesInforme).toHaveLength(1);
-    expect(pendientesInforme[0]?.payload).toEqual({ evaluacionServerId: '42' });
   });
 
   it('reintenta GENERAR_INFORME encolado hasta que el backend lo acepta', async () => {
@@ -168,4 +152,136 @@ describe('SyncProcessor', () => {
 
     expect((await db.cola_sync.get(uuid))?.estado).toBe('error');
   });
+
+  it('procesarCola(true) fuerza la sincronización ignorando el backoff programado', async () => {
+    let intentosServidor = 0;
+    server.use(
+      http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => {
+        intentosServidor++;
+        if (intentosServidor === 1) {
+          return new HttpResponse('Falla transitoria', { status: 503 });
+        }
+        return HttpResponse.json({ procesadas: 1 });
+      })
+    );
+
+    const uuid = await enqueue('RESPUESTAS', {
+      evaluacionServerId: '42',
+      respuestas: [{ itemId: '1', codigoOpcion: 'C' }],
+    });
+
+    const proc = new SyncProcessor();
+
+    // Primer intento: falla con 503 y fija un backoff futuro
+    await proc.procesarCola();
+    expect((await db.cola_sync.get(uuid))?.estado).toBe('pendiente');
+    expect((await db.cola_sync.get(uuid))?.intentos).toBe(1);
+
+    // Segundo intento normal inmediato: se salta por el backoff
+    await proc.procesarCola(false);
+    expect(intentosServidor).toBe(1); // No llamó al servidor
+
+    // Tercer intento forzado (usuario pulsa Sincronizar): limpia backoff y envía
+    await proc.procesarCola(true);
+    expect(intentosServidor).toBe(2);
+    expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+  });
+  describe('sin conexión (las fallas de red no deben agotar los reintentos)', () => {
+    const urlEvidencias = 'http://localhost:3000/api/v1/evidencias';
+    const encolarEvidencia = () =>
+      enqueue('EVIDENCIA', {
+        evaluacionId: '1', tipo: 'DOCUMENTO', latitud: 18.5, longitud: -69.9,
+        blob: new Blob(['{}'], { type: 'application/geo+json' }), nombreArchivo: 'geo.geojson',
+      });
+
+    it('una operación encolada sin red durante mucho tiempo se sigue enviando al volver internet', async () => {
+      let online = false;
+      let subidas = 0;
+      server.use(
+        http.post(urlEvidencias, () => {
+          if (!online) return HttpResponse.error();
+          subidas++;
+          return HttpResponse.json({ id: 'ev-1' });
+        })
+      );
+      const uuid = await encolarEvidencia();
+      const proc = new SyncProcessor();
+      let ahora = Date.now();
+      vi.spyOn(Date, 'now').mockImplementation(() => ahora);
+
+      // 60 minutos con el ciclo automático de 30 s y sin red: antes agotaba los 10 intentos.
+      for (let i = 0; i < 120; i++) {
+        await proc.procesarCola();
+        ahora += 30_000;
+      }
+      expect((await db.cola_sync.get(uuid))?.estado).toBe('pendiente');
+      expect((await db.cola_sync.get(uuid))?.intentos).toBe(0);
+
+      online = true;
+      await proc.procesarCola();
+      expect(subidas).toBe(1);
+      expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+    }, 60_000);
+
+    it('un rechazo real del servidor sí consume intentos', async () => {
+      server.use(http.post(urlEvidencias, () => HttpResponse.json({ message: 'Error' }, { status: 500 })));
+      const uuid = await encolarEvidencia();
+      await new SyncProcessor().procesarCola();
+      expect((await db.cola_sync.get(uuid))?.intentos).toBe(1);
+    });
+
+    it('no intenta enviar mientras el navegador reporta que no hay conexión', async () => {
+      let llamadas = 0;
+      server.use(http.post(urlEvidencias, () => { llamadas++; return HttpResponse.json({ id: 'ev-1' }); }));
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      const uuid = await encolarEvidencia();
+
+      await new SyncProcessor().procesarCola();
+
+      expect(llamadas).toBe(0);
+      expect((await db.cola_sync.get(uuid))?.intentos).toBe(0);
+      expect((await db.cola_sync.get(uuid))?.estado).toBe('pendiente');
+    });
+  });
+
+  describe('operaciones que quedaron en error', () => {
+    it('el ciclo automático no las reintenta, pero Sincronizar (forzado) sí', async () => {
+      let llamadas = 0;
+      server.use(
+        http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () => {
+          llamadas++;
+          return HttpResponse.json({ procesadas: 1 });
+        })
+      );
+      const uuid = await enqueue('RESPUESTAS', { evaluacionServerId: '42', respuestas: [{ itemId: '1', codigoOpcion: 'C' }] });
+      await db.cola_sync.update(uuid, { estado: 'error', intentos: 10, errorMsg: 'HTTP 500' });
+      const proc = new SyncProcessor();
+
+      await proc.procesarCola();
+      expect(llamadas).toBe(0);
+      expect((await db.cola_sync.get(uuid))?.estado).toBe('error');
+
+      await proc.procesarCola(true);
+      expect(llamadas).toBe(1);
+      expect((await db.cola_sync.get(uuid))?.estado).toBe('enviado');
+    });
+
+    it('si el servidor sigue rechazándola, vuelve a quedar en error tras los 10 intentos y no se pierde', async () => {
+      server.use(
+        http.post('http://localhost:3000/api/v1/evaluaciones/:id/respuestas', () =>
+          HttpResponse.json({ message: 'Error' }, { status: 500 })
+        )
+      );
+      const uuid = await enqueue('RESPUESTAS', { evaluacionServerId: '42', respuestas: [] });
+      await db.cola_sync.update(uuid, { estado: 'error', intentos: 10 });
+      const proc = new SyncProcessor();
+
+      for (let i = 0; i < 10; i++) await proc.procesarCola(true);
+
+      const op = await db.cola_sync.get(uuid);
+      expect(op?.estado).toBe('error');
+      expect(op?.intentos).toBe(10);
+    });
+  });
+
 });

@@ -2,64 +2,197 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { GenerarInformeDto, RevisarInformeDto } from './dto/informe.dto';
 import { PdfService } from '../../common/services/pdf.service';
+import { mapearResultadoDestacado, mapearNoConformidades, construirNombreArchivoFichaPdf } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
+import type { JwtPayload } from '../auth/token.service';
+
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class InformesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
+    private readonly auditoriaService: AuditoriaService,
     private readonly notificaciones: NotificacionesService,
   ) {}
 
-  async generarPdf(evaluacionId: string): Promise<Buffer> {
+  async generarPdf(evaluacionId: string, user: JwtPayload): Promise<Buffer> {
     const evaluacion = await this.prisma.evaluacion.findUnique({
       where: { id: BigInt(evaluacionId) },
       include: {
         evaluador: true,
         coordinador: true,
         estado: true,
-        establecimiento: { include: { empresa: true } },
+        versionFicha: true,
+        caso: {
+          include: {
+            origen: true,
+          },
+        },
+        establecimiento: {
+          include: {
+            empresa: {
+              include: {
+                contactos: {
+                  include: { tipoContacto: true },
+                },
+              },
+            },
+            municipio: {
+              include: {
+                provincia: true,
+              },
+            },
+            dpsDas: true,
+            contactos: {
+              include: { tipoContacto: true },
+            },
+          },
+        },
         informe: true,
-        calculoRiesgo: true,
+        calculoRiesgo: { include: { nivelRiesgo: true } },
+        respuestas: {
+          include: { itemFicha: true, opcionRespuesta: true, criticidad: true },
+        },
       },
     });
 
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
+    verificarAccesoEmpresa(user, evaluacion.establecimiento.idEmpresa);
 
-    const informe = evaluacion.informe;
+    const anio = new Date().getFullYear();
+    const codigoDoc = `F-BPM-${anio}-${evaluacion.id.toString().padStart(4, '0')}`;
+    const qrUrl = `https://sinec.msp.gob.do/verificar/informe/${evaluacion.id}`;
 
-    return this.pdfService.generarDocumentoPdf({
-      titulo: 'INFORME DE EVALUACIÓN BASADA EN RIESGO',
-      subtitulo: `Establecimiento: ${evaluacion.establecimiento.nombre}`,
-      metadata: [
-        { etiqueta: 'ID Evaluacion', valor: evaluacion.id.toString() },
-        { etiqueta: 'Fecha Programada', valor: evaluacion.fechaProgramada?.toISOString().split('T')[0] ?? 'N/A' },
-        { etiqueta: 'Evaluador', valor: evaluacion.evaluador?.nombreCompleto ?? 'N/A' },
-        { etiqueta: 'Empresa', valor: evaluacion.establecimiento.empresa.razonSocial },
-        { etiqueta: 'RNC Empresa', valor: evaluacion.establecimiento.empresa.rnc },
-        { etiqueta: 'Estado Evaluacion', valor: evaluacion.estado?.nombre ?? 'N/A' },
-        { etiqueta: 'Calificacion Riesgo', valor: evaluacion.calculoRiesgo?.calificacionTexto ?? 'N/A' },
-      ],
-      secciones: [
-        { titulo: 'Resumen Ejecutivo', contenido: informe?.resumenEjecutivo ?? 'Sin resumen registrado.' },
-        { titulo: 'Hallazgos', contenido: informe?.hallazgos ?? 'Sin hallazgos registrados.' },
-        { titulo: 'No Conformidades', contenido: informe?.noConformidades ?? 'Sin no conformidades registradas.' },
-        { titulo: 'Recomendaciones', contenido: informe?.recomendaciones ?? 'Sin recomendaciones registradas.' },
-      ],
+    const est = evaluacion.establecimiento as any;
+    const emp = est?.empresa;
+
+    // Contacto: buscar representante legal o contacto principal
+    const contactoRep =
+      est?.contactos?.find((c: any) =>
+        c.tipoContacto?.codigo?.toUpperCase().includes('REPRESENTANTE') ||
+        c.tipoContacto?.nombre?.toUpperCase().includes('REPRESENTANTE'),
+      ) ||
+      emp?.contactos?.find((c: any) =>
+        c.tipoContacto?.codigo?.toUpperCase().includes('REPRESENTANTE') ||
+        c.tipoContacto?.nombre?.toUpperCase().includes('REPRESENTANTE'),
+      ) ||
+      est?.contactos?.[0] ||
+      emp?.contactos?.[0];
+
+    const representanteLegal = contactoRep?.nombreCompleto || 'N/A';
+    const telefonoContacto = est?.telefono || emp?.telefono || contactoRep?.telefono || 'N/A';
+
+    // Municipio / DPS: sin ninguno de los dos, N/A; con solo uno, se muestra ese.
+    const nombreMunicipio: string | undefined = est?.municipio?.nombre;
+    const dps: string | undefined = est?.dpsDas?.nombre || (est?.municipio?.provincia?.nombre ? `DPS ${est.municipio.provincia.nombre}` : undefined);
+    const municipioDps = nombreMunicipio && dps ? `${nombreMunicipio} (${dps})` : nombreMunicipio || dps || 'N/A';
+
+    // Fechas
+    const fechaIni = evaluacion.fechaInicio || evaluacion.fechaProgramada || new Date();
+    const fechaIniTexto = new Intl.DateTimeFormat('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(fechaIni);
+
+    const fechaAct = evaluacion.fechaFinalizacion || new Date();
+    const fechaActTexto = new Intl.DateTimeFormat('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(fechaAct);
+
+    const fechaEmisionTexto = new Intl.DateTimeFormat('es-DO', { day: 'numeric', month: 'long', year: 'numeric' }).format(evaluacion.fechaRevision || fechaAct);
+
+    const resultadoDestacado = mapearResultadoDestacado(evaluacion.calculoRiesgo);
+    const noConformidades = mapearNoConformidades(evaluacion.respuestas);
+
+    const tecId = evaluacion.evaluador?.id ? evaluacion.evaluador.id.toString().padStart(2, '0') : undefined;
+    const tecNombre: string | undefined = evaluacion.evaluador?.nombreCompleto;
+    const tecnicoEvaluador = tecNombre ? `${tecNombre} (TEC-${tecId})` : 'N/A';
+
+    const coordNombre: string | undefined = evaluacion.coordinador?.nombreCompleto;
+    const coordinadorRevisor = coordNombre ? `${coordNombre} (DIGEMAPS)` : 'N/A';
+
+    const motivoInspeccion = (evaluacion as any).caso?.origen?.nombre || 'N/A';
+    const noPermisoSanitario = est?.numeroPermisoSanitario || 'N/A';
+
+    const nivelRiesgoTexto = evaluacion.calculoRiesgo?.nivelRiesgo?.nombre;
+    const frecuenciaTexto = resultadoDestacado?.frecuencia || (nivelRiesgoTexto ? `Anual (Nivel de Riesgo ${nivelRiesgoTexto})` : 'N/A');
+
+    const esFavorable = resultadoDestacado ? resultadoDestacado.aprueba : null;
+    const dictamenTecnico = esFavorable === null ? 'Pendiente' : (esFavorable ? 'Favorable' : 'Desfavorable');
+
+    const buffer = await this.pdfService.generarDocumentoPdf({
+      titulo: 'FICHA DE INSPECCIÓN BPM (OFICIAL)',
+      subtitulo: 'Evaluación Basada en Riesgo Sanitario · DIGEMAPS',
+      codigo: codigoDoc,
+      version: `${evaluacion.versionFicha?.numeroVersion || '1.0'} (${evaluacion.versionFicha?.estado || 'Vigente'})`,
+      fechaEmision: fechaEmisionTexto,
+      hashIntegridad: evaluacion.calculoRiesgo ? undefined : 'N/A',
+      datosEstablecimiento: {
+        regId: `EST-${(est?.id ?? evaluacion.id).toString().padStart(4, '0')}`,
+        empresaRazonSocial: emp?.razonSocial || est?.nombre || 'N/A',
+        rnc: est?.rnc || emp?.rnc || 'N/A',
+        direccionFisica: est?.calle || emp?.direccion || 'N/A',
+        municipioDps,
+        representanteLegal,
+        telefonoContacto,
+      },
+      datosControlInterno: {
+        fechaInspeccionInicial: fechaIniTexto,
+        noPermisoSanitario,
+        fechaInspeccionActual: fechaActTexto,
+        motivoInspeccion,
+        tecnicoEvaluador,
+        coordinadorRevisor,
+        frecuenciaFiscalizacion: frecuenciaTexto,
+        dictamenTecnico,
+        esFavorable,
+      },
+      resultado: resultadoDestacado,
+      noConformidades,
+      incluirSello: true,
+      incluirQr: true,
+      qrUrl,
+      incluirFirma: true,
+      tecnicoNombre: tecNombre,
+      tecnicoCargo: 'Técnico Evaluador Autorizado BPM',
+      tecnicoRegistro: tecId ? `Reg. Profesional: TEC-BPM-${tecId}` : 'N/A',
+      coordinadorNombre: coordNombre,
+      coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
+      coordinadorCertificado: coordNombre ? 'Firma Electrónica Avanzada (Ley 126-02)' : undefined,
     });
+
+    const nombreArchivo = construirNombreArchivoFichaPdf(
+      est?.nombre || emp?.razonSocial || 'Establecimiento',
+      codigoDoc,
+      evaluacion?.fechaRevision || evaluacion?.fechaFinalizacion || new Date(),
+    );
+    (buffer as any).nombreArchivo = nombreArchivo;
+    return buffer;
+  }
+
+  async generarPdfConMetadatos(evaluacionId: string, user: JwtPayload): Promise<{ buffer: Buffer; nombreArchivo: string }> {
+    const buffer = await this.generarPdf(evaluacionId, user);
+    const nombreArchivo = (buffer as any).nombreArchivo || `Ficha_BPM_${evaluacionId}.pdf`;
+    return { buffer, nombreArchivo };
   }
 
   async generar(dto: GenerarInformeDto, tecnicoId: string) {
-    const evaluacion = await this.prisma.evaluacion.findUnique({ where: { id: BigInt(dto.evaluacionId) } });
+    const evaluacion = await this.prisma.evaluacion.findUnique({
+      where: { id: BigInt(dto.evaluacionId) },
+      include: {
+        establecimiento: { select: { nombre: true } },
+        evaluador: { select: { nombreCompleto: true } },
+      },
+    });
     if (!evaluacion) throw new NotFoundException('Evaluación no encontrada.');
     if (evaluacion.idEvaluador.toString() !== tecnicoId) {
       throw new ForbiddenException('Esta evaluación no está asignada a usted.');
     }
 
     const estadoFinalizada = await this.prisma.estadoEvaluacion.findUniqueOrThrow({ where: { codigo: 'FINALIZADA' } });
-    if (evaluacion.idEstado !== estadoFinalizada.id) {
-      throw new BadRequestException('Solo se puede generar el informe de una evaluación finalizada.');
+    const estadoDevuelta = await this.prisma.estadoEvaluacion.findUnique({ where: { codigo: 'DEVUELTA' } });
+    const estadosPermitidos = [estadoFinalizada.id, ...(estadoDevuelta ? [estadoDevuelta.id] : [])];
+
+    if (!evaluacion.idEstado || !estadosPermitidos.includes(evaluacion.idEstado)) {
+      throw new BadRequestException('Solo se puede generar o reenviar el informe de una evaluación finalizada o devuelta para corrección.');
     }
 
     const informe = await this.prisma.informeEvaluacion.upsert({
@@ -84,6 +217,48 @@ export class InformesService {
       where: { id: BigInt(dto.evaluacionId) },
       data: { idEstado: estadoEnRevision.id },
     });
+
+    await this.auditoriaService.registrar({
+      entidad: 'Evaluacion',
+      idEntidad: dto.evaluacionId,
+      accion: 'GENERAR_INFORME',
+      idUsuario: tecnicoId,
+      valoresNuevos: { resumenEjecutivo: dto.resumenEjecutivo, hallazgos: dto.hallazgos },
+    });
+
+    try {
+      const nombreEstablecimiento = (evaluacion as any).establecimiento?.nombre ?? 'Establecimiento';
+      const nombreTecnico = (evaluacion as any).evaluador?.nombreCompleto ?? 'El técnico evaluador';
+
+      await this.notificaciones.notificarPorRol('ADMINISTRADOR', {
+        tipo: 'INFORME_EN_REVISION',
+        titulo: 'Informe técnico generado',
+        mensaje: `${nombreTecnico} generó el informe de la evaluación #${dto.evaluacionId} (${nombreEstablecimiento}), en revisión.`,
+        entidad: 'evaluacion',
+        idEntidad: dto.evaluacionId,
+      });
+
+      if (evaluacion.idCoordinador) {
+        await this.notificaciones.crear({
+          idUsuario: evaluacion.idCoordinador,
+          tipo: 'INFORME_EN_REVISION',
+          titulo: 'Informe técnico pendiente de revisión',
+          mensaje: `El informe técnico de la evaluación #${dto.evaluacionId} (${nombreEstablecimiento}) está listo para su revisión.`,
+          entidad: 'evaluacion',
+          idEntidad: dto.evaluacionId,
+        });
+      } else {
+        await this.notificaciones.notificarPorRol('COORDINADOR', {
+          tipo: 'INFORME_EN_REVISION',
+          titulo: 'Informe técnico pendiente de revisión',
+          mensaje: `El informe técnico de la evaluación #${dto.evaluacionId} (${nombreEstablecimiento}) está listo para su revisión.`,
+          entidad: 'evaluacion',
+          idEntidad: dto.evaluacionId,
+        });
+      }
+    } catch {
+      // La notificación no bloquea la respuesta
+    }
 
     return { ...informe, id: informe.id.toString(), idEvaluacion: informe.idEvaluacion.toString() };
   }
@@ -111,7 +286,7 @@ export class InformesService {
 
     const comentarioConAccion = `[${dto.accion}] ${dto.observaciones ?? ''}`.trim();
 
-    return this.prisma.$transaction(async (tx) => {
+    const resultado = await this.prisma.$transaction(async (tx) => {
       await tx.historialEstado.create({
         data: {
           idEvaluacion: BigInt(evaluacionId),
@@ -141,6 +316,17 @@ export class InformesService {
       });
       return resultado;
     });
+
+    await this.auditoriaService.registrar({
+      entidad: 'Evaluacion',
+      idEntidad: evaluacionId,
+      accion: `REVISAR_${dto.accion}`,
+      idUsuario: coordinadorId,
+      valoresAnteriores: { estado: 'EN_REVISION' },
+      valoresNuevos: { estado: nuevoEstadoCodigo, observaciones: dto.observaciones },
+    });
+
+    return resultado;
   }
 
   async revertirRevision(evaluacionId: string, coordinadorId: string) {
@@ -161,7 +347,7 @@ export class InformesService {
       throw new BadRequestException('Solo se puede revertir una evaluación que esté en estado Devuelta.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const resultado = await this.prisma.$transaction(async (tx) => {
       await tx.historialEstado.create({
         data: {
           idEvaluacion: BigInt(evaluacionId),
@@ -183,5 +369,16 @@ export class InformesService {
         mensaje: 'Devolución revertida exitosamente a En Revisión.',
       };
     });
+
+    await this.auditoriaService.registrar({
+      entidad: 'Evaluacion',
+      idEntidad: evaluacionId,
+      accion: 'REVERTIR_DEVOLUCION',
+      idUsuario: coordinadorId,
+      valoresAnteriores: { estado: 'DEVUELTA' },
+      valoresNuevos: { estado: 'EN_REVISION' },
+    });
+
+    return resultado;
   }
 }

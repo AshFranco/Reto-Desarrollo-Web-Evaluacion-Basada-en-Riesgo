@@ -34,6 +34,7 @@ export function useInvitarDelegado() {
     mutationFn: (payload: InvitarDelegadoPayload) =>
       apiFetchJson<DelegadoInvitado>('/api/v1/empresas/delegados', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
@@ -51,6 +52,7 @@ export function useCambiarEstadoDelegado() {
         `/api/v1/empresas/delegados/${id}/estado`,
         {
           method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ estado }),
         }
       ),

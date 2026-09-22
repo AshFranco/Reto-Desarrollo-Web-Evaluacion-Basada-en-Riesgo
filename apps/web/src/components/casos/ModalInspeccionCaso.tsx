@@ -32,10 +32,12 @@ import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import { useCasoDetalle, useActualizarPrioridadCaso, useDesasignarEvaluador, useAsignarEvaluador } from '@/lib/coordinador/useCasos';
 import { useReabrirExpediente } from '@/lib/coordinador/useExpedientes';
 import { useTecnicos } from '@/lib/coordinador/useTecnicos';
 import { EstadoChip } from '@/components/ui/EstadoChip';
+import { descargarActaPdf } from '@/lib/pdf/apiPdf';
 
 interface ModalInspeccionCasoProps {
   casoId: string | null;
@@ -384,7 +386,19 @@ export function ModalInspeccionCaso({ casoId, open, onClose, soloLectura = false
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2, display: 'flex', flexDirection: { xs: 'column-reverse', sm: 'row' }, justifyContent: 'space-between', gap: 1 }}>
-        <Box sx={{ width: { xs: '100%', sm: 'auto' } }}>
+        <Box sx={{ width: { xs: '100%', sm: 'auto' }, display: 'flex', gap: 1 }}>
+          <Button
+            variant="outlined"
+            color="secondary"
+            fullWidth={isMobile}
+            startIcon={<PictureAsPdfOutlinedIcon />}
+            onClick={() => {
+              const evalId = caso?.evaluaciones?.[caso.evaluaciones.length - 1]?.id;
+              if (evalId) descargarActaPdf(evalId, caso?.establecimiento?.nombre);
+            }}
+          >
+            Descargar Acta PDF
+          </Button>
           {!soloLectura && estaCerrado && (
             <Button
               variant="outlined"

@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { server } from '@/mocks/node';
 import { db } from '@/lib/db';
-import { useCalendario, useCalendarioEquipo, useReprogramarEvaluacion } from './useCalendario';
+import { useCalendario, useCalendarioEquipo, useReprogramarEvaluacion, useCancelarCita } from './useCalendario';
 import { MOCK_CALENDARIO_EQUIPO } from '@/mocks/handlers';
 
 beforeEach(() => db.open());
@@ -166,5 +166,38 @@ describe('useReprogramarEvaluacion', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('Evaluación no encontrada.');
+  });
+});
+
+describe('useCancelarCita', () => {
+  it('manda el motivo al PATCH /calendario/:id/cancelar', async () => {
+    let cuerpoRecibido: unknown = null;
+    server.use(
+      http.patch('http://localhost:3000/api/v1/calendario/:id/cancelar', async ({ request, params }) => {
+        cuerpoRecibido = await request.json();
+        expect(params.id).toBe('1');
+        return HttpResponse.json({ mensaje: 'Cita de evaluación cancelada exitosamente.' });
+      })
+    );
+
+    const { result } = renderHook(() => useCancelarCita(), { wrapper: crearWrapper() });
+    result.current.mutate({ id: '1', motivo: 'Cliente no disponible' });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(cuerpoRecibido).toEqual({ motivo: 'Cliente no disponible' });
+  });
+
+  it('propaga el error real del backend cuando la cita ya no está Programada', async () => {
+    server.use(
+      http.patch('http://localhost:3000/api/v1/calendario/:id/cancelar', () =>
+        HttpResponse.json({ message: 'Solo se puede cancelar una cita que esté en estado Programada.' }, { status: 400 })
+      )
+    );
+
+    const { result } = renderHook(() => useCancelarCita(), { wrapper: crearWrapper() });
+    result.current.mutate({ id: '1' });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toBe('Solo se puede cancelar una cita que esté en estado Programada.');
   });
 });

@@ -15,6 +15,11 @@ Registrar los roles de trabajo asignados al equipo para el proyecto EBR/BPM, seg
 | Rowlis | Rol de Calidad | QA — pruebas, verificación de criterios de aceptación, plan de pruebas |
 
 > **Nota:** "Frontend PWA" y "Frontend Aplicación" son dos roles distintos dentro del mismo `apps/web` — uno cubre la capa de PWA (offline, sincronización, instalabilidad) y el otro la aplicación en sí (pantallas, flujos, consumo de la API). Conviene que el equipo confirme por escrito el límite exacto entre ambos para evitar solapamiento o vacíos, ya que el SRS no distingue estas dos capas explícitamente.
+>
+> **Límite confirmado (2026-09-19)** — basado en el patrón ya implementado en `EjecutarEvaluacion.tsx`, donde las pantallas consumen la infraestructura PWA como librería:
+> - **Frontend PWA (Ash):** todo lo que vive en `apps/web/src/lib/` (`sync/queue.ts` y `sync/processor.ts`, `db/schema.ts` e IndexedDB, `fotos/compressor.ts`, `motor/useMotorRiesgo.ts`) más `src/sw.ts` y el manifest/configuración de instalabilidad. Es la capa offline-first, expuesta como funciones/hooks para que las pantallas la importen.
+> - **Frontend Aplicación (Jorge):** las pantallas en `src/pages/` (wizard de inspección, dashboards, formularios, flujos por rol) que importan y consumen esa infraestructura, y la lógica de negocio propia de cada pantalla.
+> - Confirmado por el equipo/Jorge. Cierra el pendiente que estaba abierto en la sección 4.
 
 ## 3. Cómo esto se relaciona con el resto de la documentación
 
@@ -25,5 +30,4 @@ Registrar los roles de trabajo asignados al equipo para el proyecto EBR/BPM, seg
 
 ## 4. Pendiente
 
-- Confirmar por escrito con el equipo el límite exacto entre "Frontend PWA" y "Frontend Aplicación".
 - Definir quién, dentro del equipo, revisa y decide sobre la fusión de `feat/EBR-backend-api` (ver `12-PLANIFICACION.md` §2.1) — por defecto sería el Tech Lead, pero no está confirmado explícitamente.

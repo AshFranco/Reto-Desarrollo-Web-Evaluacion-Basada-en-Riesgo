@@ -15,8 +15,8 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import { denunciaPublica, listarEmpresasPublicas, type DatosDenunciaPublica } from '@/lib/publico/denunciaPublica';
+import { LogoSinec } from '@/components/ui/LogoSinec';
 
 const DATOS_VACIOS: DatosDenunciaPublica = {
   tipoDenuncia: '',
@@ -81,31 +81,7 @@ export default function DenunciaPublica() {
         variant="outlined"
         sx={{ padding: 4, width: '100%', maxWidth: 480 }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <GavelOutlinedIcon fontSize="medium" />
-          </Box>
-          <Box>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              EBR / BPM
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Portal ciudadano de denuncias
-            </Typography>
-          </Box>
-        </Box>
+        <LogoSinec subtitulo="Portal ciudadano de denuncias" />
 
         {referencia ? (
           <>
@@ -156,7 +132,7 @@ export default function DenunciaPublica() {
 
             {errorEmpresas ? (
               <Alert severity="error" sx={{ mt: 2 }}>
-                No se pudo cargar la lista de empresas. Recargá la página e intentá de nuevo.
+                No se pudo cargar la lista de empresas. Recargue la página e intente de nuevo.
               </Alert>
             ) : (
               <TextField
@@ -164,7 +140,7 @@ export default function DenunciaPublica() {
                 label="Empresa denunciada"
                 fullWidth
                 margin="normal"
-                helperText={cargandoEmpresas ? 'Cargando empresas…' : 'Opcional, si sabés cuál es.'}
+                helperText={cargandoEmpresas ? 'Cargando empresas…' : 'Opcional, si la conoce.'}
                 value={datos.empresaId}
                 onChange={(e) => setDatos((d) => ({ ...d, empresaId: e.target.value }))}
                 disabled={cargando || cargandoEmpresas}

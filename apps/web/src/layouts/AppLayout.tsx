@@ -4,7 +4,6 @@ import {
   AppBar,
   Avatar,
   Box,
-  Divider,
   Drawer,
   IconButton,
   List,
@@ -17,26 +16,25 @@ import {
   Tooltip,
   Typography,
   useMediaQuery,
+  Divider,
 } from '@mui/material';
 import { alpha, useTheme, type Theme } from '@mui/material/styles';
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import { useQueryClient } from '@tanstack/react-query';
 import { clearSession, getSession } from '@/lib/auth/session';
-import { useSyncStatus } from '@/lib/sync/useSyncStatus';
 import { useFotoPerfil } from '@/lib/perfil/useFotoPerfil';
 import type { UsuarioLocal } from '@/lib/types';
 import { DialogPerfil } from '@/pages/perfil/DialogPerfil';
 import { NotificacionesMenu } from './NotificacionesMenu';
+import logoEscudo from '@/assets/logo-escudo.png';
 
-
-/** Estilo compartido de los ítems de navegación -- ítem activo con fondo teñido, texto/ícono en color primario y una barra de acento a la izquierda. */
 const sxItemNav = {
   borderRadius: 2,
   mb: 0.5,
@@ -68,11 +66,6 @@ const ETIQUETA_ROL: Record<string, string> = {
   USUARIO_DELEGADO: 'Usuario delegado',
 };
 
-/**
- * Envuelve cualquier pantalla protegida con barra de navegación:
- * en escritorio barra lateral fija, y en móvil (360px+) barra superior con
- * drawer desplegable para garantizar el 100% del ancho útil al contenido.
- */
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -89,9 +82,7 @@ export function AppLayout() {
     getSession().then((sesion) => {
       if (!cancelado) setUsuario(sesion?.usuario ?? null);
     });
-    return () => {
-      cancelado = true;
-    };
+    return () => { cancelado = true; };
   }, [location.pathname]);
 
   useEffect(() => {
@@ -123,261 +114,208 @@ export function AppLayout() {
 
   const panelPropio = usuario ? RUTA_PRINCIPAL_POR_ROL[usuario.rol] : null;
   const [fotoPerfil] = useFotoPerfil(usuario?.id);
-  const iniciales = usuario?.nombreCompleto
-    ?.split(' ')
-    .slice(0, 2)
-    .map((parte) => parte[0])
-    .join('')
-    .toUpperCase();
-
+  const iniciales = usuario?.nombreCompleto?.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 
   const contenidoDrawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar sx={{ px: 3, py: 2.5, gap: 1.5, bgcolor: (t) => alpha(t.palette.primary.main, 0.04) }}>
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            borderRadius: 2,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-            color: 'primary.contrastText',
-          }}
-        >
-          <ShieldOutlinedIcon fontSize="small" />
-        </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.2 }}>
-            EBR / BPM
-          </Typography>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>
-            Evaluación basada en riesgo
-          </Typography>
-        </Box>
-      </Toolbar>
-
-      <List sx={{ flex: 1, px: 1.5, py: 1 }}>
-        {panelPropio && (
-          <ListItemButton
-            component={RouterLink}
-            to={panelPropio.ruta}
-            selected={location.pathname === panelPropio.ruta}
-            sx={sxItemNav}
-            onClick={() => setMobileOpen(false)}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              <SpaceDashboardOutlinedIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText
-              primary={panelPropio.etiqueta}
-              primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-            />
-          </ListItemButton>
-        )}
-        {usuario?.rol !== 'TECNICO_EVALUADOR' && (
-          <ListItemButton
-            component={RouterLink}
-            to="/historico"
-            selected={location.pathname === '/historico'}
-            sx={sxItemNav}
-            onClick={() => setMobileOpen(false)}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              <HistoryOutlinedIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText
-              primary={
-                usuario?.rol === 'ADMINISTRADOR_EMPRESA' || usuario?.rol === 'USUARIO_DELEGADO'
-                  ? 'Histórico de solicitudes'
-                  : 'Consulta histórica'
-              }
-              primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-            />
-          </ListItemButton>
-        )}
-        {(usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'COORDINADOR') && (
-          <>
+      {/* Spacer para que el contenido no quede tapado por el AppBar fijo */}
+      <Toolbar />
+      <Box sx={{ overflow: 'auto' }}>
+        <List sx={{ px: 1.5, py: 1 }}>
+          {panelPropio && (
             <ListItemButton
               component={RouterLink}
-              to="/alertas-lapch"
-              selected={location.pathname === '/alertas-lapch'}
+              to={panelPropio.ruta}
+              selected={location.pathname === panelPropio.ruta}
               sx={sxItemNav}
               onClick={() => setMobileOpen(false)}
             >
               <ListItemIcon sx={{ minWidth: 36 }}>
-                <ReportProblemOutlinedIcon fontSize="small" />
+                <SpaceDashboardOutlinedIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText primary="Alertas LAPCH" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+              <ListItemText
+                primary={panelPropio.etiqueta}
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+              />
             </ListItemButton>
+          )}
+          {usuario?.rol === 'TECNICO_EVALUADOR' && (
             <ListItemButton
               component={RouterLink}
-              to="/denuncias"
-              selected={location.pathname === '/denuncias'}
+              to="/tecnico/calendario"
+              selected={location.pathname === '/tecnico/calendario'}
               sx={sxItemNav}
               onClick={() => setMobileOpen(false)}
             >
               <ListItemIcon sx={{ minWidth: 36 }}>
-                <GavelOutlinedIcon fontSize="small" />
+                <CalendarMonthOutlinedIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText primary="Denuncias" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+              <ListItemText primary="Mi calendario" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
             </ListItemButton>
-          </>
-        )}
-      </List>
-
-      <Divider />
-
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {usuario && (
-          <>
-            <Box
-              onClick={abrirMenuUsuario}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                p: 1,
-                borderRadius: 2,
-                cursor: 'pointer',
-                transition: 'background-color 0.15s',
-                '&:hover': { bgcolor: (t: Theme) => alpha(t.palette.primary.main, 0.07) },
-              }}
+          )}
+          {usuario?.rol !== 'TECNICO_EVALUADOR' && (
+            <ListItemButton
+              component={RouterLink}
+              to="/historico"
+              selected={location.pathname === '/historico'}
+              sx={sxItemNav}
+              onClick={() => setMobileOpen(false)}
             >
-              <Avatar
-                src={fotoPerfil ?? undefined}
-                sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '0.85rem' }}
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <HistoryOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText
+                primary={
+                  usuario?.rol === 'ADMINISTRADOR_EMPRESA' || usuario?.rol === 'USUARIO_DELEGADO'
+                    ? 'Histórico de solicitudes'
+                    : 'Consulta histórica'
+                }
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+              />
+            </ListItemButton>
+          )}
+          {(usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'COORDINADOR') && (
+            <>
+              <ListItemButton
+                component={RouterLink}
+                to="/alertas-lapch"
+                selected={location.pathname === '/alertas-lapch'}
+                sx={sxItemNav}
+                onClick={() => setMobileOpen(false)}
               >
-                {iniciales}
-              </Avatar>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography variant="body2" fontWeight={600} noWrap>
-                  {usuario.nombreCompleto}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
-                </Typography>
-              </Box>
-            </Box>
-            <NotificacionesMenu />
-          </>
-        )}
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <ReportProblemOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Alertas LAPCH" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+              </ListItemButton>
+              <ListItemButton
+                component={RouterLink}
+                to="/denuncias"
+                selected={location.pathname === '/denuncias'}
+                sx={sxItemNav}
+                onClick={() => setMobileOpen(false)}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <GavelOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Denuncias" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+              </ListItemButton>
+            </>
+          )}
+        </List>
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: { xs: 'column', md: 'row' } }}>
-      {/* Barra superior solo visible en pantallas móviles (< md) */}
-
-      {isMobile && (
-        <AppBar
-          position="sticky"
-          elevation={0}
-          sx={{
-            bgcolor: 'background.paper',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            color: 'text.primary',
-          }}
-        >
-          <Toolbar sx={{ px: { xs: 1.5, sm: 2 }, gap: 1.5 }}>
+    <Box sx={{ display: 'flex' }}>
+      
+      {/* ── Top AppBar (Global y Fijo) ── */}
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          color: 'text.primary',
+          zIndex: (t) => t.zIndex.drawer + 1,
+        }}
+      >
+        <Toolbar sx={{ px: { xs: 1.5, sm: 2 }, gap: 1.5 }}>
+          {isMobile && (
             <IconButton
               edge="start"
               color="inherit"
               aria-label="abrir menú"
               onClick={() => setMobileOpen(!mobileOpen)}
+              sx={{ mr: 1 }}
             >
               <MenuOutlinedIcon />
             </IconButton>
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-                borderRadius: 1.5,
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-                color: 'primary.contrastText',
-              }}
-            >
-              <ShieldOutlinedIcon sx={{ fontSize: '1.2rem' }} />
-            </Box>
-            <Typography variant="subtitle1" fontWeight={700} color="primary.main" sx={{ flexGrow: 1, lineHeight: 1.2 }}>
-              EBR / BPM
+          )}
+
+          <Box
+            component="img"
+            src={logoEscudo}
+            alt="SINEC"
+            sx={{ height: 40, width: 'auto', flexShrink: 0 }}
+          />
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="subtitle1" fontWeight={700} color="primary.main" sx={{ lineHeight: 1.1 }}>
+              SINEC
             </Typography>
-            {usuario && (
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <NotificacionesMenu />
-                <Tooltip title="Opciones de cuenta">
-                  <IconButton size="small" onClick={abrirMenuUsuario} sx={{ p: 0 }}>
+            {!isMobile && (
+              <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                Sistema de Evaluación y BPM
+              </Typography>
+            )}
+          </Box>
+
+          {usuario && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <NotificacionesMenu />
+              <Tooltip title="Opciones de cuenta">
+                <IconButton size="small" onClick={abrirMenuUsuario} sx={{ p: 0, border: '2px solid transparent', '&:hover': { borderColor: 'primary.light' } }}>
                   <Avatar
                     src={fotoPerfil ?? undefined}
-                    sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.75rem' }}
+                    sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '0.85rem' }}
                   >
                     {iniciales}
                   </Avatar>
                 </IconButton>
-                </Tooltip>
-              </Box>
-            )}
-
-          </Toolbar>
-        </AppBar>
-      )}
+              </Tooltip>
+            </Box>
+          )}
+        </Toolbar>
+      </AppBar>
 
       {/* Drawer móvil (temporary) */}
-      {isMobile ? (
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            [`& .MuiDrawer-paper`]: {
-              width: ANCHO_BARRA_LATERAL,
-              boxSizing: 'border-box',
-            },
-          }}
-        >
-          {contenidoDrawer}
-        </Drawer>
-      ) : (
-        /* Drawer escritorio (permanent) */
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
+      <Drawer
+        variant="temporary"
+        open={isMobile ? mobileOpen : false}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          [`& .MuiDrawer-paper`]: {
             width: ANCHO_BARRA_LATERAL,
-            flexShrink: 0,
-            [`& .MuiDrawer-paper`]: {
-              width: ANCHO_BARRA_LATERAL,
-              boxSizing: 'border-box',
-              borderRight: '1px solid',
-              borderColor: 'divider',
-            },
-          }}
-        >
-          {contenidoDrawer}
-        </Drawer>
-      )}
+            boxSizing: 'border-box',
+          },
+        }}
+      >
+        {contenidoDrawer}
+      </Drawer>
 
-      {/* Área principal con 100% de ancho útil a 360px */}
+      {/* Drawer escritorio (permanent) */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          width: ANCHO_BARRA_LATERAL,
+          flexShrink: 0,
+          [`& .MuiDrawer-paper`]: {
+            width: ANCHO_BARRA_LATERAL,
+            boxSizing: 'border-box',
+            borderRight: '1px solid',
+            borderColor: 'divider',
+          },
+        }}
+      >
+        {contenidoDrawer}
+      </Drawer>
+
+      {/* Área principal */}
       <Box
         component="main"
         sx={{
-          flex: 1,
+          flexGrow: 1,
           minWidth: 0,
-          width: '100%',
           overflowX: 'hidden',
           padding: { xs: 1.5, sm: 2.5, md: 4 },
         }}
       >
+        <Toolbar /> {/* Spacer for main content */}
         <Outlet />
       </Box>
 
@@ -386,9 +324,9 @@ export function AppLayout() {
         anchorEl={anchorMenuUsuario}
         open={Boolean(anchorMenuUsuario)}
         onClose={cerrarMenuUsuario}
-        transformOrigin={{ horizontal: 'left', vertical: 'bottom' }}
-        anchorOrigin={{ horizontal: 'left', vertical: 'top' }}
-        PaperProps={{ sx: { minWidth: 200, borderRadius: 2, mt: -1 } }}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        PaperProps={{ sx: { minWidth: 200, borderRadius: 2, mt: 1 } }}
       >
         {usuario && (
           <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -409,7 +347,7 @@ export function AppLayout() {
           </Box>
         )}
 
-        <MenuItem onClick={handleAbrirPerfil} sx={{ gap: 1.5, py: 1.25 }}>
+        <MenuItem onClick={handleAbrirPerfil} sx={{ gap: 1.5, py: 1.25, mt: 0.5 }}>
           <PersonOutlinedIcon fontSize="small" color="action" />
           <Typography variant="body2">Mi perfil</Typography>
         </MenuItem>

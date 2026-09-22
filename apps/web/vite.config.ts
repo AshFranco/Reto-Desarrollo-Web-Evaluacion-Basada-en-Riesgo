@@ -15,11 +15,13 @@ export default defineConfig({
         swSrc: 'src/sw.ts',
         swDest: 'dist/sw.js',
         globDirectory: 'dist',
+        globIgnores: ['**/mockServiceWorker.js'],
       },
       manifest: {
-        name: 'EBR — Evaluación Basada en Riesgo',
-        short_name: 'EBR',
+        name: 'SINEC — Sistema de Evaluación y BPM',
+        short_name: 'SINEC',
         description: 'Sistema de inspección BPM para DIGEMAPS',
+        lang: 'es',
         start_url: '/',
         display: 'standalone',
         background_color: '#ffffff',
@@ -40,11 +42,23 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    proxy: { '/api': 'http://localhost:3000' },
+    allowedHosts: ['.loca.lt', '.ngrok-free.app'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     host: true,
     port: 5173,
-    proxy: { '/api': 'http://localhost:3000' },
+    allowedHosts: ['.loca.lt', '.ngrok-free.app'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
 });

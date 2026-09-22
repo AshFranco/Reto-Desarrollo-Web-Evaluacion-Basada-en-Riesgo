@@ -12,12 +12,12 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined';
 import { restablecerContrasena } from '@/lib/auth/recuperacion';
+import { LogoSinec } from '@/components/ui/LogoSinec';
 
 export default function RestablecerContrasena() {
   const navigate = useNavigate();
@@ -80,31 +80,7 @@ export default function RestablecerContrasena() {
         sx={{ padding: 4, width: '100%', maxWidth: 440, borderRadius: 3 }}
       >
         {/* Encabezado institucional */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <ShieldOutlinedIcon fontSize="medium" />
-          </Box>
-          <Box>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              DIGEMAPS — EBR / BPM
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Seguridad y Control de Acceso
-            </Typography>
-          </Box>
-        </Box>
+        <LogoSinec subtitulo="Seguridad y control de acceso" />
 
         {exito ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 2 }}>

@@ -38,7 +38,10 @@ describe('EvaluacionesService', () => {
       $transaction: jest.fn().mockImplementation(async (fns) => Promise.all(fns)),
     };
 
-    notificacionesMock = { crear: jest.fn() };
+    notificacionesMock = {
+      crear: jest.fn().mockResolvedValue(null),
+      notificarPorRol: jest.fn().mockResolvedValue(null),
+    };
 
     service = new EvaluacionesService(prismaMock, notificacionesMock);
   });
@@ -211,6 +214,13 @@ describe('EvaluacionesService', () => {
         }),
       });
       expect(prismaMock.historialEstado.create).toHaveBeenCalled();
+      expect(notificacionesMock.notificarPorRol).toHaveBeenCalledWith(
+        'ADMINISTRADOR',
+        expect.objectContaining({
+          tipo: 'EVALUACION_FINALIZADA',
+          titulo: 'Evaluación finalizada',
+        }),
+      );
     });
   });
 

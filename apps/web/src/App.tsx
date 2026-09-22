@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { SyncProcessor } from '@/lib/sync/processor';
+import { syncProcessor } from '@/lib/sync/processor';
 import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { theme } from '@/theme';
 import Login from '@/pages/Login';
@@ -15,6 +15,7 @@ import DashboardAdmin from '@/pages/dashboard/DashboardAdmin';
 import DashboardCoordinador from '@/pages/dashboard/DashboardCoordinador';
 import DashboardTecnico from '@/pages/dashboard/DashboardTecnico';
 import EjecutarEvaluacion from '@/pages/tecnico/EjecutarEvaluacion';
+import CalendarioTecnico from '@/pages/tecnico/CalendarioTecnico';
 import DashboardEmpresa from '@/pages/dashboard/DashboardEmpresa';
 import FormularioSolicitud from '@/pages/empresa/FormularioSolicitud';
 import FormularioEstablecimiento from '@/pages/empresa/FormularioEstablecimiento';
@@ -36,12 +37,10 @@ const queryClient = new QueryClient({
   },
 });
 
-const processor = new SyncProcessor();
-
 export default function App() {
   useEffect(() => {
-    processor.iniciar();
-    return () => processor.detener();
+    syncProcessor.iniciar();
+    return () => syncProcessor.detener();
   }, []);
 
   return (
@@ -79,6 +78,7 @@ export default function App() {
             <Route element={<RoleRoute rolesPermitidos={['TECNICO_EVALUADOR']} />}>
               <Route element={<AppLayout />}>
                 <Route path="/tecnico" element={<DashboardTecnico />} />
+                <Route path="/tecnico/calendario" element={<CalendarioTecnico />} />
                 <Route path="/tecnico/evaluaciones/:evaluacionId" element={<EjecutarEvaluacion />} />
               </Route>
             </Route>
@@ -87,6 +87,7 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/empresa" element={<DashboardEmpresa />} />
                 <Route path="/empresa/solicitudes/nueva" element={<FormularioSolicitud />} />
+                <Route path="/empresa/solicitudes/:id/continuar" element={<FormularioSolicitud />} />
                 <Route path="/empresa/establecimientos/nuevo" element={<FormularioEstablecimiento />} />
                 <Route path="/empresa/establecimientos/:id/editar" element={<FormularioEstablecimiento />} />
               </Route>

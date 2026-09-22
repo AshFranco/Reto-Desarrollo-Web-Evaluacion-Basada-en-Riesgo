@@ -1,60 +1,113 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
 import { PdfService } from '../../common/services/pdf.service';
+import { EmailService } from '../../common/services/email.service';
+import { InformesService } from '../informes/informes.service';
+import { mapearResultadoDestacado, mapearNoConformidades, construirNombreArchivoExpedientePdf } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
 
 const ROLES_INTERNOS = ['ADMINISTRADOR', 'COORDINADOR', 'TECNICO_EVALUADOR'];
 
+// Usado solo para generar el PDF internamente al cerrar (no proviene de una petición HTTP real):
+// rol interno para que verificarAccesoEmpresa() no lo bloquee.
+const USUARIO_SISTEMA: JwtPayload = { sub: '0', rol: 'ADMINISTRADOR', empresaId: null };
+
 @Injectable()
 export class ExpedientesService {
+  private readonly logger = new Logger(ExpedientesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
     private readonly notificaciones: NotificacionesService,
+    private readonly emailService: EmailService,
+    private readonly informesService: InformesService,
   ) {}
 
-  async generarPdf(casoId: string): Promise<Buffer> {
+  async generarPdf(casoId: string, user: JwtPayload): Promise<Buffer> {
     const caso = await this.prisma.caso.findUnique({
       where: { id: BigInt(casoId) },
       include: {
         establecimiento: { include: { empresa: true } },
         expediente: true,
-        evaluaciones: { include: { estado: true, calculoRiesgo: true, informe: true } },
+        evaluaciones: {
+          include: {
+            evaluador: true,
+            coordinador: true,
+            estado: true,
+            calculoRiesgo: { include: { nivelRiesgo: true } },
+            informe: true,
+            respuestas: { include: { itemFicha: true, opcionRespuesta: true, criticidad: true } },
+          },
+        },
         origen: true,
       },
     });
 
     if (!caso) throw new NotFoundException('Caso no encontrado.');
+    verificarAccesoEmpresa(user, caso.establecimiento.idEmpresa);
     if (!caso.expediente) throw new NotFoundException('El caso aún no posee un expediente registrado.');
 
     const expediente = caso.expediente;
     const evaluacionAprobada = caso.evaluaciones.find((e) => e.estado?.codigo === 'CERRADA' || e.estado?.codigo === 'APROBADA');
+    const codigoExp = `EXP-DICTAMEN-${expediente.id.toString().padStart(4, '0')}`;
+    const qrUrl = `https://sinec.msp.gob.do/verificar/expediente/${expediente.id}`;
 
-    return this.pdfService.generarDocumentoPdf({
-      titulo: 'EXPEDIENTE Y DICTAMEN DE CIERRE DE EVALUACION',
+    const buffer = await this.pdfService.generarDocumentoPdf({
+      titulo: 'EXPEDIENTE Y DICTAMEN DE CIERRE DE EVALUACIÓN BPM',
       subtitulo: `Establecimiento: ${caso.establecimiento.nombre}`,
+      codigo: codigoExp,
+      version: '2026-Rev-EXP-RD',
+      metadataTitulo: 'DATOS GENERALES DEL CASO Y EXPEDIENTE',
       metadata: [
         { etiqueta: 'ID Expediente', valor: expediente.id.toString() },
         { etiqueta: 'ID Caso', valor: caso.id.toString() },
         { etiqueta: 'Estado Expediente', valor: expediente.estado },
         { etiqueta: 'Resultado Final', valor: expediente.resultadoFinal ?? 'N/A' },
         { etiqueta: 'Fecha de Cierre', valor: expediente.fechaCierre?.toISOString().split('T')[0] ?? 'N/A' },
-        { etiqueta: 'Empresa', valor: caso.establecimiento.empresa.razonSocial },
+        { etiqueta: 'Empresa Titular', valor: caso.establecimiento.empresa.razonSocial },
         { etiqueta: 'RNC Empresa', valor: caso.establecimiento.empresa.rnc },
         { etiqueta: 'Origen del Caso', valor: caso.origen?.nombre ?? 'N/A' },
       ],
+      resultado: mapearResultadoDestacado(evaluacionAprobada?.calculoRiesgo),
+      noConformidades: mapearNoConformidades(evaluacionAprobada?.respuestas ?? []),
       secciones: [
         {
           titulo: 'Dictamen Oficial',
           contenido: `El expediente correspondiente al caso #${caso.id} ha sido dictaminado con resultado final: ${expediente.resultadoFinal ?? 'N/A'}.`,
         },
         {
-          titulo: 'Detalles de Evaluacion Aprobada',
-          contenido: evaluacionAprobada?.informe?.resumenEjecutivo ?? 'Evaluacion finalizada y archivada correctamente en el sistema EBR.',
+          titulo: 'Detalles de Evaluación Aprobada',
+          contenido: evaluacionAprobada?.informe?.resumenEjecutivo ?? (evaluacionAprobada ? 'Evaluación finalizada y archivada correctamente en el sistema SINEC.' : 'N/A'),
         },
       ],
+      // El sello y la firma del coordinador solo van si existe una evaluación aprobada o cerrada; antes
+      // el sello se dibujaba siempre y el coordinador era un nombre fijo en todos los expedientes.
+      incluirSello: Boolean(evaluacionAprobada),
+      incluirQr: true,
+      qrUrl,
+      incluirFirma: true,
+      tecnicoNombre: evaluacionAprobada?.evaluador?.nombreCompleto,
+      tecnicoCargo: 'Técnico Evaluador BPM',
+      coordinadorNombre: evaluacionAprobada?.coordinador?.nombreCompleto,
+      coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
     });
+
+    const nombreArchivo = construirNombreArchivoExpedientePdf(
+      caso?.establecimiento?.nombre || caso?.establecimiento?.empresa?.razonSocial || 'Establecimiento',
+      codigoExp,
+      expediente.fechaCierre || new Date(),
+    );
+    (buffer as any).nombreArchivo = nombreArchivo;
+    return buffer;
+  }
+
+  async generarPdfConMetadatos(casoId: string, user: JwtPayload): Promise<{ buffer: Buffer; nombreArchivo: string }> {
+    const buffer = await this.generarPdf(casoId, user);
+    const nombreArchivo = (buffer as any).nombreArchivo || `Expediente_Caso_${casoId}.pdf`;
+    return { buffer, nombreArchivo };
   }
 
   async cerrar(casoId: string) {
@@ -81,12 +134,16 @@ export class ExpedientesService {
         create: {
           idCaso: BigInt(casoId),
           estado: 'Cerrado',
-          resultadoFinal: calculo?.calificacionTexto,
+          resultadoFinal: calculo?.calificacionTexto && calculo.porcentajeCumplimiento
+            ? `${calculo.calificacionTexto} (${Number(calculo.porcentajeCumplimiento).toFixed(2)}%)`
+            : calculo?.calificacionTexto,
           fechaCierre: new Date(),
         },
         update: {
           estado: 'Cerrado',
-          resultadoFinal: calculo?.calificacionTexto,
+          resultadoFinal: calculo?.calificacionTexto && calculo.porcentajeCumplimiento
+            ? `${calculo.calificacionTexto} (${Number(calculo.porcentajeCumplimiento).toFixed(2)}%)`
+            : calculo?.calificacionTexto,
           fechaCierre: new Date(),
         },
       });
@@ -105,8 +162,66 @@ export class ExpedientesService {
         entidad: 'expediente',
         idEntidad: resultado.id,
       });
+      await this.enviarActaPorCorreo(casoId, resultado.resultadoFinal ?? 'N/A');
       return resultado;
     });
+  }
+
+  /**
+   * Envía el acta en PDF a la empresa cuando se cierra el expediente (RF-19).
+   * Se adjunta la Ficha BPM completa (la misma que "Descargar Acta PDF" en el
+   * sistema, con tabla de criterios y no conformidades) vía InformesService,
+   * NO el dictamen corto de generarPdf() de este mismo servicio -- son dos
+   * documentos distintos y la empresa espera ver el mismo que descarga un
+   * usuario interno desde la UI.
+   * Falla en silencio (solo se registra en el log): un problema de correo
+   * nunca debe deshacer un cierre de expediente ya persistido.
+   */
+  private async enviarActaPorCorreo(casoId: string, resultadoFinal: string): Promise<void> {
+    try {
+      const caso = await this.prisma.caso.findUnique({
+        where: { id: BigInt(casoId) },
+        include: {
+          establecimiento: {
+            include: {
+              empresa: { include: { contactos: { include: { tipoContacto: true } } } },
+            },
+          },
+          evaluaciones: { include: { estado: true } },
+        },
+      });
+      const empresa = caso?.establecimiento?.empresa;
+      if (!empresa) return;
+
+      const contactoPrincipal = empresa.contactos.find((c) => c.tipoContacto.codigo === 'PRINCIPAL');
+      const destinatario = empresa.correo ?? contactoPrincipal?.correo;
+      if (!destinatario) {
+        this.logger.warn(`Expediente del caso #${casoId} cerrado sin correo de destino (empresa "${empresa.razonSocial}" sin correo ni contacto principal con correo).`);
+        return;
+      }
+
+      const evaluacion = caso?.evaluaciones.find((e) => e.estado?.codigo === 'CERRADA' || e.estado?.codigo === 'APROBADA');
+      if (!evaluacion) {
+        this.logger.warn(`Expediente del caso #${casoId} cerrado sin una evaluación aprobada/cerrada de la cual generar el PDF.`);
+        return;
+      }
+
+      const { buffer, nombreArchivo } = await this.informesService.generarPdfConMetadatos(evaluacion.id.toString(), USUARIO_SISTEMA);
+      const resultado = await this.emailService.enviarResultadoExpediente(
+        destinatario,
+        empresa.razonSocial,
+        caso.establecimiento.nombre,
+        resultadoFinal,
+        buffer,
+        nombreArchivo,
+      );
+      if (!resultado.ok) {
+        this.logger.error(`No se pudo enviar el acta del caso #${casoId} a ${destinatario}: ${resultado.error}`);
+      }
+    } catch (err) {
+      const mensaje = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Error inesperado enviando el acta del caso #${casoId} por correo: ${mensaje}`);
+    }
   }
 
   async reabrir(casoId: string) {

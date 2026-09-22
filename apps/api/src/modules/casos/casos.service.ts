@@ -18,9 +18,10 @@ export class CasosService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listar(user: JwtPayload) {
-    const where = ROLES_INTERNOS.includes(user.rol)
-      ? {}
-      : { establecimiento: { idEmpresa: user.empresaId ? BigInt(user.empresaId) : undefined } };
+    const esInterno = ROLES_INTERNOS.includes(user.rol);
+    // Sin empresa asignada el filtro quedaría vacío y devolvería los casos de todas las empresas.
+    if (!esInterno && !user.empresaId) return [];
+    const where = esInterno ? {} : { establecimiento: { idEmpresa: BigInt(user.empresaId!) } };
 
     const casos = await this.prisma.caso.findMany({
       where,
@@ -51,6 +52,7 @@ export class CasosService {
       }
     }
 
+    if (!ROLES_INTERNOS.includes(user.rol) && !user.empresaId) return [];
     const empresaIdEfectivo = ROLES_INTERNOS.includes(user.rol) ? filtros.empresaId : user.empresaId;
 
     let hastaDate: Date | undefined;
@@ -120,7 +122,7 @@ export class CasosService {
         alerta: true,
         denuncia: true,
         programacion: true,
-        evaluaciones: true,
+        evaluaciones: { include: { estado: true, calculoRiesgo: { include: { nivelRiesgo: true } }, informe: true } },
         asignaciones: { where: { estado: 'Asignado' }, include: { evaluador: true } },
         expediente: true,
       },
@@ -149,6 +151,17 @@ export class CasosService {
       evaluaciones: c.evaluaciones?.map((e: any) => ({
         ...e,
         id: e.id?.toString(),
+        informe: e.informe ? {
+          ...e.informe,
+          id: e.informe.id?.toString(),
+          idEvaluacion: e.informe.idEvaluacion?.toString()
+        } : undefined,
+        calculoRiesgo: e.calculoRiesgo ? {
+          ...e.calculoRiesgo,
+          id: e.calculoRiesgo.id?.toString(),
+          idEvaluacion: e.calculoRiesgo.idEvaluacion?.toString(),
+          porcentajeCumplimientoBpm: e.calculoRiesgo.porcentajeCumplimientoBpm?.toString()
+        } : undefined
       })),
     };
   }

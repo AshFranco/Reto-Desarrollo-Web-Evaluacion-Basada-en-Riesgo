@@ -288,5 +288,24 @@ describe('UsuariosService — Mi Perfil, 2FA (TOTP) y Cambio de Contraseña (RF-
         }),
       );
     });
+
+    it('nunca devuelve el hash de la contraseña ni el secreto TOTP en la respuesta', async () => {
+      prismaMock.usuario.findUnique.mockResolvedValue({ id: BigInt(9), estado: 'PENDIENTE_VALIDACION' });
+      prismaMock.usuario.update.mockResolvedValue({
+        id: BigInt(9),
+        nombreCompleto: 'Prueba',
+        correoElectronico: 'prueba@empresa.com',
+        estado: 'APROBADO',
+        idEmpresa: 1n,
+        motivoRechazo: null,
+        contrasenaHash: '$argon2id$v=19$m=19456,t=2,p=1$secreto',
+        secretoTotp: 'JBSWY3DPEHPK3PXP',
+      });
+
+      const resultado = await usuariosService.resolverRegistro('9', { decision: 'APROBADO' } as any);
+
+      expect(resultado).not.toHaveProperty('contrasenaHash');
+      expect(resultado).not.toHaveProperty('secretoTotp');
+    });
   });
 });

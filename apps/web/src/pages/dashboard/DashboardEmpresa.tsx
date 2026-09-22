@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  MenuItem,
   Paper,
   Switch,
   Table,
@@ -36,7 +37,7 @@ import {
   useCrearEmpresa,
   type DatosEmpresa,
 } from '@/lib/empresa/useEmpresas';
-import { useSolicitudesPropias } from '@/lib/empresa/useSolicitudes';
+import { useSolicitudesPropias, useDescartarSolicitud } from '@/lib/empresa/useSolicitudes';
 import { useEstablecimientos } from '@/lib/empresa/useEstablecimientos';
 import {
   useDelegados,
@@ -49,42 +50,7 @@ import { EstadoVacio } from '@/components/ui/EstadoVacio';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 import { EstadoChip } from '@/components/ui/EstadoChip';
 
-const EMPRESA_VACIA: DatosEmpresa = { razonSocial: '', rnc: '', nombreComercial: '', direccion: '', telefono: '', correo: '', actividadEconomica: '' };
-
-const RNC_REGEX = /^[0-9]{9}$|^[0-9]{11}$/;
-const TELEFONO_REGEX = /^[0-9]{10}$/;
-const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-interface ErroresEmpresa {
-  rnc?: string;
-  telefono?: string;
-  correo?: string;
-}
-
-function validarEmpresa(datos: { rnc: string; telefono?: string; correo?: string }): ErroresEmpresa {
-  const errores: ErroresEmpresa = {};
-  if (datos.rnc) {
-    if (datos.rnc.includes('-')) {
-      errores.rnc = 'El RNC no puede contener guiones ni signos negativos.';
-    } else if (!RNC_REGEX.test(datos.rnc)) {
-      errores.rnc = 'El RNC debe contener exactamente 9 u 11 dígitos numéricos.';
-    }
-  }
-
-  if (datos.telefono) {
-    if (datos.telefono.includes('-')) {
-      errores.telefono = 'El teléfono no puede contener signos negativos ni guiones.';
-    } else if (!TELEFONO_REGEX.test(datos.telefono)) {
-      errores.telefono = 'El teléfono debe contener exactamente 10 dígitos numéricos.';
-    }
-  }
-
-  if (datos.correo && !CORREO_REGEX.test(datos.correo)) {
-    errores.correo = 'El formato del correo electrónico no es válido.';
-  }
-
-  return errores;
-}
+import { EMPRESA_VACIA, validarEmpresa, type ErroresEmpresa } from '@/lib/empresa/validacionEmpresa';
 
 function FormularioCrearEmpresa() {
   const crearEmpresa = useCrearEmpresa();
@@ -146,7 +112,7 @@ function FormularioCrearEmpresa() {
           onChange={(e) => actualizarCampo('rnc', e.target.value)}
           disabled={crearEmpresa.isPending}
           error={Boolean(errores.rnc)}
-          helperText={errores.rnc ?? '9 u 11 dígitos numéricos sin signos'}
+          helperText={errores.rnc ?? 'Solo números, de 9 o de 11 dígitos, sin signos.'}
         />
         <TextField
           label="Nombre comercial"
@@ -278,7 +244,7 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
             value={datos.rnc}
             onChange={(e) => actualizarCampo('rnc', e.target.value)}
             error={Boolean(errores.rnc)}
-            helperText={errores.rnc ?? '9 u 11 dígitos numéricos sin signos'}
+            helperText={errores.rnc ?? 'Solo números, de 9 o de 11 dígitos, sin signos.'}
           />
           <TextField
             label="Nombre comercial"
@@ -354,6 +320,63 @@ function SeccionEmpresa({ empresaId, puedeEditar }: { empresaId: string; puedeEd
   );
 }
 
+const ESTADO_BORRADOR = 'Pendiente de Asignacion';
+
+// Para la empresa, "Pendiente de Asignacion" es un borrador sin enviar y "Asignada" una solicitud ya enviada.
+function etiquetaEstadoSolicitud(estado: string) {
+  if (estado === ESTADO_BORRADOR) return 'Borrador';
+  if (estado === 'Asignada') return 'Enviada';
+  return estado;
+}
+
+function AccionesBorrador({ id, motivo }: { id: string; motivo: string }) {
+  const descartar = useDescartarSolicitud();
+  const [confirmar, setConfirmar] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirmarDescarte() {
+    setError(null);
+    try {
+      await descartar.mutateAsync(id);
+      setConfirmar(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al descartar el borrador');
+    }
+  }
+
+  return (
+    <Box sx={{ display: 'inline-flex', gap: 1 }}>
+      <Button size="small" variant="outlined" component={RouterLink} to={`/empresa/solicitudes/${id}/continuar`}>
+        Continuar
+      </Button>
+      <Button size="small" color="error" onClick={() => setConfirmar(true)}>
+        Descartar
+      </Button>
+      <Dialog open={confirmar} onClose={() => !descartar.isPending && setConfirmar(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Descartar borrador</DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <DialogContentText>
+            Se eliminará el borrador «{motivo}» junto con sus documentos adjuntos. Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmar(false)} disabled={descartar.isPending}>
+            Volver
+          </Button>
+          <Button color="error" variant="contained" onClick={confirmarDescarte} disabled={descartar.isPending}>
+            {descartar.isPending ? <CircularProgress size={18} /> : 'Descartar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 function ListaSolicitudes() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -376,7 +399,7 @@ function ListaSolicitudes() {
               <Typography variant="subtitle2" fontWeight={600}>
                 {s.tipoEstablecimiento}
               </Typography>
-              <EstadoChip estado={s.estado} />
+              <EstadoChip estado={etiquetaEstadoSolicitud(s.estado)} />
             </Box>
             <Typography variant="body2" color="text.secondary">
               Motivo: {s.motivo}
@@ -384,6 +407,11 @@ function ListaSolicitudes() {
             <Typography variant="caption" color="text.secondary">
               Fecha: {new Date(s.fechaCreacion).toLocaleDateString()}
             </Typography>
+            {s.estado === ESTADO_BORRADOR && (
+              <Box>
+                <AccionesBorrador id={s.id} motivo={s.motivo} />
+              </Box>
+            )}
           </Paper>
         ))}
       </Box>
@@ -399,6 +427,7 @@ function ListaSolicitudes() {
             <TableCell>Motivo</TableCell>
             <TableCell>Estado</TableCell>
             <TableCell>Fecha</TableCell>
+            <TableCell align="right">Acción</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -407,9 +436,10 @@ function ListaSolicitudes() {
               <TableCell>{s.tipoEstablecimiento}</TableCell>
               <TableCell>{s.motivo}</TableCell>
               <TableCell>
-                <EstadoChip estado={s.estado} />
+                <EstadoChip estado={etiquetaEstadoSolicitud(s.estado)} />
               </TableCell>
               <TableCell>{new Date(s.fechaCreacion).toLocaleDateString()}</TableCell>
+              <TableCell align="right">{s.estado === ESTADO_BORRADOR && <AccionesBorrador id={s.id} motivo={s.motivo} />}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -428,7 +458,7 @@ function ListaEstablecimientos() {
     return <Alert severity="error">{error instanceof Error ? error.message : 'Error al cargar los establecimientos'}</Alert>;
   }
   if (!establecimientos || establecimientos.length === 0) {
-    return <EstadoVacio titulo="Todavía no registraste ningún establecimiento." icono={<DomainOutlinedIcon fontSize="large" />} />;
+    return <EstadoVacio titulo="Todavía no ha registrado ningún establecimiento." icono={<DomainOutlinedIcon fontSize="large" />} />;
   }
 
   if (isMobile) {
@@ -490,14 +520,65 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
   const invitar = useInvitarDelegado();
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [correoElectronico, setCorreoElectronico] = useState('');
-  const [cedulaPasaporte, setCedulaPasaporte] = useState('');
+  const [tipoDocumento, setTipoDocumento] = useState<'CEDULA' | 'RNC' | 'PASAPORTE'>('CEDULA');
+  const [numeroDocumento, setNumeroDocumento] = useState('');
+  const [errorDoc, setErrorDoc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contrasenaGenerada, setContrasenaGenerada] = useState<string | null>(null);
 
+  function validarDocumento(tipo: 'CEDULA' | 'RNC' | 'PASAPORTE', valor: string): string | null {
+    const digitos = valor.replace(/\D/g, '');
+    if (!valor.trim()) {
+      return 'El documento de identidad es requerido.';
+    }
+    if (tipo === 'CEDULA') {
+      if (digitos.length !== 11) {
+        return 'La cédula dominicana debe contener exactamente 11 dígitos numéricos.';
+      }
+    } else if (tipo === 'RNC') {
+      if (digitos.length !== 9 && digitos.length !== 11) {
+        return 'El RNC debe ser numérico y de 9 o de 11 dígitos.';
+      }
+    } else if (tipo === 'PASAPORTE') {
+      if (valor.trim().length < 5) {
+        return 'El pasaporte debe contener al menos 5 caracteres alfanuméricos.';
+      }
+    }
+    return null;
+  }
+
+  function handleDocumentoChange(nuevoValor: string) {
+    let filtrado = nuevoValor;
+    if (tipoDocumento === 'CEDULA') {
+      filtrado = nuevoValor.replace(/[^0-9-]/g, '').slice(0, 13);
+    } else if (tipoDocumento === 'RNC') {
+      filtrado = nuevoValor.replace(/[^0-9-]/g, '').slice(0, 13);
+    } else {
+      filtrado = nuevoValor.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20);
+    }
+    setNumeroDocumento(filtrado);
+    setErrorDoc(validarDocumento(tipoDocumento, filtrado));
+  }
+
+  function handleTipoDocumentoChange(nuevoTipo: 'CEDULA' | 'RNC' | 'PASAPORTE') {
+    setTipoDocumento(nuevoTipo);
+    setNumeroDocumento('');
+    setErrorDoc(null);
+  }
+
   async function handleInvitar() {
     setError(null);
+    const err = validarDocumento(tipoDocumento, numeroDocumento);
+    if (err) {
+      setErrorDoc(err);
+      return;
+    }
     try {
-      const resultado = await invitar.mutateAsync({ nombreCompleto, correoElectronico, cedulaPasaporte });
+      const resultado = await invitar.mutateAsync({
+        nombreCompleto,
+        correoElectronico,
+        cedulaPasaporte: numeroDocumento.trim(),
+      });
       setContrasenaGenerada(resultado.contrasenaTemporal);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al invitar al delegado');
@@ -507,7 +588,9 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
   function handleClose() {
     setNombreCompleto('');
     setCorreoElectronico('');
-    setCedulaPasaporte('');
+    setTipoDocumento('CEDULA');
+    setNumeroDocumento('');
+    setErrorDoc(null);
     setError(null);
     setContrasenaGenerada(null);
     onClose();
@@ -562,13 +645,45 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
           disabled={invitar.isPending}
         />
         <TextField
+          select
           margin="dense"
-          label="Cédula o pasaporte"
+          label="Tipo de documento"
+          fullWidth
+          value={tipoDocumento}
+          onChange={(e) => handleTipoDocumentoChange(e.target.value as any)}
+          disabled={invitar.isPending}
+        >
+          <MenuItem value="CEDULA">Cédula Dominicana (11 dígitos)</MenuItem>
+          <MenuItem value="RNC">RNC (de 9 o de 11 dígitos)</MenuItem>
+          <MenuItem value="PASAPORTE">Pasaporte (Extranjero)</MenuItem>
+        </TextField>
+        <TextField
+          margin="dense"
+          label={
+            tipoDocumento === 'CEDULA'
+              ? 'Número de Cédula'
+              : tipoDocumento === 'RNC'
+              ? 'Número de RNC'
+              : 'Número de Pasaporte'
+          }
           fullWidth
           required
-          value={cedulaPasaporte}
-          onChange={(e) => setCedulaPasaporte(e.target.value)}
+          value={numeroDocumento}
+          onChange={(e) => handleDocumentoChange(e.target.value)}
+          error={Boolean(errorDoc)}
+          helperText={
+            errorDoc ??
+            (tipoDocumento === 'CEDULA'
+              ? '11 dígitos numéricos sin letras.'
+              : tipoDocumento === 'RNC'
+              ? 'Solo números, de 9 o de 11 dígitos.'
+              : 'Alfanumérico (mínimo 5 caracteres).')
+          }
           disabled={invitar.isPending}
+          inputProps={{
+            maxLength: tipoDocumento === 'PASAPORTE' ? 20 : 13,
+            inputMode: tipoDocumento === 'PASAPORTE' ? 'text' : 'numeric',
+          }}
         />
       </DialogContent>
       <DialogActions>
@@ -576,7 +691,7 @@ function DialogInvitarDelegado({ open, onClose }: { open: boolean; onClose: () =
         <Button
           onClick={handleInvitar}
           variant="contained"
-          disabled={invitar.isPending || !nombreCompleto || !correoElectronico || !cedulaPasaporte}
+          disabled={invitar.isPending || !nombreCompleto || !correoElectronico || !numeroDocumento || Boolean(errorDoc)}
         >
           {invitar.isPending ? <CircularProgress size={20} /> : 'Invitar'}
         </Button>
@@ -645,7 +760,7 @@ function ResumenEmpresa() {
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
       <StatCard icono={<DomainOutlinedIcon />} valor={establecimientos?.length ?? 0} etiqueta="Establecimientos" />
-      <StatCard icono={<DescriptionOutlinedIcon />} valor={solicitudes?.length ?? 0} etiqueta="Solicitudes BPM" />
+      <StatCard icono={<DescriptionOutlinedIcon />} valor={solicitudes?.filter((s) => s.estado !== ESTADO_BORRADOR).length ?? 0} etiqueta="Solicitudes BPM" />
     </Box>
   );
 }

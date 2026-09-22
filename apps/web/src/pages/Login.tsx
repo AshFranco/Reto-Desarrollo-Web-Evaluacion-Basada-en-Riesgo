@@ -15,12 +15,12 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { useQueryClient } from '@tanstack/react-query';
 import { login } from '@/lib/auth/login';
 import { solicitarRecuperacionContrasena } from '@/lib/auth/recuperacion';
 import { rutaPorRol } from '@/routes/rutaPorRol';
+import { LogoSinec } from '@/components/ui/LogoSinec';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -103,35 +103,11 @@ export default function Login() {
         variant="outlined"
         sx={{ padding: { xs: 2.5, sm: 4 }, width: '100%', maxWidth: 400 }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: (t) => `linear-gradient(135deg, ${t.palette.primary.main}, ${t.palette.primary.dark})`,
-              color: 'primary.contrastText',
-            }}
-          >
-            <ShieldOutlinedIcon fontSize="medium" />
-          </Box>
-          <Box>
-            <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.1, display: 'block' }}>
-              EBR / BPM
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Evaluación Basada en Riesgo
-            </Typography>
-          </Box>
-        </Box>
+        <LogoSinec />
 
         {mfaRequerido ? (
           <>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
+            <Typography variant="h6" fontWeight={700} gutterBottom align="center">
               Verificación de seguridad
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -184,7 +160,7 @@ export default function Login() {
           </>
         ) : (
           <>
-            <Typography variant="h5" gutterBottom>
+            <Typography variant="h5" gutterBottom align="center">
               Iniciar sesión
             </Typography>
 
@@ -237,16 +213,16 @@ export default function Login() {
             </Box>
 
             <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
-              ¿No tenés cuenta?{' '}
+              ¿No tiene una cuenta?{' '}
               <Link component={RouterLink} to="/registro" underline="hover">
-                Registrate
+                Regístrese
               </Link>
             </Typography>
 
             <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
-              ¿Querés hacer una denuncia sin iniciar sesión?{' '}
+              ¿Desea realizar una denuncia sin iniciar sesión?{' '}
               <Link component={RouterLink} to="/denuncia-publica" underline="hover">
-                Denunciá acá
+                Presentar denuncia
               </Link>
             </Typography>
           </>

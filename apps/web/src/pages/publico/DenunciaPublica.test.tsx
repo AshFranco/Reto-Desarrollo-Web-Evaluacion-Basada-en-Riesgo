@@ -26,7 +26,7 @@ function renderPantalla() {
 describe('DenunciaPublica', () => {
   it('NO tiene la barra de navegación (sin sesión, sin AppLayout)', () => {
     renderPantalla();
-    expect(screen.queryByText('EBR / BPM')).toBeInTheDocument();
+    expect(screen.getByAltText(/SINEC/)).toBeInTheDocument();
     // AppLayout siempre incluye "Cerrar sesión" en el menú de usuario -- si apareciera acá sería una fuga del layout autenticado.
     expect(screen.queryByText('Cerrar sesión')).not.toBeInTheDocument();
   });
@@ -102,7 +102,7 @@ describe('DenunciaPublica', () => {
     const user = userEvent.setup();
     renderPantalla();
 
-    await screen.findByText('Opcional, si sabés cuál es.');
+    await screen.findByText('Opcional, si la conoce.');
     await user.click(screen.getByLabelText(/^Empresa denunciada/));
     expect(await screen.findByRole('option', { name: /Alimentos de Prueba SRL/ })).toBeInTheDocument();
   });

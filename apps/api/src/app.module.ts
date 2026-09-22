@@ -32,6 +32,8 @@ import { InformesModule } from './modules/informes/informes.module';
 import { ExpedientesModule } from './modules/expedientes/expedientes.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { CatalogosModule } from './modules/catalogos/catalogos.module';
+import { AuditoriaModule } from './modules/auditoria/auditoria.module';
+import { ProgramacionInstitucionalModule } from './modules/programacion-institucional/programacion-institucional.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -85,6 +87,8 @@ import { HealthController } from './health.controller';
     ExpedientesModule,
     NotificacionesModule,
     CatalogosModule,
+    AuditoriaModule,
+    ProgramacionInstitucionalModule,
   ],
   controllers: [HealthController],
   providers: [

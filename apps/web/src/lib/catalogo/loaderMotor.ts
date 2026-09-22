@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import type { EntradaCalculo } from '@ebr/risk-engine';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 export async function descargarCatalogoMotor(): Promise<void> {
   const sesion = await db.sesion.get(1);

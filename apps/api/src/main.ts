@@ -85,7 +85,16 @@ async function bootstrap() {
 
   // --- CORS restringido a orígenes explícitos, con credenciales para cookies ---
   app.enableCors({
-    origin: config.allowedOrigins,
+    origin: (origin, callback) => {
+      // En desarrollo permitir cualquier origen de red local (móvil, túneles, etc.)
+      if (!origin || !config.isProduction) {
+        return callback(null, true);
+      }
+      if (config.allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origen no permitido por CORS: ${origin}`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],

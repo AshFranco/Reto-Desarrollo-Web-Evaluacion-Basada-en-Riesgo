@@ -37,6 +37,8 @@ import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
+import { GestionEmpresasAdmin } from './GestionEmpresasAdmin';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
@@ -1149,12 +1151,21 @@ export default function DashboardAdmin() {
               </Box>
             }
           />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BusinessOutlinedIcon fontSize="small" />
+                Gestión de empresas
+              </Box>
+            }
+          />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
           {tabActual === 0 && <TablaUsuariosPendientes />}
           {tabActual === 1 && <TablaGestionUsuarios />}
           {tabActual === 2 && <TablaCatalogoEstablecimientos />}
+          {tabActual === 3 && <GestionEmpresasAdmin />}
         </Box>
       </Paper>
     </Box>

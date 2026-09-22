@@ -1,4 +1,4 @@
-import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CalendarioService } from '../src/modules/calendario/calendario.service';
 
 describe('CalendarioService', () => {
@@ -30,8 +30,19 @@ describe('CalendarioService', () => {
       await expect(service.cancelar(EVALUACION_ID)).rejects.toThrow(NotFoundException);
     });
 
+    it.each(['EN_CURSO', 'FINALIZADA', 'APROBADA', 'CERRADA', 'CANCELADA'])(
+      'rechaza cancelar una cita en estado %s y no modifica nada',
+      async (codigo) => {
+        prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 2, estado: { codigo }, idEvaluador: 10n });
+
+        await expect(service.cancelar(EVALUACION_ID)).rejects.toThrow(BadRequestException);
+        expect(prismaMock.evaluacion.update).not.toHaveBeenCalled();
+        expect(notificacionesMock.crear).not.toHaveBeenCalled();
+      },
+    );
+
     it('falla explícito si el catálogo estado_evaluacion no tiene CANCELADA/CANCELADO, en vez de responder éxito sin cambiar nada', async () => {
-      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 1n, idEvaluador: 10n });
+      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 1, estado: { codigo: 'PROGRAMADA' }, idEvaluador: 10n });
       prismaMock.estadoEvaluacion.findFirst.mockResolvedValue(null);
 
       await expect(service.cancelar(EVALUACION_ID)).rejects.toThrow(InternalServerErrorException);
@@ -39,7 +50,7 @@ describe('CalendarioService', () => {
     });
 
     it('actualiza idEstado al de CANCELADA cuando el catálogo sí lo tiene', async () => {
-      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 1n, idEvaluador: 10n });
+      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 1, estado: { codigo: 'PROGRAMADA' }, idEvaluador: 10n });
       prismaMock.estadoEvaluacion.findFirst.mockResolvedValue({ id: 8n, codigo: 'CANCELADA' });
       prismaMock.evaluacion.update.mockResolvedValue({ id: 50n, idEstado: 8n, idEvaluador: 10n });
 
@@ -53,7 +64,7 @@ describe('CalendarioService', () => {
     });
 
     it('notifica al técnico evaluador tras cancelar', async () => {
-      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 1n, idEvaluador: 10n });
+      prismaMock.evaluacion.findUnique.mockResolvedValue({ id: 50n, idEstado: 1, estado: { codigo: 'PROGRAMADA' }, idEvaluador: 10n });
       prismaMock.estadoEvaluacion.findFirst.mockResolvedValue({ id: 8n, codigo: 'CANCELADA' });
       prismaMock.evaluacion.update.mockResolvedValue({ id: 50n, idEstado: 8n, idEvaluador: 10n });
 

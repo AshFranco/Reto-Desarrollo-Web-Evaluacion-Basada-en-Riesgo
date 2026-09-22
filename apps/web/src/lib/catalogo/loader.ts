@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { flattenSecciones } from './flatten';
 import type { FormularioVigenteResponse } from '@/lib/types';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 export async function descargarCatalogo(): Promise<void> {
   const sesion = await db.sesion.get(1);

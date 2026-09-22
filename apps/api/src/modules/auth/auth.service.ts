@@ -15,8 +15,8 @@ import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
 import { SolicitudRecuperacionDto, ResetContrasenaDto } from './dto/recuperacion-contrasena.dto';
 import { RecuperarContrasenaDto } from './dto/recuperar-contrasena.dto';
 import { RestablecerContrasenaDto } from './dto/restablecer-contrasena.dto';
-import { EmailService } from '../../common/services/email.service';
 import { EncryptionService } from '../../common/services/encryption.service';
+import { EmailService } from '../../common/services/email.service';
 import { AppConfigService } from '../../config/app-config.service';
 
 export interface RequestMeta {
@@ -35,6 +35,7 @@ export type LoginResult =
         nombreCompleto: string;
         rol: string;
         empresaId: string | null;
+        dobleFactorActivo?: boolean;
       };
     };
 
@@ -55,8 +56,8 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly loginThrottle: LoginThrottleService,
-    private readonly emailService: EmailService,
     private readonly encryptionService: EncryptionService,
+    private readonly emailService: EmailService,
     private readonly config: AppConfigService,
   ) {}
 
@@ -198,6 +199,7 @@ export class AuthService {
         nombreCompleto: usuario.nombreCompleto,
         rol: rolPrincipal,
         empresaId: usuario.idEmpresa ? usuario.idEmpresa.toString() : null,
+        dobleFactorActivo: Boolean(usuario.dobleFactorActivo),
       },
     };
   }

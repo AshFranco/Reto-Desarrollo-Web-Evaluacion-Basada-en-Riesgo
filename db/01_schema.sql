@@ -753,8 +753,7 @@ CREATE TABLE auditoria (
     id                BIGSERIAL PRIMARY KEY,
     entidad           VARCHAR(60) NOT NULL,
     entidad_id        VARCHAR(40),
-    accion            VARCHAR(20) NOT NULL
-                      CHECK (accion IN ('INSERT','UPDATE','DELETE','LOGIN','LOGOUT','DOWNLOAD','SYNC','IMPORT')),
+    accion            VARCHAR(60) NOT NULL,
     usuario_id        INT REFERENCES usuario(id),
     ip                INET,
     user_agent        VARCHAR(400),
@@ -887,3 +886,75 @@ CREATE UNIQUE INDEX ux_version_ficha_publicada
     ON version_ficha (estado) WHERE estado = 'PUBLICADA';
 CREATE UNIQUE INDEX ux_version_matriz_publicada
     ON version_matriz_riesgo (estado) WHERE estado = 'PUBLICADA';
+
+
+-- =====================================================================
+-- POLÍTICAS REALES DE ROW-LEVEL SECURITY (RLS)
+-- =====================================================================
+
+ALTER TABLE empresa ENABLE ROW LEVEL SECURITY;
+ALTER TABLE establecimiento ENABLE ROW LEVEL SECURITY;
+ALTER TABLE solicitud_bpm ENABLE ROW LEVEL SECURITY;
+ALTER TABLE caso ENABLE ROW LEVEL SECURITY;
+ALTER TABLE evaluacion ENABLE ROW LEVEL SECURITY;
+ALTER TABLE auditoria ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY empresa_select_policy ON empresa
+  FOR SELECT
+  USING (
+    current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'EVALUADOR', 'TECNICO')
+    OR id::text = current_setting('app.current_empresa_id', true)
+  );
+
+CREATE POLICY empresa_update_policy ON empresa
+  FOR UPDATE
+  USING (
+    current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'ADMINISTRADOR_EMPRESA')
+    AND (
+      current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR')
+      OR id::text = current_setting('app.current_empresa_id', true)
+    )
+  );
+
+CREATE POLICY establecimiento_select_policy ON establecimiento
+  FOR SELECT
+  USING (
+    current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'EVALUADOR', 'TECNICO')
+    OR empresa_id::text = current_setting('app.current_empresa_id', true)
+  );
+
+CREATE POLICY solicitud_bpm_select_policy ON solicitud_bpm
+  FOR SELECT
+  USING (
+    current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'EVALUADOR', 'TECNICO')
+    OR empresa_id::text = current_setting('app.current_empresa_id', true)
+  );
+
+CREATE POLICY caso_select_policy ON caso
+  FOR SELECT
+  USING (
+    current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR', 'EVALUADOR', 'TECNICO')
+    OR establecimiento_id IN (
+      SELECT id FROM establecimiento WHERE empresa_id::text = current_setting('app.current_empresa_id', true)
+    )
+  );
+
+CREATE POLICY evaluacion_select_policy ON evaluacion
+  FOR SELECT
+  USING (
+    current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR')
+    OR (
+      current_setting('app.current_user_role', true) IN ('EVALUADOR', 'TECNICO')
+      AND evaluador_id::text = current_setting('app.current_user_id', true)
+    )
+    OR establecimiento_id IN (
+      SELECT id FROM establecimiento WHERE empresa_id::text = current_setting('app.current_empresa_id', true)
+    )
+  );
+
+CREATE POLICY auditoria_select_policy ON auditoria
+  FOR SELECT
+  USING (
+    current_setting('app.current_user_role', true) IN ('ADMINISTRADOR', 'COORDINADOR')
+  );
+

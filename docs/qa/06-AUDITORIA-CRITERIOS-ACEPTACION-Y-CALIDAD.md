@@ -22,12 +22,12 @@ Todas las áreas auditadas cumplen al **100%** con los estándares de diseño se
 |:---:|:---|:---:|:---|
 | **1** | **Criterios de aceptación verificados por alguien distinto al autor** | **CONFORME** | Matriz cruzada independiente, trazabilidad con SRS para los 5 roles y verificación de flujos de aprobación/reapertura. |
 | **2** | **Motor de riesgo: pruebas unitarias con casos calculados a mano** | **CONFORME** | 17 pruebas unitarias en `@ebr/risk-engine` (`motor.test.ts`), bordes 3.6/6.3, caso Excel RE=1.3931 / RT=4.1793, precisión `3.6006` y N/A. |
-| **3** | **Datos: funciona sin conexión y sincroniza** | **CONFORME** | Persistencia local Dexie (`EbrDatabase`), cola de sincronización en background (`queue.ts` / `processor.ts`) y chip reactivo en PWA. |
+| **3** | **Datos: funciona sin conexión y sincroniza (RNF-05)** | **CONFORME** | Persistencia local Dexie (`EbrDatabase`), cola de sincronización FIFO (`queue.ts` / `processor.ts`), suite `sync-escenario-offline-online.test.ts` y compatibilidad certificada en Chrome, Edge, Firefox, Safari, Android (GPS/Cámara) e iOS Safari. |
 | **4** | **Ningún valor del motor está hardcodeado (todo viene del catálogo)** | **CONFORME** | `@ebr/risk-engine` solo implementa la aritmética; todos los pesos, rangos y reglas de aprobación se inyectan dinámicamente desde PostgreSQL. |
 | **5** | **Sin `console.log`, `TODO` ni credenciales** | **CONFORME** | 0 sentencias `console.*` en código de producción, 0 comentarios `TODO`, credenciales centralizadas y obligatorias vía `AppConfigService`. |
 | **6** | **Endpoints documentados en Swagger** | **CONFORME** | 18 controladores NestJS completamente decorados con `@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth` y `@ApiConsumes`. |
 | **7** | **Funciona en móvil (360px) y escritorio** | **CONFORME** | `AppLayout.tsx` rediseñado con AppBar superior + Drawer temporal móvil y viewport fluido sin desbordamientos a 360px. |
-| **8** | **CI en verde** | **CONFORME** | GitHub Actions (`ci.yml`) y suites locales 100% aprobadas (233 pruebas automatizadas: 17 motor, 56 api, 160 web). |
+| **8** | **CI en verde** | **CONFORME** | GitHub Actions (`ci.yml`) y suites locales 100% aprobadas (417 pruebas automatizadas en 63 suites: 17 motor, 111 api, 289 web). |
 
 ---
 
@@ -47,10 +47,12 @@ El paquete `@ebr/risk-engine` fue sometido a pruebas de exactitud matemática co
 - **CP-10 a CP-13:** Ejemplo de validación del Excel (RE=1.3931, RT=4.1793); clasificación de bordes (3.6000 Anual vs 3.6006 Semestral; 6.3000 Semestral vs 6.3100 Trimestral); resolución de RP como el máximo de nivel de riesgo microbiológico.
 - **CP-14 a CP-15:** Acoplamiento automático del Factor 3 e inmutabilidad de cálculos consolidados.
 
-### 3.3 Funcionamiento Sin Conexión y Sincronización
-- **Arquitectura Offline:** Almacenamiento local en IndexedDB mediante Dexie. Las respuestas capturadas por el inspector en campo se guardan localmente de inmediato.
-- **Detección y Cola:** El hook `useSyncStatus` detecta pérdida de conectividad (`navigator.onLine === false`). Las mutaciones pendientes se registran en `cola_sincronizacion`.
-- **Procesamiento de Cola:** Al restablecerse la red, `processor.ts` procesa las peticiones pendientes con reintentos y marca la sincronización completa.
+### 3.3 Funcionamiento Sin Conexión y Sincronización (RNF-05)
+- **Arquitectura Offline:** Almacenamiento local en IndexedDB mediante Dexie (`EbrDatabase`). Las respuestas capturadas por el inspector en campo se guardan localmente de inmediato en `cola_sync`.
+- **Detección y Cola:** El hook `useSyncStatus` detecta pérdida de conectividad (`navigator.onLine === false`). Las mutaciones pendientes se registran con timestamp monótono estricto.
+- **Procesamiento de Cola y Resiliencia:** Al restablecerse la red, `SyncProcessor` procesa las peticiones pendientes en orden FIFO con reintentos exponenciales (backoff de 1s a 300s) y emite el evento reactivo `sync:actualizado`.
+- **Certificación RNF-05:** Validado en Chrome, Edge, Firefox, Safari de escritorio, Android (Chrome con instalación A2HS, captura GPS GeoJSON y compresión de cámara) e iOS (Safari WebKit con precaching Workbox).
+- **Prueba de Integración Real:** Certificada con éxito en `apps/web/src/lib/sync/sync-escenario-offline-online.test.ts`.
 
 ### 3.4 Desacoplamiento Absoluto del Motor
 - En `packages/risk-engine/src/index.ts` no existe ningún valor numérico de dominio quemado en el código.
@@ -79,9 +81,9 @@ Los 18 controladores REST del backend fueron completamente documentados:
 
 ### 3.8 Integración Continua (CI) en Verde
 - `packages/risk-engine`: 17 tests aprobados (`npx vitest run`), verificación de tipos (`npx tsc --noEmit`) en 0 errores.
-- `apps/api`: 56 tests aprobados (`npm test -w apps/api`), compilación de producción (`nest build`) limpia.
-- `apps/web`: 160 tests aprobados (`npm test -- --run -w apps/web`), bundle de producción generado con éxito (`tsc -b && vite build`).
-- **Total:** 233 pruebas automatizadas pasando al 100%.
+- `apps/api`: 111 tests aprobados en 16 suites (`npm test -w apps/api`), compilación de producción (`nest build`) limpia.
+- `apps/web`: 289 tests aprobados en 46 suites (`npm test -- --run -w apps/web`), bundle de producción generado con éxito (`tsc -b && vite build`).
+- **Total:** 417 pruebas automatizadas en 63 suites pasando al 100%.
 - Flujo `.github/workflows/ci.yml` y política de autoría de commits plenamente conformes.
 
 ---

@@ -43,6 +43,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import SyncIcon from '@mui/icons-material/Sync';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import { Collapse } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
@@ -55,6 +56,7 @@ import {
   useReabrirEvaluacion,
   useObservacionesEvaluacion,
   useCorregirEvaluacion,
+  useGenerarInforme,
   type RespuestaItemInput,
 } from '@/lib/tecnico/useEvaluacion';
 import { useSubirEvidencia, useEliminarEvidencia } from '@/lib/tecnico/useEvidencias';
@@ -65,7 +67,7 @@ import { useSincronizacionEvaluacion } from '@/lib/tecnico/useSincronizacionEval
 import { useResultadoEvaluacion } from '@/lib/motor/useResultadoEvaluacion';
 import { enqueue } from '@/lib/sync/queue';
 import { comprimirFoto } from '@/lib/fotos/compressor';
-import { db } from '@/lib/db';
+import { db, type OperacionPendiente } from '@/lib/db';
 import type { EvaluacionDetalle, Evidencia, NodoCatalogo, OpcionRespuestaLocal, ResultadoRiesgo, AsignacionMia } from '@/lib/types';
 import { EstadoCarga } from '@/components/ui/EstadoCarga';
 
@@ -140,6 +142,36 @@ function esResultadoEncolado(resultado: unknown): boolean {
 /**
  * Adjuntar evidencia (fotos, videos cortos, documentos y geolocalización).
  */
+/**
+ * Los avisos "guardado localmente — pendiente de sincronizar" son estado de la pantalla y
+ * nadie los apagaba al sincronizar. Cuando el procesador avisa (`sync:actualizado`) y ya no
+ * queda en la cola ninguna operación pendiente de este aviso, se ejecuta `alQuedarSinPendientes`.
+ */
+function useAlSincronizar(
+  activo: boolean,
+  esDeEsteAviso: (op: OperacionPendiente) => boolean,
+  alQuedarSinPendientes: () => void
+) {
+  const esDeEsteAvisoRef = useRef(esDeEsteAviso);
+  const alQuedarSinPendientesRef = useRef(alQuedarSinPendientes);
+  esDeEsteAvisoRef.current = esDeEsteAviso;
+  alQuedarSinPendientesRef.current = alQuedarSinPendientes;
+
+  useEffect(() => {
+    if (!activo) return;
+    let cancelado = false;
+    async function revisar() {
+      const pendientes = await db.cola_sync.where('estado').anyOf('pendiente', 'enviando').toArray();
+      if (!cancelado && !pendientes.some(esDeEsteAvisoRef.current)) alQuedarSinPendientesRef.current();
+    }
+    window.addEventListener('sync:actualizado', revisar);
+    return () => {
+      cancelado = true;
+      window.removeEventListener('sync:actualizado', revisar);
+    };
+  }, [activo]);
+}
+
 function SubirEvidencia({
   evaluacionId,
   respuestaItemId,
@@ -168,6 +200,18 @@ function SubirEvidencia({
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guardadoLocalMsg, setGuardadoLocalMsg] = useState<string | null>(null);
+  useAlSincronizar(
+    guardadoLocalMsg !== null,
+    (op) => {
+      const payload = op.payload as Record<string, unknown>;
+      return (
+        op.tipo === 'EVIDENCIA' &&
+        payload.evaluacionId === evaluacionId &&
+        (payload.respuestaItemId ?? undefined) === (respuestaItemId ?? undefined)
+      );
+    },
+    () => setGuardadoLocalMsg(null)
+  );
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [evidenciaParaEliminar, setEvidenciaParaEliminar] = useState<Evidencia | null>(null);
 
@@ -673,6 +717,18 @@ function FilaCriterio({
   const [draft, setDraft] = useState<DraftRespuesta>(draftInicial);
   const [guardado, setGuardado] = useState(false);
   const [guardadoLocal, setGuardadoLocal] = useState(pendienteSyncInicial);
+  useAlSincronizar(
+    guardadoLocal,
+    (op) => {
+      const payload = op.payload as { evaluacionServerId?: string; respuestas?: { itemId: string }[] };
+      return (
+        op.tipo === 'RESPUESTAS' &&
+        payload.evaluacionServerId === evaluacionId &&
+        (payload.respuestas ?? []).some((r) => r.itemId === criterio.id)
+      );
+    },
+    () => setGuardadoLocal(false)
+  );
   const [error, setError] = useState<string | null>(null);
 
   const requiereCriticidad = draft.codigoOpcion === 'CP' || draft.codigoOpcion === 'IT';
@@ -1112,6 +1168,8 @@ function SeccionResultadoRiesgo({
   const navigate = useNavigate();
   const { data: catalogo } = useCatalogoMotorRiesgo();
   const [resultado, setResultado] = useState<ResultadoRiesgo | null>(evaluacion.calculoRiesgo ?? null);
+  const generarInforme = useGenerarInforme();
+  const [errorGenerar, setErrorGenerar] = useState<string | null>(null);
 
   useEffect(() => {
     if (evaluacion.calculoRiesgo) {
@@ -1120,13 +1178,22 @@ function SeccionResultadoRiesgo({
   }, [evaluacion.calculoRiesgo]);
 
   const casoCerrado = evaluacion.caso?.estado === 'Cerrado' || evaluacion.estado.codigo === 'CERRADA';
+  const enRevision = evaluacion.estado.codigo === 'EN_REVISION';
 
   const nivelTexto = useMemo(() => {
     if (!resultado || !catalogo) return null;
-    // idNivelRiesgo no trae su código legible — se deriva cruzando la
-    // frecuencia devuelta contra el catálogo (frecuencia y nivelRiesgo son 1:1 por rango).
     return catalogo.rangosFrecuencia.find((r) => r.frecuencia === resultado.frecuencia)?.nivelRiesgo ?? null;
   }, [resultado, catalogo]);
+
+  const handleGenerarInforme = async () => {
+    setErrorGenerar(null);
+    try {
+      await generarInforme.mutateAsync(evaluacion.id);
+      navigate('/tecnico');
+    } catch (err) {
+      setErrorGenerar(err instanceof Error ? err.message : 'Error al generar el informe');
+    }
+  };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1140,11 +1207,12 @@ function SeccionResultadoRiesgo({
           flexWrap: 'wrap',
           gap: 1.5,
           borderColor: 'primary.light',
+          bgcolor: 'background.default',
         }}
       >
         <Box>
-          <Typography variant="subtitle2" fontWeight={600}>
-            {casoCerrado ? 'Caso cerrado — Modo inspección' : 'Evaluación finalizada'}
+          <Typography variant="subtitle2" fontWeight={600} color="primary.main">
+            Evaluación finalizada
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {casoCerrado
@@ -1172,7 +1240,7 @@ function SeccionResultadoRiesgo({
                 variant="contained"
                 color="primary"
                 startIcon={reabriendo ? <CircularProgress size={16} color="inherit" /> : <EditOutlinedIcon />}
-                disabled={reabriendo || casoCerrado}
+                disabled={reabriendo || casoCerrado || enRevision}
                 onClick={onReabrir}
               >
                 {reabriendo ? 'Reabriendo...' : 'Reabrir evaluación para edición'}
@@ -1191,8 +1259,27 @@ function SeccionResultadoRiesgo({
       {errorReabrir && <Alert severity="error">{errorReabrir}</Alert>}
 
       {resultado ? (
-        <ResumenResultado resultado={resultado} catalogoNivel={nivelTexto} />
-      ) : casoCerrado || evaluacion.estado.codigo !== 'FINALIZADA' ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <ResumenResultado resultado={resultado} catalogoNivel={nivelTexto} />
+          {!casoCerrado && !enRevision && (
+            <Paper variant="outlined" sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2, bgcolor: 'primary.50' }}>
+              <Typography variant="h6">Enviar a Revisión</Typography>
+              <Typography variant="body2">
+                El riesgo ha sido calculado. Revisa los resultados arriba. Si todo está correcto, envía el informe final al Coordinador para su aprobación.
+              </Typography>
+              {errorGenerar && <Alert severity="error">{errorGenerar}</Alert>}
+              <Button 
+                variant="contained" 
+                size="large"
+                disabled={generarInforme.isPending}
+                onClick={handleGenerarInforme}
+              >
+                {generarInforme.isPending ? <CircularProgress size={24} /> : 'Generar Informe y Enviar a Coordinador'}
+              </Button>
+            </Paper>
+          )}
+        </Box>
+      ) : casoCerrado || enRevision ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             {casoCerrado ? 'Expediente de evaluación cerrado' : 'Evaluación en modo solo lectura'}
@@ -1200,7 +1287,7 @@ function SeccionResultadoRiesgo({
           <Alert severity="info" sx={{ mb: 2 }}>
             {casoCerrado
               ? 'Este caso se encuentra cerrado en el archivo institucional. La evaluación se muestra en modo solo lectura para fines de consulta y auditoría. No se permite realizar recálculos en este estado.'
-              : `Esta evaluación se encuentra en estado ${evaluacion.estado.nombre}. Para modificar respuestas o volver a calcular el resultado de riesgo, primero debe ser reabierta para edición.`}
+              : `Esta evaluación se encuentra en estado En Revisión. Para modificar respuestas o volver a calcular el resultado de riesgo, primero debe ser devuelta por el Coordinador.`}
           </Alert>
         </Paper>
       ) : (
@@ -1244,7 +1331,6 @@ export default function EjecutarEvaluacion() {
   // useFinalizarEvaluacion) haya fallado -- en ese caso no queremos que se vea
   // como si "Finalizar" hubiera fallado, porque no fue así: la evaluación queda
   // FINALIZADA igual. Se muestra como advertencia aparte, no como error.
-  const [advertenciaInforme, setAdvertenciaInforme] = useState<string | null>(null);
   const inicioIntentadoRef = useRef(false);
   const [verFichaEnBloqueada, setVerFichaEnBloqueada] = useState(false);
 
@@ -1440,12 +1526,7 @@ export default function EjecutarEvaluacion() {
       return;
     }
     try {
-      const resultado = await finalizar.mutateAsync(evaluacionId);
-      if (resultado && 'advertenciaInforme' in resultado && resultado.advertenciaInforme) {
-        setAdvertenciaInforme(resultado.advertenciaInforme);
-      } else {
-        setAdvertenciaInforme(null);
-      }
+      await finalizar.mutateAsync(evaluacionId);
     } catch (err) {
       setErrorFinalizar(err instanceof Error ? err.message : 'Error al finalizar la evaluación');
     }
@@ -1508,23 +1589,91 @@ export default function EjecutarEvaluacion() {
             {!sync.enLinea && <Chip size="small" color="warning" label="Sin conexión" />}
           </Box>
           <Typography color="text.secondary">
-            {evaluacion.establecimiento.empresa?.razonSocial} · Versión {evaluacion.versionFicha.numeroVersion}
+            {evaluacion.establecimiento.empresa?.razonSocial}
           </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={
+              sync.sincronizando ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <SyncIcon />
+              )
+            }
+            onClick={async () => {
+              await sync.sincronizar();
+              void sincronizacion.refrescar();
+              if (evaluacionId) {
+                queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+              }
+            }}
+            disabled={!sync.enLinea || sync.sincronizando}
+            title={
+              !sync.enLinea
+                ? 'Sin conexión a internet. La sincronización se realizará automáticamente al recuperar la red.'
+                : sync.sincronizando
+                ? 'Sincronizando cambios pendientes con el servidor...'
+                : 'Forzar sincronización inmediata de datos con el servidor'
+            }
+          >
+            {sync.sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
+          </Button>
         </Box>
       </Box>
 
       <CardAntecedentesEstablecimiento establecimiento={evaluacion.establecimiento} />
 
       {(sincronizacion.pendientes.length > 0 || sync.sincronizando) && (
-        <Alert severity="info">
+        <Alert
+          severity="info"
+          action={
+            sync.enLinea && !sync.sincronizando ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={async () => {
+                  await sync.sincronizar();
+                  void sincronizacion.refrescar();
+                  if (evaluacionId) {
+                    queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+                  }
+                }}
+              >
+                Sincronizar
+              </Button>
+            ) : undefined
+          }
+        >
           {sync.sincronizando
-            ? 'Sincronizando...'
+            ? 'Sincronizando cambios con el servidor...'
             : `${sincronizacion.pendientes.length} cambio(s) de esta evaluación guardado(s) localmente, pendiente(s) de sincronizar.`}
         </Alert>
       )}
 
       {sincronizacion.errores.length > 0 && (
-        <Alert severity="error">
+        <Alert
+          severity="error"
+          action={
+            sync.enLinea && !sync.sincronizando ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={async () => {
+                  await sync.sincronizar();
+                  void sincronizacion.refrescar();
+                  if (evaluacionId) {
+                    queryClient.invalidateQueries({ queryKey: ['evaluaciones', evaluacionId] });
+                  }
+                }}
+              >
+                Reintentar
+              </Button>
+            ) : undefined
+          }
+        >
           {sincronizacion.errores.length} cambio(s) no se pudieron enviar al servidor después de varios intentos y
           quedaron sin sincronizar. Revisa la conexión y avisa a soporte si el problema persiste:
           <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
@@ -1600,12 +1749,6 @@ export default function EjecutarEvaluacion() {
         </Paper>
       ) : evaluacion.bloqueada && !verFichaEnBloqueada && !enModoCorreccion ? (
         <>
-          {advertenciaInforme && (
-            <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setAdvertenciaInforme(null)}>
-              La evaluación se finalizó correctamente, pero no se pudo enviar al Coordinador para revisión
-              ({advertenciaInforme}). Se reintentará automáticamente cuando haya conexión.
-            </Alert>
-          )}
           <SeccionResultadoRiesgo
             evaluacion={evaluacion}
             onReabrir={handleReabrir}
@@ -1625,8 +1768,8 @@ export default function EjecutarEvaluacion() {
                 Evaluación devuelta por el Coordinador
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                Corregí los criterios que hagan falta según las observaciones de abajo. En cuanto guardes la primera
-                respuesta corregida, la evaluación vuelve a quedar en curso y podés seguir editando con normalidad
+                Corrija los criterios observados según las indicaciones que figuran debajo. En cuanto guarde la primera
+                respuesta corregida, la evaluación vuelve a quedar en curso y puede continuar editando con normalidad
                 hasta volver a finalizar.
               </Typography>
               {cargandoObservaciones ? (
