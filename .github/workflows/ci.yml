@@ -123,7 +123,7 @@ jobs:
         run: npm run build:engine
       - name: Verificacion de tipos
         working-directory: apps/web
-        run: npx tsc --noEmit
+        run: npx tsc -b
       - name: Pruebas unitarias (Vitest)
         working-directory: apps/web
         run: npx vitest run

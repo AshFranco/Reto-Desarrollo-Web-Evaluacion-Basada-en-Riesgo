@@ -33,16 +33,16 @@ export class EmailService {
     this.transporterPromise = (async () => {
       const host = this.config.smtpHost;
 
-      if (host && this.config.smtpUser && this.config.smtpPass) {
+      if (host) {
         this.logger.log(`Inicializando transporte SMTP conectado a ${host}:${this.config.smtpPort}`);
         return nodemailer.createTransport({
           host,
           port: this.config.smtpPort,
           secure: this.config.smtpSecure,
-          auth: {
-            user: this.config.smtpUser,
-            pass: this.config.smtpPass,
-          },
+          auth:
+            this.config.smtpUser && this.config.smtpPass
+              ? { user: this.config.smtpUser, pass: this.config.smtpPass }
+              : undefined,
         });
       }
 

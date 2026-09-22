@@ -74,7 +74,7 @@ describe('CalendarioEvaluador', () => {
       renderCalendario();
 
       await waitFor(() => expect(peticiones.length).toBeGreaterThan(0));
-      const q = peticiones[0].searchParams;
+      const q = peticiones[0]!.searchParams;
       expect(q.get('evaluadorId')).toBe('7');
       expect(q.get('desde')).toBe('2026-08-31');
       expect(q.get('hasta')).toBe('2026-10-04');
@@ -166,8 +166,8 @@ describe('CalendarioEvaluador', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Período siguiente' }));
       expect(await screen.findByText('Octubre de 2026')).toBeInTheDocument();
       await waitFor(() => expect(peticiones.length).toBe(2));
-      expect(peticiones[1].searchParams.get('desde')).toBe('2026-09-28');
-      expect(peticiones[1].searchParams.get('hasta')).toBe('2026-11-01');
+      expect(peticiones[1]!.searchParams.get('desde')).toBe('2026-09-28');
+      expect(peticiones[1]!.searchParams.get('hasta')).toBe('2026-11-01');
 
       fireEvent.click(screen.getByRole('button', { name: 'Período anterior' }));
       fireEvent.click(screen.getByRole('button', { name: 'Período anterior' }));
@@ -258,6 +258,6 @@ describe('CalendarioTecnico (pantalla)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Mi calendario' })).toBeInTheDocument();
     await waitFor(() => expect(peticiones.length).toBeGreaterThan(0));
-    expect(peticiones[0].searchParams.get('evaluadorId')).toBe('9');
+    expect(peticiones[0]!.searchParams.get('evaluadorId')).toBe('9');
   });
 });
