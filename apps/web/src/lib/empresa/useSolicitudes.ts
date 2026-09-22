@@ -29,6 +29,16 @@ export function useCrearSolicitud() {
   });
 }
 
+/** DELETE /api/v1/solicitudes-bpm/:id -- solo borradores de la propia empresa; el backend responde 400 si ya se envió. */
+export function useDescartarSolicitud() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetchJson<{ mensaje: string }>(`/api/v1/solicitudes-bpm/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solicitudes-bpm', 'mias'] }),
+  });
+}
+
 /**
  * EnviarSolicitudDto exige establecimientoId (confirmado en
  * dto/solicitud-bpm.dto.ts) porque caso.id_establecimiento es obligatorio.

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -158,5 +158,90 @@ describe('Continuar un borrador de solicitud BPM', () => {
 
     expect(await screen.findByText('Nueva solicitud BPM')).toBeInTheDocument();
     expect(screen.getByLabelText(/^Motivo/)).toBeEnabled();
+  });
+});
+
+describe('Descartar un borrador de solicitud BPM', () => {
+  it('pide confirmación, llama a DELETE /solicitudes-bpm/:id y el borrador desaparece del listado', async () => {
+    let descartada = false;
+    let idBorrado = '';
+    server.use(
+      http.get('http://localhost:3000/api/v1/solicitudes-bpm/mias', () =>
+        HttpResponse.json(descartada ? [] : [MOCK_SOLICITUD])
+      ),
+      http.delete('http://localhost:3000/api/v1/solicitudes-bpm/:id', ({ params }) => {
+        descartada = true;
+        idBorrado = String(params.id);
+        return HttpResponse.json({ mensaje: 'Borrador descartado correctamente.' });
+      })
+    );
+    renderEn('/empresa');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Descartar' }));
+    const dialogo = await screen.findByRole('dialog');
+    expect(within(dialogo).getByText(/no se puede deshacer/)).toBeInTheDocument();
+    expect(idBorrado).toBe('');
+
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Descartar' }));
+
+    await waitFor(() => expect(idBorrado).toBe(MOCK_SOLICITUD.id));
+    expect(await screen.findByText('Todavía no hay solicitudes BPM registradas.')).toBeInTheDocument();
+  });
+
+  it('"Volver" cierra el diálogo sin borrar nada', async () => {
+    let llamadas = 0;
+    server.use(
+      http.delete('http://localhost:3000/api/v1/solicitudes-bpm/:id', () => {
+        llamadas++;
+        return HttpResponse.json({ mensaje: 'ok' });
+      })
+    );
+    renderEn('/empresa');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Descartar' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Volver' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(llamadas).toBe(0);
+    expect(screen.getByText('Borrador')).toBeInTheDocument();
+  });
+
+  it('muestra el error real del backend y mantiene el diálogo abierto', async () => {
+    server.use(
+      http.delete('http://localhost:3000/api/v1/solicitudes-bpm/:id', () =>
+        HttpResponse.json({ message: 'Solo se pueden descartar solicitudes en borrador.' }, { status: 400 })
+      )
+    );
+    renderEn('/empresa');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Descartar' }));
+    const dialogo = await screen.findByRole('dialog');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Descartar' }));
+
+    expect(await within(dialogo).findByText('Solo se pueden descartar solicitudes en borrador.')).toBeInTheDocument();
+  });
+
+  it('una solicitud enviada no ofrece Descartar', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/solicitudes-bpm/mias', () =>
+        HttpResponse.json([{ ...MOCK_SOLICITUD, estado: 'Asignada' }])
+      )
+    );
+    renderEn('/empresa');
+
+    await screen.findByText('Enviada');
+    expect(screen.queryByRole('button', { name: 'Descartar' })).not.toBeInTheDocument();
+  });
+
+  it('la tarjeta "Solicitudes BPM" no cuenta los borradores', async () => {
+    server.use(
+      http.get('http://localhost:3000/api/v1/solicitudes-bpm/mias', () =>
+        HttpResponse.json([MOCK_SOLICITUD, { ...MOCK_SOLICITUD, id: '2', estado: 'Asignada' }])
+      )
+    );
+    renderEn('/empresa');
+
+    const tarjeta = (await screen.findByText('Solicitudes BPM', { selector: '*:not(h6)' })).closest('div');
+    await waitFor(() => expect(tarjeta?.parentElement?.textContent).toMatch(/^1/));
   });
 });

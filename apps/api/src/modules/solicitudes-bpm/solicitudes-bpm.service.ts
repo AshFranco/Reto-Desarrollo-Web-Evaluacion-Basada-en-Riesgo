@@ -95,6 +95,31 @@ export class SolicitudesBpmService {
   }
 
   /**
+   * Descarta un borrador: solo aplica a solicitudes de la propia empresa que
+   * todavía no se enviaron (una enviada ya generó un Caso y no se puede borrar).
+   * Los adjuntos se borran en cascada en la base; los archivos se retiran del
+   * almacenamiento después, sin que un fallo ahí deshaga el descarte.
+   */
+  async descartar(solicitudId: string, user: JwtPayload) {
+    const solicitud = await this.prisma.solicitudBpm.findUnique({
+      where: { id: BigInt(solicitudId) },
+      include: { adjuntos: { select: { rutaAlmacenamiento: true } } },
+    });
+    if (!solicitud) throw new NotFoundException('Solicitud no encontrada.');
+    if (!user.empresaId || solicitud.idEmpresa.toString() !== user.empresaId) {
+      throw new ForbiddenException('No tiene acceso a esta solicitud.');
+    }
+    if (solicitud.estado !== 'Pendiente de Asignacion') {
+      throw new BadRequestException('Solo se pueden descartar solicitudes en borrador.');
+    }
+
+    await this.prisma.solicitudBpm.delete({ where: { id: solicitud.id } });
+    await Promise.allSettled(solicitud.adjuntos.map((a) => this.storage.eliminar(a.rutaAlmacenamiento)));
+
+    return { mensaje: 'Borrador descartado correctamente.' };
+  }
+
+  /**
    * Adjuntos (croquis, memoria descriptiva, etc.) solo se admiten mientras
    * la solicitud está en borrador -- una vez enviada (Caso creado), el
    * expediente queda formalmente presentado ante DIGEMAPS.
