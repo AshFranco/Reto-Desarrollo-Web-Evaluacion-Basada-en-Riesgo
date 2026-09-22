@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth/token.service';
 import { PdfService } from '../../common/services/pdf.service';
 import { EmailService } from '../../common/services/email.service';
+import { InformesService } from '../informes/informes.service';
 import { mapearResultadoDestacado, mapearNoConformidades, construirNombreArchivoExpedientePdf } from '../../common/utils/informe-pdf-mapper';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { verificarAccesoEmpresa } from '../../common/utils/aislamiento-empresa';
@@ -22,6 +23,7 @@ export class ExpedientesService {
     private readonly pdfService: PdfService,
     private readonly notificaciones: NotificacionesService,
     private readonly emailService: EmailService,
+    private readonly informesService: InformesService,
   ) {}
 
   async generarPdf(casoId: string, user: JwtPayload): Promise<Buffer> {
@@ -167,6 +169,11 @@ export class ExpedientesService {
 
   /**
    * Envía el acta en PDF a la empresa cuando se cierra el expediente (RF-19).
+   * Se adjunta la Ficha BPM completa (la misma que "Descargar Acta PDF" en el
+   * sistema, con tabla de criterios y no conformidades) vía InformesService,
+   * NO el dictamen corto de generarPdf() de este mismo servicio -- son dos
+   * documentos distintos y la empresa espera ver el mismo que descarga un
+   * usuario interno desde la UI.
    * Falla en silencio (solo se registra en el log): un problema de correo
    * nunca debe deshacer un cierre de expediente ya persistido.
    */
@@ -180,6 +187,7 @@ export class ExpedientesService {
               empresa: { include: { contactos: { include: { tipoContacto: true } } } },
             },
           },
+          evaluaciones: { include: { estado: true } },
         },
       });
       const empresa = caso?.establecimiento?.empresa;
@@ -192,7 +200,13 @@ export class ExpedientesService {
         return;
       }
 
-      const { buffer, nombreArchivo } = await this.generarPdfConMetadatos(casoId, USUARIO_SISTEMA);
+      const evaluacion = caso?.evaluaciones.find((e) => e.estado?.codigo === 'CERRADA' || e.estado?.codigo === 'APROBADA');
+      if (!evaluacion) {
+        this.logger.warn(`Expediente del caso #${casoId} cerrado sin una evaluación aprobada/cerrada de la cual generar el PDF.`);
+        return;
+      }
+
+      const { buffer, nombreArchivo } = await this.informesService.generarPdfConMetadatos(evaluacion.id.toString(), USUARIO_SISTEMA);
       const resultado = await this.emailService.enviarResultadoExpediente(
         destinatario,
         empresa.razonSocial,

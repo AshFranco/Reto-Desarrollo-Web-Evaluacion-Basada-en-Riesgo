@@ -7,6 +7,7 @@ describe('ExpedientesService', () => {
   let pdfServiceMock: any;
   let notificacionesMock: any;
   let emailServiceMock: any;
+  let informesServiceMock: any;
 
   beforeEach(() => {
     prismaMock = {
@@ -20,8 +21,9 @@ describe('ExpedientesService', () => {
     pdfServiceMock = { generarDocumentoPdf: jest.fn() };
     notificacionesMock = { notificarPorEmpresa: jest.fn() };
     emailServiceMock = { enviarResultadoExpediente: jest.fn().mockResolvedValue({ ok: true }) };
+    informesServiceMock = { generarPdfConMetadatos: jest.fn() };
 
-    service = new ExpedientesService(prismaMock, pdfServiceMock, notificacionesMock, emailServiceMock);
+    service = new ExpedientesService(prismaMock, pdfServiceMock, notificacionesMock, emailServiceMock, informesServiceMock);
   });
 
   const CASO_ID = '1';
@@ -65,10 +67,10 @@ describe('ExpedientesService', () => {
       );
     });
 
-    it('envía el acta en PDF al correo de la empresa cuando el expediente se cierra', async () => {
+    it('envía el acta en PDF (la Ficha BPM completa de InformesService, no el dictamen corto) al correo de la empresa cuando el expediente se cierra', async () => {
       prismaMock.caso.findUnique.mockResolvedValue({
         id: 1n,
-        evaluaciones: [{ id: 50n, idEstado: 5 }],
+        evaluaciones: [{ id: 50n, idEstado: 5, estado: { codigo: 'APROBADA' } }],
         expediente: null,
         establecimiento: {
           idEmpresa: 9n,
@@ -87,10 +89,11 @@ describe('ExpedientesService', () => {
         resultadoFinal: 'Riesgo Bajo',
       });
       const pdfBuffer = Buffer.from('pdf-falso');
-      jest.spyOn(service, 'generarPdfConMetadatos').mockResolvedValue({ buffer: pdfBuffer, nombreArchivo: 'acta.pdf' });
+      informesServiceMock.generarPdfConMetadatos.mockResolvedValue({ buffer: pdfBuffer, nombreArchivo: 'acta.pdf' });
 
       await service.cerrar(CASO_ID);
 
+      expect(informesServiceMock.generarPdfConMetadatos).toHaveBeenCalledWith('50', expect.objectContaining({ rol: 'ADMINISTRADOR' }));
       expect(emailServiceMock.enviarResultadoExpediente).toHaveBeenCalledWith(
         'contacto@alimentoscaribe.com',
         'Alimentos del Caribe SRL',
@@ -104,7 +107,7 @@ describe('ExpedientesService', () => {
     it('usa el correo del contacto principal si la empresa no tiene correo propio', async () => {
       prismaMock.caso.findUnique.mockResolvedValue({
         id: 1n,
-        evaluaciones: [{ id: 50n, idEstado: 5 }],
+        evaluaciones: [{ id: 50n, idEstado: 5, estado: { codigo: 'APROBADA' } }],
         expediente: null,
         establecimiento: {
           idEmpresa: 9n,
@@ -124,7 +127,7 @@ describe('ExpedientesService', () => {
         .mockResolvedValueOnce({ id: 7, codigo: 'CERRADA' });
       prismaMock.calculoRiesgo.findUnique.mockResolvedValue({ calificacionTexto: 'Riesgo Bajo' });
       prismaMock.expediente.upsert.mockResolvedValue({ id: 3n, idCaso: 1n, estado: 'Cerrado', resultadoFinal: 'Riesgo Bajo' });
-      jest.spyOn(service, 'generarPdfConMetadatos').mockResolvedValue({ buffer: Buffer.from('x'), nombreArchivo: 'acta.pdf' });
+      informesServiceMock.generarPdfConMetadatos.mockResolvedValue({ buffer: Buffer.from('x'), nombreArchivo: 'acta.pdf' });
 
       await service.cerrar(CASO_ID);
 
@@ -141,7 +144,7 @@ describe('ExpedientesService', () => {
     it('no revierte el cierre del expediente si el envío del correo falla', async () => {
       prismaMock.caso.findUnique.mockResolvedValue({
         id: 1n,
-        evaluaciones: [{ id: 50n, idEstado: 5 }],
+        evaluaciones: [{ id: 50n, idEstado: 5, estado: { codigo: 'APROBADA' } }],
         expediente: null,
         establecimiento: {
           idEmpresa: 9n,
@@ -154,7 +157,7 @@ describe('ExpedientesService', () => {
         .mockResolvedValueOnce({ id: 7, codigo: 'CERRADA' });
       prismaMock.calculoRiesgo.findUnique.mockResolvedValue({ calificacionTexto: 'Riesgo Bajo' });
       prismaMock.expediente.upsert.mockResolvedValue({ id: 3n, idCaso: 1n, estado: 'Cerrado', resultadoFinal: 'Riesgo Bajo' });
-      jest.spyOn(service, 'generarPdfConMetadatos').mockRejectedValue(new Error('PDF roto'));
+      informesServiceMock.generarPdfConMetadatos.mockRejectedValue(new Error('PDF roto'));
 
       await expect(service.cerrar(CASO_ID)).resolves.toEqual(
         expect.objectContaining({ estado: 'Cerrado' }),

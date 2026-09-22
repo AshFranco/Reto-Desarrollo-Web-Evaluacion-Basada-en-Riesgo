@@ -132,7 +132,7 @@ describe('PDF: campos individuales sin dato real también muestran N/A (no un ej
     async function generar(caso: any) {
       const prisma = { caso: { findUnique: jest.fn().mockResolvedValue(caso) } };
       const pdfMock = { generarDocumentoPdf: jest.fn().mockResolvedValue(Buffer.from('%PDF-')) };
-      await new ExpedientesService(prisma as any, pdfMock as any, {} as any, {} as any).generarPdf('1', admin);
+      await new ExpedientesService(prisma as any, pdfMock as any, {} as any, {} as any, {} as any).generarPdf('1', admin);
       return pdfMock.generarDocumentoPdf.mock.calls[0][0] as DocumentoPdfData;
     }
 
