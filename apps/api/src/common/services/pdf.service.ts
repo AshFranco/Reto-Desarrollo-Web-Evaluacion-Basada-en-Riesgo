@@ -90,6 +90,9 @@ export interface DocumentoPdfData {
   coordinadorCertificado?: string;
 }
 
+/** Estado de validación del sello: refleja si hay resultado y si aprueba, sin inventar ninguno. */
+type EstadoSello = 'aprobado' | 'observado' | 'pendiente';
+
 const AZUL_INSTITUCIONAL = '#002B49';
 const AZUL_OSCURO = '#0F172A';
 const AZUL_MEDIO = '#0F3A66';
@@ -165,6 +168,83 @@ export class PdfService {
       if (existsSync(ruta)) return ruta;
     }
     return null;
+  }
+
+  /** Mayor tamaño de letra (hasta `maximo`, sin bajar de `minimo`) con el que `texto` cabe en `ancho`. */
+  private tamanoQueCabe(doc: PDFKit.PDFDocument, texto: string, ancho: number, maximo: number, minimo: number): number {
+    let tamano = maximo;
+    while (tamano > minimo && doc.fontSize(tamano).widthOfString(texto) > ancho) tamano -= 0.25;
+    return tamano;
+  }
+
+  /**
+   * Reparte el ancho de la caja de resultado del documento genérico: el desglose ocupa desde col2X hasta
+   * 12 pt antes de donde empieza el veredicto (APRUEBA / NO APRUEBA, alineado a la derecha), medido con la
+   * fuente real -- antes "NO APRUEBA" podía superponerse con la frecuencia cuando esta era larga.
+   */
+  private calcularColumnasResultado(doc: PDFKit.PDFDocument, x: number, anchoContenido: number, resultado: ResultadoDestacadoPdf) {
+    const col2X = x + 190;
+    const col3Ancho = 140;
+    const col3X = x + anchoContenido - col3Ancho - 15;
+    const textoVeredicto = resultado.aprueba ? 'APRUEBA' : 'NO APRUEBA';
+    const anchoVeredicto = doc.font('Helvetica-Bold').fontSize(20).widthOfString(textoVeredicto);
+    const veredictoX = col3X + col3Ancho - anchoVeredicto;
+    return { col2X, col2Ancho: veredictoX - 12 - col2X, col3X, col3Ancho, veredictoX, textoVeredicto };
+  }
+
+  /**
+   * Distribución de los 4 renglones del sello (país, estado de validación, fecha y organismo), medida con
+   * la fuente real: cada renglón se reduce (sin bajar de 3.6 pt) hasta caber en la cuerda del círculo
+   * interior a la altura donde se dibuja, para que ningún texto quede cortado por los anillos.
+   */
+  private calcularFilasSello(doc: PDFKit.PDFDocument, r: number, fechaStr: string, estado: EstadoSello, lineaOrganismo: string) {
+    const radioInterior = r - 6;
+    const negrita = 'Helvetica-Bold';
+    const colorSello = estado === 'pendiente' ? GRIS_TEXTO : estado === 'aprobado' ? AZUL_INSTITUCIONAL : ROJO_TXT;
+    // Cada frase larga se reparte en 2 renglones: a este radio, una sola línea no cabe a un tamaño legible.
+    const [estadoL1, estadoL2] =
+      estado === 'pendiente' ? ['PENDIENTE DE', 'DICTAMEN'] : estado === 'aprobado' ? ['APROBADO Y', 'VALIDADO'] : ['NO APROBADO', 'OBSERVADO'];
+    const tamanoEstado = estado === 'pendiente' ? 5.2 : estado === 'aprobado' ? 6 : 5.5;
+    // Los desplazamientos y tamaños están pensados para r=36; se escalan para radios menores (p.ej. 30).
+    const k = r / 36;
+    const definiciones = [
+      { texto: 'REPÚBLICA', dy: -19.5 * k, fuente: negrita, tamano: 5 * k, color: colorSello },
+      { texto: 'DOMINICANA', dy: -13.5 * k, fuente: negrita, tamano: 5 * k, color: colorSello },
+      { texto: estadoL1, dy: -4.5 * k, fuente: negrita, tamano: tamanoEstado * k, color: colorSello },
+      { texto: estadoL2, dy: 2 * k, fuente: negrita, tamano: tamanoEstado * k, color: colorSello },
+      { texto: fechaStr, dy: 12.5 * k, fuente: negrita, tamano: 5 * k, color: GRIS_TEXTO },
+      { texto: lineaOrganismo, dy: 19.5 * k, fuente: 'Helvetica', tamano: 4.5 * k, color: colorSello },
+    ];
+    const filas = definiciones.map((d) => {
+      let tamano = d.tamano;
+      const ancho = () => doc.font(d.fuente).fontSize(tamano).widthOfString(d.texto);
+      const cuerda = () => 2 * Math.sqrt(Math.max(0, radioInterior ** 2 - (Math.abs(d.dy) + tamano * 0.6) ** 2));
+      const minimo = 3.65 * k;
+      while (tamano > minimo && ancho() > cuerda()) tamano = Math.round((tamano - 0.1) * 100) / 100;
+      return { ...d, tamano, ancho: ancho() };
+    });
+    return { filas, divisores: [-9.5 * k, 7 * k], colorSello };
+  }
+
+  /** Sello institucional circular; su texto y color reflejan el estado real de validación (nunca "aprobado" por defecto). */
+  private dibujarSello(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number, fechaStr: string, estado: EstadoSello, lineaOrganismo: string) {
+    const radioInterior = r - 6;
+    const { filas, divisores, colorSello } = this.calcularFilasSello(doc, r, fechaStr, estado, lineaOrganismo);
+
+    doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(colorSello).stroke();
+    doc.circle(cx, cy, r - 2.5).lineWidth(0.6).strokeColor(colorSello).stroke();
+    doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(colorSello).stroke().undash();
+
+    for (const dy of divisores) {
+      const mitad = Math.sqrt(Math.max(0, radioInterior ** 2 - dy ** 2)) - 2;
+      doc.moveTo(cx - mitad, cy + dy).lineTo(cx + mitad, cy + dy).lineWidth(0.6).strokeColor(colorSello).stroke();
+    }
+
+    for (const fila of filas) {
+      doc.fillColor(fila.color).font(fila.fuente).fontSize(fila.tamano);
+      const alto = doc.currentLineHeight();
+      doc.text(fila.texto, cx - fila.ancho / 2, cy + fila.dy - alto / 2, { lineBreak: false });
+    }
   }
 
   private async generarQrBuffer(url: string): Promise<Buffer | null> {
@@ -365,21 +445,9 @@ export class PdfService {
     const r = 36;
     const fechaSello = new Date().toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
     const esAprobado = data.resultado ? data.resultado.aprueba : (data.datosControlInterno ? data.datosControlInterno.esFavorable ?? null : null);
+    const estadoSello: EstadoSello = esAprobado === null ? 'pendiente' : esAprobado ? 'aprobado' : 'observado';
 
-    const colorSello = esAprobado === null ? '#475569' : (esAprobado ? AZUL_INSTITUCIONAL : ROJO_TXT);
-    const textoSello = esAprobado === null ? 'PENDIENTE DE DICTAMEN' : (esAprobado ? 'APROBADO Y VALIDADO' : 'NO APROBADO / OBSERVADO');
-
-    doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(colorSello).stroke();
-    doc.circle(cx, cy, r - 2.5).lineWidth(0.6).strokeColor(colorSello).stroke();
-    doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(colorSello).stroke().undash();
-
-    doc.moveTo(cx - 24, cy - 7).lineTo(cx + 24, cy - 7).lineWidth(0.6).strokeColor(colorSello).stroke();
-    doc.moveTo(cx - 24, cy + 6).lineTo(cx + 24, cy + 6).lineWidth(0.6).strokeColor(colorSello).stroke();
-
-    doc.fillColor(colorSello).font('Helvetica-Bold').fontSize(5).text('REPÚBLICA DOMINICANA', cx - 30, cy - 18, { width: 60, align: 'center' });
-    doc.fillColor(colorSello).font('Helvetica-Bold').fontSize(esAprobado === null ? 5.2 : (esAprobado ? 6.5 : 5.8)).text(textoSello, cx - 30, cy - 4.5, { width: 60, align: 'center' });
-    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(5.5).text(fechaSello, cx - 30, cy + 9, { width: 60, align: 'center' });
-    doc.fillColor(colorSello).font('Helvetica').fontSize(4.5).text('SINEC · DIGEMAPS / MSP', cx - 30, cy + 18, { width: 60, align: 'center' });
+    this.dibujarSello(doc, cx, cy, r, fechaSello, estadoSello, 'SINEC · DIGEMAPS / MSP');
     doc.restore();
 
     // 3. SECCIÓN: DATOS DE CONTROL INTERNO Y FISCALIZACIÓN
@@ -841,29 +909,19 @@ export class PdfService {
     doc.fillColor(GRIS_CLARO).font('Helvetica-Bold').fontSize(8).text('CUMPLIMIENTO BPM', col1X, cajaY + 14, { width: 130 });
     doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(28).text(`${resultado.cumplimientoPct.toFixed(1)}%`, col1X, cajaY + 26, { width: 130 });
 
-    const col2X = x + 190;
-    doc.fillColor(GRIS_CLARO).font('Helvetica-Bold').fontSize(8).text('NO CONFORMIDADES', col2X, cajaY + 14, { width: 220 });
-    doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(9).text(
+    const { col2X, col2Ancho, col3X, col3Ancho, textoVeredicto } = this.calcularColumnasResultado(doc, x, ancho, resultado);
+    doc.fillColor(GRIS_CLARO).font('Helvetica-Bold').fontSize(8).text('NO CONFORMIDADES', col2X, cajaY + 14, { width: col2Ancho, lineBreak: false });
+    const lineasDesglose = [
       `Críticas: ${resultado.ncCriticas}   Mayores: ${resultado.ncMayores}   Menores: ${resultado.ncMenores}`,
-      col2X,
-      cajaY + 27,
-      { width: 260 },
-    );
-    doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(9).text(
-      `Nivel de riesgo: ${resultado.nivelRiesgo}` + (resultado.frecuencia ? `   ·   Frecuencia: ${resultado.frecuencia}` : ''),
-      col2X,
-      cajaY + 42,
-      { width: 300 },
-    );
+      `Nivel de riesgo: ${resultado.nivelRiesgo}`,
+      ...(resultado.frecuencia ? [`Frecuencia: ${resultado.frecuencia}`] : []),
+    ];
+    lineasDesglose.forEach((linea, i) => {
+      doc.fillColor(GRIS_TEXTO).font('Helvetica').fontSize(this.tamanoQueCabe(doc, linea, col2Ancho, 9, 6.5));
+      doc.text(linea, col2X, cajaY + 27 + i * 13, { width: col2Ancho, lineBreak: false });
+    });
 
-    const col3Ancho = 140;
-    const col3X = x + ancho - col3Ancho - 15;
-    doc.fillColor(colorAprueba).font('Helvetica-Bold').fontSize(20).text(
-      resultado.aprueba ? 'APRUEBA' : 'NO APRUEBA',
-      col3X,
-      cajaY + 32,
-      { width: col3Ancho, align: 'right' },
-    );
+    doc.fillColor(colorAprueba).font('Helvetica-Bold').fontSize(20).text(textoVeredicto, col3X, cajaY + 32, { width: col3Ancho, align: 'right' });
 
     doc.y = cajaY + altoCaja + 20;
     doc.x = x;
@@ -954,9 +1012,22 @@ export class PdfService {
     const altoTexto = doc.heightOfString(texto, { width: anchoTexto });
     const altoCaja = altoTexto + 24;
 
-    this.asegurarEspacio(doc, altoCaja + 34);
+    const altoPaginaUtil = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+    if (altoCaja + 34 > altoPaginaUtil) {
+      this.dibujarSeccionLarga(doc, seccion.titulo, texto, x, ancho, anchoTexto);
+      return;
+    }
 
-    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(10.5).text(seccion.titulo, x, doc.y);
+    this.asegurarEspacio(doc, altoCaja + 34);
+    this.dibujarCajaSeccion(doc, seccion.titulo, texto, esEstadoVacio, x, ancho, anchoTexto);
+  }
+
+  /** Título + caja con el texto de una sección, desde la posición actual. Deja `doc.y` debajo de la caja. */
+  private dibujarCajaSeccion(doc: PDFKit.PDFDocument, titulo: string, texto: string, esEstadoVacio: boolean, x: number, ancho: number, anchoTexto: number) {
+    doc.font('Helvetica').fontSize(9.5);
+    const altoCaja = doc.heightOfString(texto, { width: anchoTexto }) + 24;
+
+    doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(10.5).text(titulo, x, doc.y);
     doc.y += 14;
 
     const cajaY = doc.y;
@@ -972,6 +1043,51 @@ export class PdfService {
     doc.x = x;
   }
 
+  /**
+   * Sección más alta que una página entera: se parte en trozos que caben en el espacio que queda de la
+   * página actual y luego en páginas completas, cada uno en su propia caja (los siguientes llevan
+   * "(continuación)" en el título). Antes la caja desbordaba el pie de página.
+   */
+  private dibujarSeccionLarga(doc: PDFKit.PDFDocument, titulo: string, texto: string, x: number, ancho: number, anchoTexto: number) {
+    const relleno = 14 + 24 + 6;
+    const limiteInferior = () => doc.page.height - doc.page.margins.bottom;
+    if (doc.y + relleno + 40 > limiteInferior()) doc.addPage();
+
+    doc.font('Helvetica').fontSize(9.5);
+    const altoPrimero = limiteInferior() - doc.y - relleno;
+    const altoPagina = doc.page.height - doc.page.margins.top - doc.page.margins.bottom - relleno;
+    const trozos = this.partirTextoPorAltura(doc, texto, anchoTexto, [altoPrimero, altoPagina]);
+
+    trozos.forEach((trozo, i) => {
+      if (i > 0) doc.addPage();
+      this.dibujarCajaSeccion(doc, i === 0 ? titulo : `${titulo} (continuación)`, trozo, false, x, ancho, anchoTexto);
+    });
+  }
+
+  /**
+   * Parte `texto` en trozos por palabras, de modo que el trozo n mida como máximo `altos[n]` de alto (el
+   * último valor se repite para los siguientes). Siempre avanza al menos una palabra.
+   */
+  private partirTextoPorAltura(doc: PDFKit.PDFDocument, texto: string, ancho: number, altos: number[]): string[] {
+    const palabras = texto.match(/\S+\s*/g) ?? [];
+    const trozos: string[] = [];
+    let inicio = 0;
+    while (inicio < palabras.length) {
+      const limite = altos[Math.min(trozos.length, altos.length - 1)];
+      let minimo = 1;
+      let maximo = palabras.length - inicio;
+      while (minimo < maximo) {
+        const medio = Math.ceil((minimo + maximo) / 2);
+        const alto = doc.heightOfString(palabras.slice(inicio, inicio + medio).join('').trimEnd(), { width: ancho });
+        if (alto <= limite) minimo = medio;
+        else maximo = medio - 1;
+      }
+      trozos.push(palabras.slice(inicio, inicio + minimo).join('').trimEnd());
+      inicio += minimo;
+    }
+    return trozos;
+  }
+
   private normalizarTextoSeccion(contenido: string): string {
     if (!contenido || !contenido.trim() || contenido.trim() === 'N/A' || contenido.startsWith('Sin ')) {
       return 'Sin información registrada.';
@@ -979,21 +1095,9 @@ export class PdfService {
     return contenido.trim();
   }
 
+  /** @deprecated queda solo por si algo externo la referenciaba; el genérico ahora usa dibujarSello(). */
   private dibujarSelloCertificacionGenerico(doc: PDFKit.PDFDocument, cx: number, cy: number, fechaStr: string) {
-    const r = 30;
-    doc.save();
-    doc.circle(cx, cy, r).lineWidth(1.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
-    doc.circle(cx, cy, r - 2.5).lineWidth(0.8).strokeColor(AZUL_INSTITUCIONAL).stroke();
-    doc.circle(cx, cy, r - 5.5).lineWidth(0.8).dash(3, { space: 2 }).strokeColor(AZUL_INSTITUCIONAL).stroke().undash();
-
-    doc.moveTo(cx - 20, cy - 5).lineTo(cx + 20, cy - 5).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
-    doc.moveTo(cx - 20, cy + 6).lineTo(cx + 20, cy + 6).lineWidth(0.6).strokeColor(AZUL_INSTITUCIONAL).stroke();
-
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(5).text('REPÚBLICA DOMINICANA', cx - 28, cy - 18, { width: 56, align: 'center' });
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(6).text('APROBADO Y VALIDADO', cx - 28, cy - 3.5, { width: 56, align: 'center' });
-    doc.fillColor(GRIS_TEXTO).font('Helvetica-Bold').fontSize(5).text(fechaStr, cx - 24, cy + 8, { width: 48, align: 'center' });
-    doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica').fontSize(4.5).text('SINEC · DIGEMAPS', cx - 26, cy + 18, { width: 52, align: 'center' });
-    doc.restore();
+    this.dibujarSello(doc, cx, cy, 30, fechaStr, 'aprobado', 'SINEC · DIGEMAPS');
   }
 
   private dibujarBloqueFirmasYQrGenerico(doc: PDFKit.PDFDocument, data: DocumentoPdfData, qrBuffer: Buffer | null) {
@@ -1059,23 +1163,28 @@ export class PdfService {
     const col3Ancho = colAncho - 10;
     const fechaHoy = data.fechaEmision ?? new Date().toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
 
-    if (data.incluirSello) {
+    // Se firma solo si hay un coordinador real; el sello, si además hay un resultado, refleja si aprueba
+    // o no (antes se dibujaba "APROBADO Y VALIDADO" siempre que incluirSello fuera true, aunque el
+    // resultado real fuera desfavorable, y "Ing. Carlos Peña" quedaba fijo si no había coordinador).
+    const firmadoPorCoordinador = Boolean(data.coordinadorNombre);
+    if (firmadoPorCoordinador && data.incluirSello) {
+      const estadoSelloGenerico: EstadoSello = !data.resultado ? 'pendiente' : data.resultado.aprueba ? 'aprobado' : 'observado';
       const stampCenterX = col3X + col3Ancho / 2;
       const stampCenterY = yContenido + 28;
-      this.dibujarSelloCertificacionGenerico(doc, stampCenterX, stampCenterY, fechaHoy);
+      this.dibujarSello(doc, stampCenterX, stampCenterY, 30, fechaHoy, estadoSelloGenerico, 'SINEC · DIGEMAPS');
 
-      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, stampCenterY + 34, { width: col3Ancho, align: 'center' });
+      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(7.5).text(data.coordinadorNombre!, col3X, stampCenterY + 34, { width: col3Ancho, align: 'center' });
       doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
     } else {
       const yCoord = yContenido + 8;
-      doc.fillColor(AZUL_INSTITUCIONAL).font('Helvetica-Bold').fontSize(8).text('FIRMADO DIGITALMENTE', col3X, yCoord, { width: col3Ancho, align: 'center' });
-      doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Certificado: MSP-DIGEMAPS-2026', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
+      doc.fillColor(firmadoPorCoordinador ? AZUL_INSTITUCIONAL : GRIS_CLARO).font('Helvetica-Bold').fontSize(8).text(firmadoPorCoordinador ? 'FIRMADO DIGITALMENTE' : 'PENDIENTE DE FIRMA', col3X, yCoord, { width: col3Ancho, align: 'center' });
+      if (firmadoPorCoordinador) doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6).text('Certificado: MSP-DIGEMAPS-2026', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
 
       doc.save();
       doc.moveTo(col3X + 10, yLineaFirma).lineTo(col3X + col3Ancho - 10, yLineaFirma).lineWidth(0.8).strokeColor(GRIS_BORDE).stroke();
       doc.restore();
 
-      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.coordinadorNombre ?? 'Ing. Carlos Peña', col3X, yLineaFirma + 4, { width: col3Ancho, align: 'center' });
+      doc.fillColor(AZUL_OSCURO).font('Helvetica-Bold').fontSize(8).text(data.coordinadorNombre ?? 'N/A', col3X, yLineaFirma + 4, { width: col3Ancho, align: 'center' });
       doc.fillColor(GRIS_CLARO).font('Helvetica').fontSize(6.5).text(data.coordinadorCargo ?? 'Coordinador Técnico DIGEMAPS', col3X, doc.y + 1, { width: col3Ancho, align: 'center' });
     }
 
@@ -1091,8 +1200,12 @@ export class PdfService {
       doc.switchToPage(i);
       const x = doc.page.margins.left;
       const ancho = this.anchoContenido(doc);
-      const y = doc.page.height - doc.page.margins.bottom + 12;
+      const margenInferior = doc.page.margins.bottom;
+      const y = doc.page.height - margenInferior + 12;
 
+      // El pie queda por debajo del margen inferior: con el margen activo pdfkit agrega una página nueva
+      // por cada texto ahí (2 páginas en blanco por página real). Se anula solo mientras se dibuja.
+      doc.page.margins.bottom = 0;
       doc.save();
       doc.moveTo(x, y - 6).lineTo(x + ancho, y - 6).lineWidth(0.5).strokeColor(GRIS_BORDE).stroke();
       doc
@@ -1111,6 +1224,7 @@ export class PdfService {
           align: 'right',
         });
       doc.restore();
+      doc.page.margins.bottom = margenInferior;
     }
   }
 
