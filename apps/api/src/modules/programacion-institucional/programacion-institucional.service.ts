@@ -57,27 +57,20 @@ export class ProgramacionInstitucionalService {
       },
     });
 
-    // Buscar o fallback para el origen de caso PROGRAMACION_INSTITUCIONAL
-    let origenProg = await this.prisma.origenCaso.findFirst({
-      where: { codigo: 'PROGRAMACION_INSTITUCIONAL' },
+    const origenProg = await this.prisma.origenCaso.findFirstOrThrow({
+      where: { codigo: 'PROGRAMACION' },
     });
-    if (!origenProg) {
-      origenProg = await this.prisma.origenCaso.findFirst();
-    }
 
     // Crear Caso en ciclo cerrado
-    let casoAsociado = null;
-    if (origenProg) {
-      casoAsociado = await this.prisma.caso.create({
-        data: {
-          idEstablecimiento: BigInt(dto.idEstablecimiento),
-          idOrigen: origenProg.id,
-          idProgramacion: programacion.id,
-          estado: 'BandejaEntrada',
-          prioridad: (dto.prioridad || 'NORMAL').toUpperCase(),
-        },
-      });
-    }
+    const casoAsociado = await this.prisma.caso.create({
+      data: {
+        idEstablecimiento: BigInt(dto.idEstablecimiento),
+        idOrigen: origenProg.id,
+        idProgramacion: programacion.id,
+        estado: 'BandejaEntrada',
+        prioridad: (dto.prioridad || 'NORMAL').toUpperCase(),
+      },
+    });
 
     await this.auditoriaService.registrar({
       entidad: 'ProgramacionInstitucional',
