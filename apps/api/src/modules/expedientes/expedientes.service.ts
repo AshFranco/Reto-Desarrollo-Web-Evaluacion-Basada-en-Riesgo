@@ -25,6 +25,7 @@ export class ExpedientesService {
         evaluaciones: {
           include: {
             evaluador: true,
+            coordinador: true,
             estado: true,
             calculoRiesgo: { include: { nivelRiesgo: true } },
             informe: true,
@@ -69,16 +70,18 @@ export class ExpedientesService {
         },
         {
           titulo: 'Detalles de Evaluación Aprobada',
-          contenido: evaluacionAprobada?.informe?.resumenEjecutivo ?? 'Evaluación finalizada y archivada correctamente en el sistema SINEC.',
+          contenido: evaluacionAprobada?.informe?.resumenEjecutivo ?? (evaluacionAprobada ? 'Evaluación finalizada y archivada correctamente en el sistema SINEC.' : 'N/A'),
         },
       ],
-      incluirSello: true,
+      // El sello y la firma del coordinador solo van si existe una evaluación aprobada o cerrada; antes
+      // el sello se dibujaba siempre y el coordinador era un nombre fijo en todos los expedientes.
+      incluirSello: Boolean(evaluacionAprobada),
       incluirQr: true,
       qrUrl,
       incluirFirma: true,
-      tecnicoNombre: evaluacionAprobada?.evaluador?.nombreCompleto ?? 'Lic. Roberto Morales',
+      tecnicoNombre: evaluacionAprobada?.evaluador?.nombreCompleto,
       tecnicoCargo: 'Técnico Evaluador BPM',
-      coordinadorNombre: 'Ing. Carlos Peña',
+      coordinadorNombre: evaluacionAprobada?.coordinador?.nombreCompleto,
       coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
     });
 

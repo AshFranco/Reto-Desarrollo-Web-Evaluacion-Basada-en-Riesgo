@@ -85,10 +85,10 @@ export class InformesService {
     const representanteLegal = contactoRep?.nombreCompleto || 'N/A';
     const telefonoContacto = est?.telefono || emp?.telefono || contactoRep?.telefono || 'N/A';
 
-    // Municipio / DPS
-    const nombreMunicipio = est?.municipio?.nombre || 'Santo Domingo Este';
-    const dps = est?.dpsDas?.nombre || (est?.municipio?.provincia?.nombre ? `DPS ${est.municipio.provincia.nombre}` : 'DPS II');
-    const municipioDps = `${nombreMunicipio} (${dps})`;
+    // Municipio / DPS: sin ninguno de los dos, N/A; con solo uno, se muestra ese.
+    const nombreMunicipio: string | undefined = est?.municipio?.nombre;
+    const dps: string | undefined = est?.dpsDas?.nombre || (est?.municipio?.provincia?.nombre ? `DPS ${est.municipio.provincia.nombre}` : undefined);
+    const municipioDps = nombreMunicipio && dps ? `${nombreMunicipio} (${dps})` : nombreMunicipio || dps || 'N/A';
 
     // Fechas
     const fechaIni = evaluacion.fechaInicio || evaluacion.fechaProgramada || new Date();
@@ -102,15 +102,15 @@ export class InformesService {
     const resultadoDestacado = mapearResultadoDestacado(evaluacion.calculoRiesgo);
     const noConformidades = mapearNoConformidades(evaluacion.respuestas);
 
-    const tecId = evaluacion.evaluador?.id ? evaluacion.evaluador.id.toString().padStart(2, '0') : '08';
-    const tecNombre = evaluacion.evaluador?.nombreCompleto || 'Lic. Roberto Morales';
-    const tecnicoEvaluador = `${tecNombre} (TEC-${tecId})`;
+    const tecId = evaluacion.evaluador?.id ? evaluacion.evaluador.id.toString().padStart(2, '0') : undefined;
+    const tecNombre: string | undefined = evaluacion.evaluador?.nombreCompleto;
+    const tecnicoEvaluador = tecNombre ? `${tecNombre} (TEC-${tecId})` : 'N/A';
 
-    const coordNombre = evaluacion.coordinador?.nombreCompleto || 'Ing. Carlos Peña';
-    const coordinadorRevisor = `${coordNombre} (DIGEMAPS)`;
+    const coordNombre: string | undefined = evaluacion.coordinador?.nombreCompleto;
+    const coordinadorRevisor = coordNombre ? `${coordNombre} (DIGEMAPS)` : 'N/A';
 
-    const motivoInspeccion = (evaluacion as any).caso?.origen?.nombre || 'Vigilancia Sanitaria Regular';
-    const noPermisoSanitario = est?.numeroPermisoSanitario || `PS-SAN-${anio}-${(est?.id ?? evaluacion.id).toString().padStart(4, '0')}`;
+    const motivoInspeccion = (evaluacion as any).caso?.origen?.nombre || 'N/A';
+    const noPermisoSanitario = est?.numeroPermisoSanitario || 'N/A';
 
     const nivelRiesgoTexto = evaluacion.calculoRiesgo?.nivelRiesgo?.nombre;
     const frecuenciaTexto = resultadoDestacado?.frecuencia || (nivelRiesgoTexto ? `Anual (Nivel de Riesgo ${nivelRiesgoTexto})` : 'N/A');
@@ -153,10 +153,10 @@ export class InformesService {
       incluirFirma: true,
       tecnicoNombre: tecNombre,
       tecnicoCargo: 'Técnico Evaluador Autorizado BPM',
-      tecnicoRegistro: `Reg. Profesional: TEC-BPM-${tecId}`,
+      tecnicoRegistro: tecId ? `Reg. Profesional: TEC-BPM-${tecId}` : 'N/A',
       coordinadorNombre: coordNombre,
       coordinadorCargo: 'Coordinador Técnico DIGEMAPS',
-      coordinadorCertificado: 'Firma Electrónica Avanzada (Ley 126-02)',
+      coordinadorCertificado: coordNombre ? 'Firma Electrónica Avanzada (Ley 126-02)' : undefined,
     });
 
     const nombreArchivo = construirNombreArchivoFichaPdf(
