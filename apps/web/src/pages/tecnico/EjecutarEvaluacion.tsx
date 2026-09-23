@@ -1920,7 +1920,7 @@ export default function EjecutarEvaluacion() {
                   >
                     {secciones.map((s, i) => {
                       const resp = respondidosPorSeccion[i] ?? 0;
-                      const total = (criteriosPorSeccion[i]?.length ?? 0) - (naPorSeccion[i] ?? 0);
+                      const total = criteriosPorSeccion[i]?.length ?? 0;
                       return (
                         <MenuItem key={s.id} value={i} sx={{ color: resp < total ? 'error.main' : 'inherit' }}>
                           {s.titulo} ({resp}/{total})
