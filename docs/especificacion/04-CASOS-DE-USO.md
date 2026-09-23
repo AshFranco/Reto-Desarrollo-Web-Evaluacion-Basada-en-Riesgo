@@ -44,7 +44,7 @@ Crear, editar, consultar historial y evaluaciones previas de una empresa.
 
 ### CU-05 Gestionar establecimiento
 **Actor:** Administrador Empresa. **Estado: 🟡 Parcial**
-Módulo `establecimientos` implementado en el backend (`apps/api/src/modules/establecimientos/`, 2026-09-18). Frontend: `FormularioEstablecimiento.tsx` con Stepper de 2 pasos (datos generales + datos operativos). Pendiente: completar a 4 pasos según SANiLAB.
+Módulo `establecimientos` implementado en el backend (`apps/api/src/modules/establecimientos/`, 2026-09-18). Frontend: `FormularioEstablecimiento.tsx` con Stepper de 2 pasos (datos generales + datos operativos).
 
 ### CU-06 Crear solicitud BPM
 **Actor:** Administrador Empresa / Usuario Delegado. **Estado: ✅**
