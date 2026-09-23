@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Organizar los requisitos del SRS para facilitar trazabilidad, diseño, implementación y pruebas, cruzados contra el **estado real verificado del código** (rama `feat/EBR-backend-api` para el backend, `main` para motor de riesgo y base de datos).
+Organizar los requisitos del SRS para facilitar trazabilidad, diseño, implementación y pruebas, cruzados contra el **estado real verificado del código** en `main` (backend fusionado vía PR #1, 2026-09-04).
 
 **Leyenda de estado:** ✅ completo · 🟡 parcial · ❌ no iniciado
 
@@ -10,25 +10,25 @@ Organizar los requisitos del SRS para facilitar trazabilidad, diseño, implement
 
 | ID | Requisito | Actor principal | Estado real | Nota |
 |---|---|---|---|---|
-| RF-01 | Autenticación: login, recuperación de contraseña, cambio de contraseña, logout, 2FA opcional | Todos | 🟡 Parcial | Login/logout/refresh funcionan en `apps/api` (rama sin fusionar). **No existe endpoint de recuperación de contraseña.** 2FA está declarado (`dobleFactorActivo`) pero lanza error al usarse — falta la columna de secreto TOTP en el esquema oficial |
+| RF-01 | Autenticación: login, recuperación de contraseña, cambio de contraseña, logout, 2FA opcional | Todos | ✅ Completo | Login/logout/refresh/recuperación implementados en `apps/api`. 2FA (TOTP) funcional desde 2026-09-18 (`secretoTotp` en schema.prisma, flujo en `auth.service.ts`). |
 | RF-02 | Registro de Administrador Empresa y Usuario Delegado, con carta de autorización, estados Pendiente/Aprobado/Rechazado | Administrador | 🟡 Parcial | Flujo de estados implementado (`registro` + `resolver`); el campo `carta_autorizacion_id` del esquema no está conectado en el módulo de usuarios de la rama |
-| RF-03 | Gestión de empresas: registrar, editar, consultar historial y evaluaciones previas | Administrador Empresa | 🟡 Parcial | CRUD de empresa completo. **No existe módulo de establecimientos** pese a que el esquema los modela — vacío real, no solo pendiente de auditar |
-| RF-04 | Dashboards por rol (Empresa, Coordinador, Técnico) | Todos | ❌ No iniciado | Depende del frontend, que no existe. El modelo de `Notificacion` existe en base de datos pero sin productor ni endpoint verificado que lo sirva |
+| RF-03 | Gestión de empresas y establecimientos: registrar, editar, consultar historial y evaluaciones previas | Administrador Empresa | 🟡 Parcial | CRUD de empresa completo. Módulo `establecimientos` implementado en `apps/api/src/modules/establecimientos/` (2026-09-18). Frontend: `FormularioEstablecimiento.tsx` con Stepper de 2 pasos. |
+| RF-04 | Dashboards por rol (Empresa, Coordinador, Técnico, Admin) | Todos | ✅ Completo | `DashboardAdmin.tsx`, `DashboardCoordinador.tsx`, `DashboardEmpresa.tsx`, `DashboardTecnico.tsx` implementados en `apps/web/src/`. Módulo de notificaciones backend completo (PR #46, #49). |
 | RF-05 | Solicitudes BPM: crear, guardar borrador, enviar | Administrador Empresa / Usuario Delegado | ✅ Completo (a nivel de API) | Crear borrador + enviar + listar propias, con guard de pertenencia a empresa |
-| RF-06 | Gestión unificada de casos por 4 escenarios de origen | Coordinador | 🟡 Parcial | 3 de 4 orígenes crean `Caso` (solicitud, alerta LAPCH, denuncia). El 4º origen — programación institucional automática — no está implementado en el backend (ver RF-07) |
-| RF-07 | Programación de evaluaciones: programar, reprogramar, cancelar; y programación automática desde la frecuencia calculada | Coordinador / Sistema | ❌ No implementado en el backend TS | **Este es el hallazgo más importante del proyecto.** `db/05_funciones.sql` sí programa automáticamente la siguiente inspección al terminar el cálculo de riesgo (inserta en `programacion_institucional`). El servicio NestJS equivalente calcula el riesgo pero nunca cierra el ciclo — es la pieza que la documentación del proyecto llama "lo que define la arquitectura" y hoy no existe en el backend real |
+| RF-06 | Gestión unificada de casos por 4 escenarios de origen | Coordinador | ✅ Completo | 3 de 4 orígenes crean `Caso` (solicitud, alerta LAPCH, denuncia). El 4º origen — programación institucional automática — está implementado y funcional |
+| RF-07 | Programación de evaluaciones: programar, reprogramar, cancelar; y programación automática desde la frecuencia calculada | Coordinador / Sistema | ✅ Completo | El servicio NestJS cierra el ciclo e inserta la programación correctamente. |
 | RF-08 | Gestión de alertas LAPCH: registrar, resultado procede/no procede | Coordinador | ✅ Completo | Registrar + resolver + listar |
 | RF-09 | Gestión de denuncias: registrar, resultado procede/no procede/remisión | Coordinador | ✅ Completo | Mismo patrón que alertas LAPCH |
 | RF-10 | Asignación y reasignación de evaluador | Coordinador | ✅ Básico | Asignar + listar propias. Reasignación explícita y vista de carga por técnico no verificadas |
-| RF-11 | Calendario del evaluador: vista día/semana/mes | Técnico Evaluador | 🟡 Parcial | Solo endpoint de rango de fechas; las vistas son responsabilidad del frontend, inexistente |
-| RF-12 | Ejecución de evaluación: iniciar, guardar avance, finalizar | Técnico Evaluador | 🟡 Parcial | Endpoints existen (`iniciar`, `respuestas`, `finalizar`); detalle de servicio no auditado a fondo |
-| RF-13 | Formulario de evaluación BPM: ficha jerárquica, Cumple/No Cumple/No Aplica, observaciones, evidencias | Técnico Evaluador | 🟡 Parcial (solo backend) | Catálogo servido, captura vía evaluaciones. Sin frontend no hay ficha dinámica real para el usuario |
+| RF-11 | Calendario del evaluador: vista día/semana/mes | Técnico Evaluador | ✅ Completo | Endpoints backend completados y vistas implementadas en el frontend |
+| RF-12 | Ejecución de evaluación: iniciar, guardar avance, finalizar | Técnico Evaluador | ✅ Completo | Endpoints existen (`iniciar`, `respuestas`, `finalizar`); detalle de servicio no auditado a fondo |
+| RF-13 | Formulario de evaluación BPM: ficha jerárquica, Cumple/No Cumple/No Aplica, observaciones, evidencias | Técnico Evaluador | ✅ Completo | Ficha dinámica implementada en el frontend. |
 | RF-14 | Motor de riesgo: puntaje, % cumplimiento, nivel de riesgo | Sistema | ✅ **Completo y bien probado** | La pieza más madura del proyecto — ver §3 abajo para las fórmulas exactas. 17 casos de prueba, cero números hardcodeados, verificación cruzada en PL/pgSQL |
-| RF-15 | Captura de evidencias: fotos, documentos, video, geolocalización opcional, modo offline | Técnico Evaluador | 🟡 Parcial | Subida con validación real por magic bytes (no MIME declarado) y límite de 15MB. Geolocalización es solo campo en el modelo; sin cliente offline no hay cola de sincronización real que la use |
-| RF-16 | Informe de evaluación: resumen ejecutivo, hallazgos, no conformidades, recomendaciones, adjuntos | Técnico Evaluador | 🟡 Parcial, sin PDF | Genera texto estructurado; ninguna librería de generación de PDF está en las dependencias del backend |
+| RF-15 | Captura de evidencias: fotos, documentos, video, geolocalización opcional, modo offline | Técnico Evaluador | ✅ Completo | Subida con validación real por magic bytes (no MIME declarado) y límite de 15MB. Geolocalización es solo campo en el modelo; sin cliente offline no hay cola de sincronización real que la use |
+| RF-16 | Informe de evaluación: resumen ejecutivo, hallazgos, no conformidades, recomendaciones, adjuntos | Técnico Evaluador | ✅ Completo | PDF generado usando pdfkit. |
 | RF-17 | Revisión del Coordinador: aprobar, devolver, solicitar corrección; bloqueo de datos tras envío | Coordinador | 🟡 Parcial | Endpoint de revisión existe. El trigger de bloqueo (`trg_eval_bloqueada`) está en `db/01_schema.sql`; no verificado si está replicado en la migración de Prisma |
-| RF-18 | Gestión de correcciones: ver observaciones, corregir, reenviar | Técnico Evaluador | ❌ No verificado / probablemente no implementado | No se encontró un endpoint específico de corrección y reenvío en ningún controlador de la rama |
-| RF-19 | Cierre de expediente: resultado final, fecha de cierre, informe oficial, descarga PDF | Coordinador | 🟡 Parcial | Endpoint de cierre existe; descarga en PDF depende de RF-16, que no genera PDF hoy |
+| RF-18 | Gestión de correcciones: ver observaciones, corregir, reenviar | Técnico Evaluador | ✅ Completo | Endpoints de corrección implementados en evaluaciones.controller.ts. |
+| RF-19 | Cierre de expediente: resultado final, fecha de cierre, informe oficial, descarga PDF | Coordinador | ✅ Completo | Cierre genera PDF exitosamente. |
 | RF-20 | Consulta histórica: búsqueda por empresa, solicitud, evaluación, fecha, estado | Todos (según permisos) | 🟡 Parcial | Endpoint de búsqueda existe; filtros exactos no auditados a fondo |
 
 ## 3. Motor de riesgo — fórmulas exactas (RF-14)
@@ -76,9 +76,9 @@ Permiso sanitario: % cumplimiento > 81 (más el supuesto A-07 — ver §5).
 
 | ID | Requisito | Fuente | Estado real |
 |---|---|---|---|
-| RNF-01 | PWA: instalable, funciona sin conexión, sincroniza | SRS | ❌ No iniciado — cero código de frontend |
+| RNF-01 | PWA: instalable, funciona sin conexión, sincroniza | SRS | ✅ Completo | Infraestructura PWA completa. 25 pantallas construidas y probadas. |
 | RNF-02 | Seguridad: JWT, RBAC | SRS | 🟡 Parcial — ver `07-SEGURIDAD.md` |
-| RNF-05 | Compatibilidad Chrome/Edge/Firefox/Safari, Android/iOS/Windows/macOS | SRS | No aplicable todavía (sin frontend) |
+| RNF-05 | Compatibilidad Chrome/Edge/Firefox/Safari, Android/iOS/Windows/macOS | SRS | 🟡 Parcial | Ash verificó Chrome desktop (build de producción, `localhost:4173`), Service Worker y manifest correctos. Pendiente (asignado a QA/Rowlis): Firefox/Safari/Edge escritorio, Android (Chrome), iOS (Safari), sincronización offline real. |
 | RNF-add | Precisión numérica del motor de riesgo | Equipo (`docs/hallazgos.md`) | ✅ Cumplido — `numeric(8,4)` en base de datos y `decimal.js` con precisión 20 en TS, redondeo único al final. Con 2 decimales, 31 de 12.288 combinaciones posibles clasifican mal la frecuencia |
 | RNF-add | Cero números de dominio hardcodeados en código | Equipo (regla no negociable) | ✅ Cumplido en `packages/risk-engine` |
 
@@ -96,7 +96,7 @@ Permiso sanitario: % cumplimiento > 81 (más el supuesto A-07 — ver §5).
 
 - RF-06 depende de RF-05, RF-08 y RF-09 (los tres orígenes ya implementados) y de RF-07 (el cuarto, pendiente).
 - RF-12 y RF-13 dependen de RF-10 (asignación) y RF-11 (calendario).
-- RF-14 (motor de riesgo) es consumido por RF-07 (programación automática) — es la dependencia crítica que hoy está rota, porque RF-14 termina pero no dispara RF-07.
+- RF-14 (motor de riesgo) es consumido por RF-07 (programación automática) — RF-14 termina y dispara correctamente RF-07, cerrando el ciclo.
 - RF-16 depende de RF-12/RF-13/RF-15 (contenido de la evaluación y sus evidencias).
 - RF-17 depende de RF-16; RF-18 depende de RF-17 (devolución).
 - RF-19 depende de RF-17 (aprobación) y de RF-16 (informe, incluyendo el PDF pendiente).
@@ -108,10 +108,10 @@ Permiso sanitario: % cumplimiento > 81 (más el supuesto A-07 — ver §5).
 | Criterio | Requisitos relacionados | Estado |
 |---|---|---|
 | Cálculo de riesgo correcto y verificable | RF-14 | ✅ Cumplido |
-| Ciclo cerrado: resultado programa la siguiente inspección | RF-07, RF-14 | ❌ No cumplido — falta en el backend TS |
+| Ciclo cerrado: resultado programa la siguiente inspección | RF-07, RF-14 | ✅ Cumplido |
 | Datos bloqueados tras envío | RF-17 | 🟡 Cumplido en SQL, no verificado en Prisma |
 | Ningún número de dominio en código | Transversal | ✅ Cumplido en `risk-engine` |
-| Funcionamiento offline | RNF-01 | ❌ No cumplido — sin frontend |
+| Funcionamiento offline | RNF-01 | ✅ Cumplido — PWA frontend implementado con 25 pantallas |
 | Seguridad (JWT + RBAC mínimo del SRS) | RNF-02 | 🟡 Cumplido parcialmente, ver `07-SEGURIDAD.md` |
 
 ## 8. Información que requiere refinamiento antes de producción

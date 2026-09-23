@@ -4,7 +4,7 @@
 
 Documentar el modelo de datos del sistema EBR/BPM. A diferencia de un modelo conceptual propuesto, este ya tiene **esquema físico implementado y poblado** en `db/01_schema.sql` (esquema PostgreSQL `ebr`, 51 tablas) — se documenta como fuente de verdad verificada, no como propuesta.
 
-> **Advertencia activa:** existe un segundo esquema (`apps/api/prisma/schema.prisma`, 43 modelos, en la rama `feat/EBR-backend-api`) que se declara "convertido fielmente" desde este DBML oficial pero que en realidad diverge en 9 tablas. Este documento describe el esquema de `db/01_schema.sql` como el oficial. Ver §6 para el detalle exacto de la divergencia.
+> **Advertencia activa:** existe un segundo esquema (`apps/api/prisma/schema.prisma`, 48 modelos, en `main` desde PR #1) que se declara "convertido fielmente" desde este DBML oficial pero que en realidad diverge en 3 tablas. Este documento describe el esquema de `db/01_schema.sql` como el oficial. Ver §6 para el detalle exacto de la divergencia.
 
 ## 2. Módulos y entidades
 
@@ -119,10 +119,10 @@ calculo_riesgo -----> programacion_institucional
 
 ## 5. Decisiones de modelado y su justificación
 
-- **Denormalización deliberada para integridad histórica:** `calculo_riesgo.frecuencia` y `evaluacion_factor_riesgo.puntaje_aplicado`/`peso_aplicado` son snapshots congelados en el momento de la evaluación. Si la versión del catálogo cambia después (por ejemplo, se ajusta un peso), las evaluaciones ya calculadas no se alteran silenciosamente.
+- **Desnormalización deliberada para integridad histórica:** `calculo_riesgo.frecuencia` y `evaluacion_factor_riesgo.puntaje_aplicado`/`peso_aplicado` son snapshots congelados en el momento de la evaluación. Si la versión del catálogo cambia después (por ejemplo, se ajusta un peso), las evaluaciones ya calculadas no se alteran silenciosamente.
 - **Referencial en vez de polimórfico:** `caso` usa cuatro columnas FK nullables con un CHECK de "exactamente una", en vez de un patrón polimórfico genérico. Mantiene la integridad referencial nativa de PostgreSQL a costa de cuatro columnas casi siempre vacías — decisión consciente, documentada en `db/opcional/07_ajustes_modelo_equipo.sql`.
 - **Precisión numérica ampliada:** `numeric(8,4)` en vez de `numeric(6,2)` para `aporte`, `re_valor` y `rt_valor`. Con solo 2 decimales, 31 de 12.288 combinaciones posibles de puntajes clasifican mal la frecuencia de inspección (`docs/hallazgos.md`).
-- **Idempotencia offline:** todo objeto mutable capturable en campo (`evaluacion`, `respuesta_item`, `evidencia`) lleva `uuid_local` generado en el cliente, más `operacion_pendiente` como cola. Esto es infraestructura preparada para RNF-01, aunque hoy no hay ningún cliente que la use.
+- **Idempotencia offline:** todo objeto mutable capturable en campo (`evaluacion`, `respuesta_item`, `evidencia`) lleva `uuid_local` generado en el cliente, más `operacion_pendiente` como cola. Esto es infraestructura preparada para RNF-01, utilizada activamente por el cliente PWA actual.
 - **Item_ficha auto-referenciada con CTE recursiva** en vez de niveles fijos (sección → criterio → sub-criterio como tablas separadas), porque la ficha original tiene una profundidad variable de hasta 5 niveles.
 
 ## 6. Divergencia con `apps/api/prisma/schema.prisma` (rama sin fusionar)

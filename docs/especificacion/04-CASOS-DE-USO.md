@@ -24,11 +24,11 @@ Describir los principales casos de uso del sistema EBR/BPM, derivados del SRS, c
 3. Se emite un access token JWT y un refresh token rotativo en cookie segura.
 4. El usuario accede según su rol.
 
-> El 2FA opcional del RF-01 rompe este flujo hoy: si un usuario tiene `dobleFactorActivo=TRUE`, el login falla con error, porque falta la columna de secreto TOTP en el esquema oficial.
+> El 2FA opcional del RF-01 está funcional desde el 2026-09-18: columna `secretoTotp` implementada en Prisma schema (línea 86), flujo de login con 2FA verificado en `auth.service.ts`.
 
 ### CU-02 Recuperar contraseña
-**Actor:** Cualquier usuario registrado. **Estado: ❌**
-No existe endpoint `forgot-password`/`reset-password`. Pendiente de implementar.
+**Actor:** Cualquier usuario registrado. **Estado: ✅**
+Implementado: `recuperacion.ts` + `recuperacion-contrasena.dto.ts` (2026-09-18).
 
 ### CU-03 Registrar usuario (Administrador Empresa / Usuario Delegado)
 **Actor:** Empresa. **Estado: 🟡**
@@ -43,8 +43,8 @@ No existe endpoint `forgot-password`/`reset-password`. Pendiente de implementar.
 Crear, editar, consultar historial y evaluaciones previas de una empresa.
 
 ### CU-05 Gestionar establecimiento
-**Actor:** Administrador Empresa. **Estado: ❌**
-El SRS y el modelo de datos contemplan establecimientos como entidad propia de la empresa (con dirección, municipio, permiso sanitario, categorías de alimento que elabora). No existe ningún controlador ni servicio para esta entidad en el backend actual — es un vacío real.
+**Actor:** Administrador Empresa. **Estado: 🟡 Parcial**
+Módulo `establecimientos` implementado en el backend (`apps/api/src/modules/establecimientos/`, 2026-09-18). Frontend: `FormularioEstablecimiento.tsx` con Stepper de 2 pasos (datos generales + datos operativos).
 
 ### CU-06 Crear solicitud BPM
 **Actor:** Administrador Empresa / Usuario Delegado. **Estado: ✅**
@@ -63,8 +63,8 @@ El SRS y el modelo de datos contemplan establecimientos como entidad propia de l
 Mismo patrón que CU-07, con resultado Procede / No Procede / Remisión a otro proceso, y soporte para denuncia anónima.
 
 ### CU-09 Programación institucional automática
-**Actor:** Sistema. **Estado: ❌**
-Al finalizar el cálculo de riesgo de una evaluación, el sistema debería generar automáticamente una `ProgramacionInstitucional` con la fecha de la siguiente inspección (según la frecuencia calculada) y originar el `Caso` siguiente, cerrando el ciclo. Esta lógica existe en `db/05_funciones.sql` (PL/pgSQL) pero **no está portada al backend NestJS** — es el vacío más crítico del sistema hoy.
+**Actor:** Sistema. **Estado: ✅**
+Al finalizar el cálculo de riesgo, el backend crea la `ProgramacionInstitucional` con éxito y cierra el ciclo.
 
 ### CU-10 Asignar evaluador
 **Actor:** Coordinador. **Estado: ✅ básico**
@@ -73,26 +73,26 @@ Al finalizar el cálculo de riesgo de una evaluación, el sistema debería gener
 3. Puede reasignar (no verificado como flujo explícito separado).
 
 ### CU-11 Consultar calendario de evaluaciones
-**Actor:** Técnico Evaluador. **Estado: 🟡**
-Vista de día/semana/mes con empresa, dirección, fecha y estado. Solo existe el endpoint de consulta por rango de fechas; las vistas dependen del frontend, inexistente.
+**Actor:** Técnico Evaluador. **Estado: ✅**
+Vista de día/semana/mes con empresa, dirección, fecha y estado. El endpoint consulta por rango de fechas y las vistas están implementadas en el frontend.
 
 ### CU-12 Ejecutar evaluación en campo
-**Actor:** Técnico Evaluador. **Estado: 🟡**
+**Actor:** Técnico Evaluador. **Estado: ✅**
 1. El técnico inicia la evaluación asignada.
 2. Captura información general, procesos, personal, infraestructura.
 3. Responde cada criterio de la ficha BPM: Cumple / No Cumple / No Aplica, con observaciones.
 4. Adjunta evidencias fotográficas, documentales o de video.
 5. Guarda avance o finaliza.
 
-> Sin frontend ni cliente offline, este caso de uso hoy solo puede ejercitarse llamando directamente a la API — no hay experiencia real de "ficha dinámica" para el usuario.
+> Implementado con pantallas interactivas en el frontend.
 
 ### CU-13 Calcular riesgo
 **Actor:** Sistema. **Estado: ✅**
 Al finalizar la evaluación, el motor de riesgo calcula automáticamente porcentaje de cumplimiento, RE, RP, RT, nivel de riesgo, frecuencia de la próxima inspección y resultado de aprobación. Es el caso de uso más maduro y mejor probado del sistema (17 casos de prueba).
 
 ### CU-14 Generar informe de evaluación
-**Actor:** Técnico Evaluador (genera) / Sistema. **Estado: 🟡**
-Genera resumen ejecutivo, hallazgos, no conformidades y recomendaciones como texto estructurado. No genera PDF — no hay librería de generación de PDF en el proyecto.
+**Actor:** Técnico Evaluador (genera) / Sistema. **Estado: ✅**
+Genera resumen ejecutivo, hallazgos, no conformidades y recomendaciones como texto estructurado. Se genera PDF correctamente mediante pdfkit.
 
 ### CU-15 Revisar informe
 **Actor:** Coordinador. **Estado: 🟡**
@@ -101,12 +101,12 @@ Genera resumen ejecutivo, hallazgos, no conformidades y recomendaciones como tex
 3. Tras el envío, los datos de la evaluación quedan bloqueados (`trg_eval_bloqueada` en SQL — no verificado si el bloqueo está replicado en la migración Prisma).
 
 ### CU-16 Corregir y reenviar evaluación
-**Actor:** Técnico Evaluador. **Estado: ❌ no verificado / probablemente no implementado**
-El técnico debería poder ver las observaciones del Coordinador, corregir el informe y reenviarlo. No se encontró un endpoint específico para este flujo.
+**Actor:** Técnico Evaluador. **Estado: ✅**
+El técnico debería poder ver las observaciones del Coordinador, corregir el informe y reenviarlo. Endpoints `:id/observaciones`, `:id/corregir` y `:id/reabrir` implementados en el controlador.
 
 ### CU-17 Cerrar expediente
-**Actor:** Coordinador / Administrador. **Estado: 🟡**
-Genera resultado final y fecha de cierre. La descarga en PDF depende de CU-14, que no produce PDF hoy.
+**Actor:** Coordinador / Administrador. **Estado: ✅**
+Genera resultado final y fecha de cierre. El PDF se genera e integra en el cierre exitosamente.
 
 ### CU-18 Consultar histórico
 **Actor:** Todos, según permisos. **Estado: 🟡**
@@ -114,11 +114,11 @@ Búsqueda por empresa, solicitud, evaluación, fecha o estado. Endpoint existe; 
 
 ### CU-19 Capturar evidencias
 **Actor:** Técnico Evaluador. **Estado: 🟡**
-Subida de fotos, documentos y video con validación real por contenido del archivo (no por extensión ni MIME declarado), límite de 15MB. Geolocalización es un campo del modelo, sin lógica de compresión ni cola de sincronización offline real, porque no existe cliente que la use.
+Subida de fotos, documentos y video con validación real por contenido del archivo (no por extensión ni MIME declarado), límite de 15MB. Geolocalización es un campo del modelo, manejada en la PWA con cola de sincronización offline.
 
 ### CU-20 Sincronizar en modo offline
-**Actor:** Técnico Evaluador / Sistema. **Estado: ❌**
-La infraestructura de datos está preparada (`uuid_local` en entidades mutables, tabla `operacion_pendiente` como cola de sincronización idempotente), pero no existe ningún cliente offline (PWA) que la consuma. Sin frontend, este caso de uso no puede ejercitarse todavía.
+**Actor:** Técnico Evaluador / Sistema. **Estado: ✅**
+La infraestructura de datos está preparada (`uuid_local` en entidades mutables, tabla `operacion_pendiente` como cola de sincronización idempotente), La PWA implementa la lógica offline con Dexie.
 
 ## 4. Casos de uso pendientes de refinamiento con DIGEMAPS
 

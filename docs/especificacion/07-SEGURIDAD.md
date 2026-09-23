@@ -4,19 +4,19 @@
 
 Traducir el requisito de seguridad del SRS (RNF-02: JWT + RBAC) en una estrategia técnica completa, documentando **con precisión qué está realmente implementado, qué está declarado pero no funciona, y qué es todavía diseño propuesto.** Esta distinción es el propósito central de este documento — auditorías previas de este proyecto encontraron afirmaciones de seguridad en documentación de una rama que el código no respaldaba.
 
-> Todo lo descrito como implementado en este documento existe **solo en la rama `feat/EBR-backend-api`**, no fusionada. En `main` no hay ninguna línea de código de autenticación.
+> El backend descrito en este documento está en `main` desde el 2026-09-04 (PR #1, fusión de `feat/EBR-backend-api`). El documento se mantiene actualizado contra el estado real del código en `main`.
 
 ## 2. Autenticación
 
-**Estado: 🟡 mayormente implementado, con vacíos concretos.**
+**Estado: ✅ implementado.**
 
 | Mecanismo | Estado | Detalle |
 |---|---|---|
 | Hash de contraseña | ✅ | Argon2id, memoryCost 19456, timeCost 2 |
 | JWT de acceso + refresh rotativo | ✅ | Access token de corta duración; refresh token de 48 bytes aleatorios, hasheado con SHA-256 antes de guardar, rotado en cada uso, con revocación en cascada |
 | Refresh token en cookie | ✅ | `httpOnly`, `secure`, `sameSite=strict`, firmada, alcance limitado a `/api/v1/auth` |
-| Recuperación de contraseña | ❌ | No existe ningún endpoint `forgot-password`/`reset-password` |
-| MFA / 2FA | ❌ declarado pero roto | El campo `dobleFactorActivo` existe; si está activo, el login lanza un error explícito porque el esquema oficial no define columna para el secreto TOTP. **Ningún usuario con 2FA activo puede iniciar sesión hoy** |
+| Recuperación de contraseña | ✅ | `recuperacion.ts` + `recuperacion-contrasena.dto.ts` implementados (2026-09-18) |
+| MFA / 2FA | ✅ Implementado (2026-09-18) | Columna `secretoTotp` agregada a `schema.prisma` (línea 86). Flujo completo en `auth.service.ts` y `use2Fa.ts`. Login con 2FA activo funciona correctamente. |
 | Bloqueo por intentos fallidos | ✅ | Servicio dedicado de bloqueo progresivo de cuenta tras N intentos, configurable |
 
 ## 3. Autorización (RBAC)
@@ -25,7 +25,7 @@ Traducir el requisito de seguridad del SRS (RNF-02: JWT + RBAC) en una estrategi
 
 El decorador `@Roles()` junto con `RolesGuard` funciona correctamente para proteger endpoints. Sin embargo, el modelo de permisos granulares M:N (`rol_permiso`) definido en el esquema de base de datos **no se usa en la práctica**: el código de autenticación colapsa el rol de un usuario a un único "rol principal" mediante una lista de prioridad fija en código, documentada ahí mismo como limitación conocida. Esto significa que la granularidad de permisos por módulo que el esquema permite (`permiso.modulo`) no está siendo aprovechada — es una simplificación consciente, no un descuido, pero limita el control fino de acceso que el modelo de datos sí soporta.
 
-La autorización siempre se evalúa en el backend; el frontend (cuando exista) solo debe ocultar opciones por experiencia de usuario, nunca sustituir esta validación.
+La autorización siempre se evalúa en el backend; el frontend solo debe ocultar opciones por experiencia de usuario, nunca sustituir esta validación.
 
 ## 4. Row-Level Security (RLS)
 
@@ -103,8 +103,6 @@ Nunca deben almacenarse en el repositorio: contraseñas, cadenas de conexión re
 | Riesgo | Impacto |
 |---|---|
 | RLS no funcional pese a estar documentado como implementado | Alto |
-| MFA declarado pero roto — usuarios con 2FA activo no pueden entrar | Alto |
-| Sin recuperación de contraseña | Medio-Alto (operativo) |
 | Auditoría sin uso real | Alto (trazabilidad regulatoria — el cliente es DIGEMAPS) |
 | CSRF con protección solo parcialmente confirmada | Medio |
 | Cifrado en reposo sin alcance auditado | Medio |
