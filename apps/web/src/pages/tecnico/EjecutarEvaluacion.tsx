@@ -831,6 +831,8 @@ function FilaCriterio({
         padding: 2,
         mb: 1.5,
         borderColor: estaEvaluado ? 'success.light' : 'divider',
+        borderLeft: !estaEvaluado && !bloqueada ? '4px solid' : '1px solid',
+        borderLeftColor: !estaEvaluado && !bloqueada ? 'error.main' : (estaEvaluado ? 'success.light' : 'divider'),
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
@@ -1918,9 +1920,9 @@ export default function EjecutarEvaluacion() {
                   >
                     {secciones.map((s, i) => {
                       const resp = respondidosPorSeccion[i] ?? 0;
-                      const total = criteriosPorSeccion[i]?.length ?? 0;
+                      const total = (criteriosPorSeccion[i]?.length ?? 0) - (naPorSeccion[i] ?? 0);
                       return (
-                        <MenuItem key={s.id} value={i}>
+                        <MenuItem key={s.id} value={i} sx={{ color: resp < total ? 'error.main' : 'inherit' }}>
                           {s.titulo} ({resp}/{total})
                         </MenuItem>
                       );
