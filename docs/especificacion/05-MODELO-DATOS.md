@@ -119,7 +119,7 @@ calculo_riesgo -----> programacion_institucional
 
 ## 5. Decisiones de modelado y su justificación
 
-- **Denormalización deliberada para integridad histórica:** `calculo_riesgo.frecuencia` y `evaluacion_factor_riesgo.puntaje_aplicado`/`peso_aplicado` son snapshots congelados en el momento de la evaluación. Si la versión del catálogo cambia después (por ejemplo, se ajusta un peso), las evaluaciones ya calculadas no se alteran silenciosamente.
+- **Desnormalización deliberada para integridad histórica:** `calculo_riesgo.frecuencia` y `evaluacion_factor_riesgo.puntaje_aplicado`/`peso_aplicado` son snapshots congelados en el momento de la evaluación. Si la versión del catálogo cambia después (por ejemplo, se ajusta un peso), las evaluaciones ya calculadas no se alteran silenciosamente.
 - **Referencial en vez de polimórfico:** `caso` usa cuatro columnas FK nullables con un CHECK de "exactamente una", en vez de un patrón polimórfico genérico. Mantiene la integridad referencial nativa de PostgreSQL a costa de cuatro columnas casi siempre vacías — decisión consciente, documentada en `db/opcional/07_ajustes_modelo_equipo.sql`.
 - **Precisión numérica ampliada:** `numeric(8,4)` en vez de `numeric(6,2)` para `aporte`, `re_valor` y `rt_valor`. Con solo 2 decimales, 31 de 12.288 combinaciones posibles de puntajes clasifican mal la frecuencia de inspección (`docs/hallazgos.md`).
 - **Idempotencia offline:** todo objeto mutable capturable en campo (`evaluacion`, `respuesta_item`, `evidencia`) lleva `uuid_local` generado en el cliente, más `operacion_pendiente` como cola. Esto es infraestructura preparada para RNF-01, utilizada activamente por el cliente PWA actual.
