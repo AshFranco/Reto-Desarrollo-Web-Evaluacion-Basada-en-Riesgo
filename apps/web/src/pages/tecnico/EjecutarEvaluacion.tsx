@@ -1506,6 +1506,14 @@ export default function EjecutarEvaluacion() {
     return ids;
   }, [evaluacion?.respuestas, sincronizacion.respuestasEncoladasPorItem]);
 
+  const idsNa = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [itemId, draft] of respuestaPorItem.entries()) {
+      if (draft.codigoOpcion === 'N/A') ids.add(itemId);
+    }
+    return ids;
+  }, [respuestaPorItem]);
+
   async function handleFinalizar() {
     if (!evaluacionId) return;
     setErrorFinalizar(null);
@@ -1575,14 +1583,6 @@ export default function EjecutarEvaluacion() {
       </Paper>
     );
   }
-
-  const idsNa = useMemo(() => {
-    const ids = new Set<string>();
-    for (const [itemId, draft] of respuestaPorItem.entries()) {
-      if (draft.codigoOpcion === 'N/A') ids.add(itemId);
-    }
-    return ids;
-  }, [respuestaPorItem]);
 
   const totalRespondidas = idsRespondidos.size - idsNa.size;
   const totalEvaluables = evaluacion.versionFicha.totalItemsEvaluables - idsNa.size;
