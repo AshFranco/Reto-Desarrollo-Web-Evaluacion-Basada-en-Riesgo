@@ -14,7 +14,7 @@ Registrar los roles de trabajo asignados al equipo para el proyecto EBR/BPM, seg
 | Jorge | Frontend Aplicación | Pantallas y lógica de negocio del frontend (dashboards, formularios, flujos por rol) |
 | Rowlis | Rol de Calidad | QA — pruebas, verificación de criterios de aceptación, plan de pruebas |
 
-> **Límite confirmado (2026-09-19):** "Frontend PWA" (Ash) cubre exclusivamente la capa de infraestructura PWA: service worker, instalabilidad, caché offline, sincronización de `operacion_pendiente` al reconectar, y compatibilidad multiplataforma (RNF-05). "Frontend Aplicación" (Jorge) cubre todas las pantallas, flujos de negocio y consumo de la API REST. Cualquier componente de UI que requiera lógica de negocio es responsabilidad de Jorge. Cualquier comportamiento que persista o funcione sin conexión es responsabilidad de Ash.
+> **Límite confirmado:** "Frontend PWA" (Ash) cubre exclusivamente la capa de infraestructura PWA: service worker, instalabilidad, caché offline, sincronización de `operacion_pendiente` al reconectar, y compatibilidad multiplataforma (RNF-05). "Frontend Aplicación" (Jorge) cubre todas las pantallas, flujos de negocio y consumo de la API REST. Cualquier componente de UI que requiera lógica de negocio es responsabilidad de Jorge. Cualquier comportamiento que persista o funcione sin conexión es responsabilidad de Ash.
 
 ## 3. Cómo esto se relaciona con el resto de la documentación
 
