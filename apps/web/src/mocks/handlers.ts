@@ -149,6 +149,7 @@ export const MOCK_ESTABLECIMIENTO = {
   empleadosMasculino: 0,
   empleadosFemenino: 0,
   mercadoObjetivo: null,
+  comercializacion: null,
   latitud: null,
   longitud: null,
   activo: true,
