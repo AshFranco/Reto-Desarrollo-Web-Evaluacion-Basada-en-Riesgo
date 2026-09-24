@@ -10,6 +10,7 @@ import {
   Step,
   StepLabel,
   Stepper,
+  MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
@@ -22,6 +23,7 @@ import {
   type DatosEstablecimiento,
 } from '@/lib/empresa/useEstablecimientos';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { MERCADOS_OBJETIVO } from '@/lib/empresa/mercadoObjetivo';
 
 const DATOS_VACIOS: DatosEstablecimiento = {
   nombre: '',
@@ -136,7 +138,8 @@ export default function FormularioEstablecimiento() {
       produccionAnual: existente.produccionAnual ? Number(existente.produccionAnual) : undefined,
       empleadosMasculino: existente.empleadosMasculino ?? undefined,
       empleadosFemenino: existente.empleadosFemenino ?? undefined,
-      mercadoObjetivo: existente.mercadoObjetivo ?? '',
+      // Valores viejos de texto libre que no están en la lista se muestran vacíos para elegir uno válido.
+      mercadoObjetivo: (MERCADOS_OBJETIVO as readonly string[]).includes(existente.mercadoObjetivo ?? '') ? existente.mercadoObjetivo ?? '' : '',
     });
   }, [existente]);
 
@@ -321,14 +324,23 @@ export default function FormularioEstablecimiento() {
               />
             </Box>
             <TextField
+              select
               label="Mercado objetivo"
               fullWidth
               margin="normal"
-              value={datos.mercadoObjetivo}
+              value={datos.mercadoObjetivo ?? ''}
               onChange={(e) => actualizarCampo('mercadoObjetivo', e.target.value)}
               disabled={enviando}
-              inputProps={{ maxLength: 150 }}
-            />
+            >
+              <MenuItem value="">
+                <em>Sin especificar</em>
+              </MenuItem>
+              {MERCADOS_OBJETIVO.map((mercado) => (
+                <MenuItem key={mercado} value={mercado}>
+                  {mercado}
+                </MenuItem>
+              ))}
+            </TextField>
           </Box>
         )}
 

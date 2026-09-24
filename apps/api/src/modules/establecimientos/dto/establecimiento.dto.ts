@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEmail,
+  IsIn,
   IsNumber,
   IsNumberString,
   IsOptional,
@@ -10,6 +11,16 @@ import {
   Min,
   Max,
 } from 'class-validator';
+
+/** Opciones del desplegable "Mercado objetivo" de la Ficha de Inspección BPM (DIGEMAPS). */
+export const MERCADOS_OBJETIVO = [
+  'Infantil',
+  'Niños menores',
+  'Adultos',
+  'Mujeres embarazadas',
+  'Adultos mayores',
+  'Todos los segmentos',
+] as const;
 
 export class CrearEstablecimientoDto {
   @IsOptional() @IsNumberString({}, { message: 'El identificador de empresa debe ser un número.' }) empresaId?: string;
@@ -26,7 +37,7 @@ export class CrearEstablecimientoDto {
   @IsOptional() @IsNumber({}, { message: 'La producción anual debe ser un número.' }) @Min(0, { message: 'La producción anual debe ser un valor positivo.' }) @Max(999999999999, { message: 'La producción anual no puede superar el límite permitido.' }) produccionAnual?: number;
   @IsOptional() @IsNumber({}, { message: 'El número de empleados masculinos debe ser un número.' }) @Min(0, { message: 'El número de empleados no puede ser negativo.' }) @Max(2147483647, { message: 'El número de empleados masculinos supera el límite permitido.' }) empleadosMasculino?: number;
   @IsOptional() @IsNumber({}, { message: 'El número de empleadas femeninas debe ser un número.' }) @Min(0, { message: 'El número de empleadas no puede ser negativo.' }) @Max(2147483647, { message: 'El número de empleadas femeninas supera el límite permitido.' }) empleadosFemenino?: number;
-  @IsOptional() @IsString({ message: 'El mercado objetivo debe ser texto.' }) @MaxLength(150, { message: 'El mercado objetivo no puede superar los 150 caracteres.' }) mercadoObjetivo?: string;
+  @IsOptional() @IsIn([...MERCADOS_OBJETIVO, ''], { message: 'Seleccione un mercado objetivo válido de la lista.' }) mercadoObjetivo?: string;
   @IsOptional() @IsNumber({}, { message: 'La latitud debe ser un número.' }) latitud?: number;
   @IsOptional() @IsNumber({}, { message: 'La longitud debe ser un número.' }) longitud?: number;
 }
