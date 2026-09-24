@@ -38,7 +38,6 @@ export class EstablecimientosService {
       data: {
         idEmpresa,
         nombre: dto.nombre,
-        rnc: dto.rnc,
         calle: dto.calle,
         idMunicipio: dto.idMunicipio ? BigInt(dto.idMunicipio) : undefined,
         idDpsDas: dto.idDpsDas ? Number(dto.idDpsDas) : undefined,
@@ -99,7 +98,6 @@ export class EstablecimientosService {
       where: { id: BigInt(id) },
       data: {
         nombre: dto.nombre,
-        rnc: dto.rnc,
         calle: dto.calle,
         idMunicipio: dto.idMunicipio ? BigInt(dto.idMunicipio) : undefined,
         idDpsDas: dto.idDpsDas ? Number(dto.idDpsDas) : undefined,

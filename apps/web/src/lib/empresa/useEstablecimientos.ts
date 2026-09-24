@@ -13,7 +13,6 @@ import type { Establecimiento } from '@/lib/types';
  */
 export interface DatosEstablecimiento {
   nombre: string;
-  rnc?: string;
   calle?: string;
   telefono?: string;
   correo?: string;

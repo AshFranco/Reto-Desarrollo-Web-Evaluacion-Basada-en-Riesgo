@@ -14,7 +14,6 @@ import {
 export class CrearEstablecimientoDto {
   @IsOptional() @IsNumberString({}, { message: 'El identificador de empresa debe ser un número.' }) empresaId?: string;
   @IsString({ message: 'El nombre es obligatorio.' }) @MaxLength(200, { message: 'El nombre no puede superar los 200 caracteres.' }) nombre: string;
-  @IsOptional() @IsString({ message: 'El RNC debe ser texto.' }) @MaxLength(20, { message: 'El RNC no puede superar los 20 caracteres.' }) rnc?: string;
   @IsOptional() @IsString({ message: 'La calle debe ser texto.' }) @MaxLength(300, { message: 'La dirección no puede superar los 300 caracteres.' }) calle?: string;
   @IsOptional() @IsNumberString({}, { message: 'El identificador de municipio debe ser un número.' }) idMunicipio?: string;
   @IsOptional() @IsNumberString({}, { message: 'El identificador de DPS/DAS debe ser un número.' }) idDpsDas?: string;
