@@ -1120,7 +1120,7 @@ function CardAntecedentesEstablecimiento({ establecimiento }: { establecimiento:
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 1.5 }}>
           <Box>
             <Typography variant="caption" color="text.secondary">Empresa / RNC</Typography>
-            <Typography variant="body2">{establecimiento.empresa?.razonSocial ?? '—'} (RNC: {establecimiento.empresa?.rnc ?? establecimiento.rnc ?? '—'})</Typography>
+            <Typography variant="body2">{establecimiento.empresa?.razonSocial ?? '—'} (RNC: {establecimiento.empresa?.rnc ?? '—'})</Typography>
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">Dirección</Typography>

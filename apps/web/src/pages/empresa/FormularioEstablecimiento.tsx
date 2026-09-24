@@ -25,7 +25,6 @@ import { PageHeader } from '@/components/ui/PageHeader';
 
 const DATOS_VACIOS: DatosEstablecimiento = {
   nombre: '',
-  rnc: '',
   calle: '',
   telefono: '',
   correo: '',
@@ -39,12 +38,10 @@ const DATOS_VACIOS: DatosEstablecimiento = {
 const PASOS = ['Datos generales', 'Datos operativos'];
 
 // Regex de validaciones en cliente ── deben aceptar los mismos valores que el backend.
-const RNC_REGEX = /^[0-9]{9}$|^[0-9]{11}$/;
 const TELEFONO_REGEX = /^[0-9]{10}$/;
 const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface ErroresCampo {
-  rnc?: string;
   telefono?: string;
   correo?: string;
   numeroPermisoSanitario?: string;
@@ -55,14 +52,6 @@ interface ErroresCampo {
 
 function validarCampos(datos: DatosEstablecimiento): ErroresCampo {
   const errores: ErroresCampo = {};
-
-  if (datos.rnc) {
-    if (datos.rnc.includes('-')) {
-      errores.rnc = 'El RNC no puede contener signos negativos ni guiones.';
-    } else if (!RNC_REGEX.test(datos.rnc)) {
-      errores.rnc = 'El RNC debe ser numérico y de 9 o de 11 dígitos.';
-    }
-  }
 
   if (datos.telefono) {
     if (datos.telefono.includes('-')) {
@@ -126,7 +115,6 @@ export default function FormularioEstablecimiento() {
     if (!existente) return;
     setDatos({
       nombre: existente.nombre,
-      rnc: existente.rnc ?? '',
       calle: existente.calle ?? '',
       telefono: existente.telefono ?? '',
       correo: existente.correo ?? '',
@@ -226,16 +214,6 @@ export default function FormularioEstablecimiento() {
               value={datos.nombre}
               onChange={(e) => actualizarCampo('nombre', e.target.value)}
               disabled={enviando}
-            />
-            <TextField
-              label="RNC (opcional, si es distinto al de la empresa)"
-              fullWidth
-              margin="normal"
-              value={datos.rnc}
-              onChange={(e) => actualizarCampo('rnc', e.target.value)}
-              disabled={enviando}
-              error={!!erroresCampo.rnc}
-              helperText={erroresCampo.rnc ?? 'Solo números, de 9 o de 11 dígitos'}
             />
             <TextField
               label="Calle / dirección"
