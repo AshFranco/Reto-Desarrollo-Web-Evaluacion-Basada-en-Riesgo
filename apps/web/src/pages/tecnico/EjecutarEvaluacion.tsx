@@ -1506,6 +1506,14 @@ export default function EjecutarEvaluacion() {
     return ids;
   }, [evaluacion?.respuestas, sincronizacion.respuestasEncoladasPorItem]);
 
+  const idsNa = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [itemId, draft] of respuestaPorItem.entries()) {
+      if (draft.codigoOpcion === 'N/A') ids.add(itemId);
+    }
+    return ids;
+  }, [respuestaPorItem]);
+
   async function handleFinalizar() {
     if (!evaluacionId) return;
     setErrorFinalizar(null);
@@ -1576,8 +1584,8 @@ export default function EjecutarEvaluacion() {
     );
   }
 
-  const totalRespondidas = idsRespondidos.size;
-  const totalEvaluables = evaluacion.versionFicha.totalItemsEvaluables;
+  const totalRespondidas = idsRespondidos.size - idsNa.size;
+  const totalEvaluables = evaluacion.versionFicha.totalItemsEvaluables - idsNa.size;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1688,7 +1696,8 @@ export default function EjecutarEvaluacion() {
 
       {!evaluacion.bloqueada && !finalizadoLocal && (
         <Alert severity="info">
-          {totalRespondidas}/{totalEvaluables} criterios respondidos. Para finalizar hay que responder todos.
+          {totalRespondidas}/{totalEvaluables} criterios aplicables respondidos. Para finalizar hay que responder todos.
+          {idsNa.size > 0 && ` (${idsNa.size} omitido(s) por No Aplica)`}
         </Alert>
       )}
 
@@ -1899,12 +1908,15 @@ export default function EjecutarEvaluacion() {
           {/* ── Navegador de Secciones (cuando no hay búsqueda activa) ── */}
           {criteriosFiltrados === null && secciones.length > 1 && (() => {
             const respondidosPorSeccion = criteriosPorSeccion.map(
-              (crs) => crs.filter((c) => idsRespondidos.has(c.id)).length
+              (crs) => crs.filter((c) => idsRespondidos.has(c.id) && !idsNa.has(c.id)).length
+            );
+            const naPorSeccion = criteriosPorSeccion.map(
+              (crs) => crs.filter((c) => idsNa.has(c.id)).length
             );
             const seccionActual = secciones[seccionActiva];
-            const totalSeccion = criteriosPorSeccion[seccionActiva]?.length ?? 0;
+            const totalSeccion = (criteriosPorSeccion[seccionActiva]?.length ?? 0) - (naPorSeccion[seccionActiva] ?? 0);
             const respondidosSeccion = respondidosPorSeccion[seccionActiva] ?? 0;
-            const progresoSeccion = totalSeccion > 0 ? Math.round((respondidosSeccion / totalSeccion) * 100) : 0;
+            const progresoSeccion = totalSeccion > 0 ? Math.round((respondidosSeccion / totalSeccion) * 100) : 100;
 
             return (
               <Paper variant="outlined" sx={{ p: 2 }}>
