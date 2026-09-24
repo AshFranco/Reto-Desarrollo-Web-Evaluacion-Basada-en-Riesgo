@@ -22,6 +22,9 @@ export const MERCADOS_OBJETIVO = [
   'Todos los segmentos',
 ] as const;
 
+/** Opciones del desplegable "Comercialización" de la Ficha de Inspección BPM (DIGEMAPS). */
+export const COMERCIALIZACIONES = ['Local', 'Nacional', 'Internacional', 'Todos los mercados'] as const;
+
 export class CrearEstablecimientoDto {
   @IsOptional() @IsNumberString({}, { message: 'El identificador de empresa debe ser un número.' }) empresaId?: string;
   @IsString({ message: 'El nombre es obligatorio.' }) @MaxLength(200, { message: 'El nombre no puede superar los 200 caracteres.' }) nombre: string;
@@ -38,6 +41,7 @@ export class CrearEstablecimientoDto {
   @IsOptional() @IsNumber({}, { message: 'El número de empleados masculinos debe ser un número.' }) @Min(0, { message: 'El número de empleados no puede ser negativo.' }) @Max(2147483647, { message: 'El número de empleados masculinos supera el límite permitido.' }) empleadosMasculino?: number;
   @IsOptional() @IsNumber({}, { message: 'El número de empleadas femeninas debe ser un número.' }) @Min(0, { message: 'El número de empleadas no puede ser negativo.' }) @Max(2147483647, { message: 'El número de empleadas femeninas supera el límite permitido.' }) empleadosFemenino?: number;
   @IsOptional() @IsIn([...MERCADOS_OBJETIVO, ''], { message: 'Seleccione un mercado objetivo válido de la lista.' }) mercadoObjetivo?: string;
+  @IsOptional() @IsIn([...COMERCIALIZACIONES, ''], { message: 'Seleccione una opción de comercialización válida de la lista.' }) comercializacion?: string;
   @IsOptional() @IsNumber({}, { message: 'La latitud debe ser un número.' }) latitud?: number;
   @IsOptional() @IsNumber({}, { message: 'La longitud debe ser un número.' }) longitud?: number;
 }

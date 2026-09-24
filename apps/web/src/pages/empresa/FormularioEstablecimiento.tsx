@@ -23,7 +23,7 @@ import {
   type DatosEstablecimiento,
 } from '@/lib/empresa/useEstablecimientos';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { MERCADOS_OBJETIVO } from '@/lib/empresa/mercadoObjetivo';
+import { COMERCIALIZACIONES, MERCADOS_OBJETIVO } from '@/lib/empresa/mercadoObjetivo';
 
 const DATOS_VACIOS: DatosEstablecimiento = {
   nombre: '',
@@ -36,6 +36,7 @@ const DATOS_VACIOS: DatosEstablecimiento = {
   empleadosMasculino: undefined,
   empleadosFemenino: undefined,
   mercadoObjetivo: '',
+  comercializacion: '',
 };
 
 const PASOS = ['Datos generales', 'Datos operativos'];
@@ -140,6 +141,7 @@ export default function FormularioEstablecimiento() {
       empleadosFemenino: existente.empleadosFemenino ?? undefined,
       // Valores viejos de texto libre que no están en la lista se muestran vacíos para elegir uno válido.
       mercadoObjetivo: (MERCADOS_OBJETIVO as readonly string[]).includes(existente.mercadoObjetivo ?? '') ? existente.mercadoObjetivo ?? '' : '',
+      comercializacion: (COMERCIALIZACIONES as readonly string[]).includes(existente.comercializacion ?? '') ? existente.comercializacion ?? '' : '',
     });
   }, [existente]);
 
@@ -338,6 +340,24 @@ export default function FormularioEstablecimiento() {
               {MERCADOS_OBJETIVO.map((mercado) => (
                 <MenuItem key={mercado} value={mercado}>
                   {mercado}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Comercialización"
+              fullWidth
+              margin="normal"
+              value={datos.comercializacion ?? ''}
+              onChange={(e) => actualizarCampo('comercializacion', e.target.value)}
+              disabled={enviando}
+            >
+              <MenuItem value="">
+                <em>Sin especificar</em>
+              </MenuItem>
+              {COMERCIALIZACIONES.map((opcion) => (
+                <MenuItem key={opcion} value={opcion}>
+                  {opcion}
                 </MenuItem>
               ))}
             </TextField>

@@ -52,4 +52,23 @@ describe('Mercado objetivo del establecimiento', () => {
     fireEvent.click(lista.getByRole('option', { name: 'Adultos mayores' }));
     expect(screen.getByRole('combobox', { name: 'Mercado objetivo' })).toHaveTextContent('Adultos mayores');
   });
+
+  it('Comercialización también es un desplegable con las opciones de la Ficha BPM', async () => {
+    irAlPasoOperativo();
+
+    const campo = await screen.findByRole('combobox', { name: 'Comercialización' });
+    fireEvent.mouseDown(campo);
+    const lista = within(await screen.findByRole('listbox'));
+
+    expect(lista.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Sin especificar',
+      'Local',
+      'Nacional',
+      'Internacional',
+      'Todos los mercados',
+    ]);
+
+    fireEvent.click(lista.getByRole('option', { name: 'Internacional' }));
+    expect(screen.getByRole('combobox', { name: 'Comercialización' })).toHaveTextContent('Internacional');
+  });
 });

@@ -24,6 +24,7 @@ export interface DatosEstablecimiento {
   empleadosMasculino?: number;
   empleadosFemenino?: number;
   mercadoObjetivo?: string;
+  comercializacion?: string;
 }
 
 /**

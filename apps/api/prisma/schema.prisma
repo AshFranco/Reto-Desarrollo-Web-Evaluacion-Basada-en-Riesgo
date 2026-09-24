@@ -237,6 +237,7 @@ model Establecimiento {
   empleadosMasculino       Int       @default(0) @map("empleados_masculino") @db.SmallInt
   empleadosFemenino        Int       @default(0) @map("empleados_femenino") @db.SmallInt
   mercadoObjetivo          String?   @map("mercado_objetivo") @db.VarChar(150)
+  comercializacion         String?   @db.VarChar(50)
   latitud                  Decimal?  @db.Decimal(10, 7)
   longitud                 Decimal?  @db.Decimal(10, 7)
   activo                   Boolean   @default(true)

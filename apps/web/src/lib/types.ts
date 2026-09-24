@@ -100,6 +100,7 @@ export interface Establecimiento {
   empleadosMasculino: number;
   empleadosFemenino: number;
   mercadoObjetivo: string | null;
+  comercializacion: string | null;
   latitud: string | null;
   longitud: string | null;
   activo: boolean;
