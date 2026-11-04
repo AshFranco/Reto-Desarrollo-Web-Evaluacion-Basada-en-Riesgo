@@ -56,7 +56,13 @@ export function useCrearEstablecimiento() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(datos),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['establecimientos'] }),
+    // 'empresas' también se invalida porque GET /empresas/:id (useEmpresa)
+    // trae los establecimientos anidados -- es lo que lee FormularioSolicitud
+    // para su selector, y quedaba desactualizado si solo se invalidaba esto.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['establecimientos'] });
+      queryClient.invalidateQueries({ queryKey: ['empresas'] });
+    },
   });
 }
 
@@ -72,6 +78,7 @@ export function useEditarEstablecimiento(id: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['establecimientos'] });
       queryClient.invalidateQueries({ queryKey: ['establecimientos', id] });
+      queryClient.invalidateQueries({ queryKey: ['empresas'] });
     },
   });
 }
