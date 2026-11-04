@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { server } from '@/mocks/node';
-import { MOCK_ESTABLECIMIENTO } from '@/mocks/handlers';
+import { MOCK_ESTABLECIMIENTO, MOCK_EMPRESA } from '@/mocks/handlers';
 import { db } from '@/lib/db';
 import {
   useEstablecimientos,
@@ -12,6 +12,7 @@ import {
   useCrearEstablecimiento,
   useEditarEstablecimiento,
 } from './useEstablecimientos';
+import { useEmpresa } from './useEmpresas';
 
 beforeEach(() => db.open());
 afterEach(() => db.delete());
@@ -71,6 +72,33 @@ describe('useCrearEstablecimiento', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('Su usuario no está vinculado a ninguna empresa todavía.');
+  });
+
+  it('invalida también la caché de "empresas", de donde FormularioSolicitud lee el selector de establecimientos', async () => {
+    // Antes solo se invalidaba 'establecimientos': GET /empresas/:id (useEmpresa,
+    // que trae los establecimientos anidados) quedaba con datos viejos y el
+    // establecimiento recién creado no aparecía en el selector sin recargar la página.
+    let llamadasAEmpresa = 0;
+    server.use(
+      http.get('http://localhost:3000/api/v1/empresas/:id', () => {
+        llamadasAEmpresa++;
+        return HttpResponse.json(MOCK_EMPRESA);
+      })
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    const empresa = renderHook(() => useEmpresa('1'), { wrapper });
+    await waitFor(() => expect(empresa.result.current.isSuccess).toBe(true));
+    expect(llamadasAEmpresa).toBe(1);
+
+    const crear = renderHook(() => useCrearEstablecimiento(), { wrapper });
+    crear.result.current.mutate({ nombre: 'Planta Nueva' });
+    await waitFor(() => expect(crear.result.current.isSuccess).toBe(true));
+
+    await waitFor(() => expect(llamadasAEmpresa).toBe(2));
   });
 });
 
